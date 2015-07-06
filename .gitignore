@@ -1,0 +1,25 @@
+# Output directories
+output-*/
+
+# PDCurses build files
+src/pdcurses/win32/*.def
+src/pdcurses/win32/*.dll
+src/pdcurses/win32/*.exp
+src/pdcurses/win32/*.lib
+src/pdcurses/win32/*.obj
+src/pdcurses/win32/*.res
+
+# zlib build files
+src/zlib/*.obj
+src/zlib/*.exp
+src/zlib/*.lib
+src/zlib/*.pdb
+src/zlib/*.dll
+src/zlib/*.res
+
+# c-ares build files
+src/c-ares/msvc*/
+
+# regex build files
+src/regex/regex*/
+src/regex/regex.vcxproj.user
