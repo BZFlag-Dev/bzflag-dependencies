@@ -54,10 +54,7 @@ static char rcsid[] = "$NetBSD: regexec.c,v 1.6 1995/02/27 13:29:48 cgd Exp $";
 #include <limits.h>
 #include <ctype.h>
 
-#ifndef BUILD_REGEX
-#  define BUILD_REGEX 1
-#endif
-#include "bzregex.h"
+#include "./regex.h"
 #include "./utils.h"
 #include "./regex2.h"
 
