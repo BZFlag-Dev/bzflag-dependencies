@@ -1,14 +1,8 @@
 @echo off
 
-set origroot=%cd%
-set srcroot=%cd%\src
-set outputroot=%cd%\output-release-x86
-
-if not exist %srcroot%\zlib (
-	echo.
-	echo Please run %~n0.bat directly.
-	goto end
-)
+set origroot=%~dp0
+set srcroot=%origroot%\src
+set outputroot=%origroot%\output-release-x86
 
 if not "%DevEnvDir%" == "" (
 	echo.
