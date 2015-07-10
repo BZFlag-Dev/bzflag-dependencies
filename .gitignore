@@ -8,6 +8,8 @@ src/pdcurses/win32/*.exp
 src/pdcurses/win32/*.lib
 src/pdcurses/win32/*.obj
 src/pdcurses/win32/*.res
+src/pdcurses/win32/none
+src/pdcurses/win32/pdcurses.ilk
 
 # zlib build files
 src/zlib/*.obj
