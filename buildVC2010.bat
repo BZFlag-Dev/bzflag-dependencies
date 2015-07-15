@@ -48,9 +48,9 @@ cd %srcroot%\pdcurses\win32
 ::del none pdcurses.ilk
 
 if "%CONF%" == "debug" (
-	nmake -f vcwin32.mak DLL= UTF8= pdcurses.dll
+	nmake -f vcwin32.mak UTF8= pdcurses.lib
 ) else (
-	nmake -f vcwin32.mak DEBUG= DLL= UTF8= pdcurses.dll
+	nmake -f vcwin32.mak DEBUG= UTF8= pdcurses.lib
 )
 
 set PDCURSES_RESULT=%ERRORLEVEL%
