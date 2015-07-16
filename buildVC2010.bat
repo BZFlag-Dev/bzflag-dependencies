@@ -57,9 +57,7 @@ set PDCURSES_RESULT=%ERRORLEVEL%
 
 if %PDCURSES_RESULT% == 0 (
 	cd %srcroot%\pdcurses
-	copy win32\*.dll %outputroot%\bin\
 	copy win32\*.lib %outputroot%\lib\
-	copy win32\*.exp %outputroot%\lib\
 	copy *.h %outputroot%\include\
 )
 
