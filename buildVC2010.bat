@@ -1,6 +1,7 @@
 @echo off
 
-:: If you pass x64 as the first argument to the batch script, it will (in theory) build 64-bit versions of the libraries.
+:: FIXME: 64-bit builds DO NOT work and instead seem to build as 32-bit or just fail.
+:: If you pass x64 as the first argument to the batch script, it would (in theory) build 64-bit versions of the libraries.
 ::   C:\> buildVC2010.bat x64
 
 if not "%DevEnvDir%" == "" (
@@ -48,9 +49,9 @@ cd %srcroot%\pdcurses\win32
 ::del none pdcurses.ilk
 
 if "%CONF%" == "debug" (
-	nmake -f vcwin32.mak UTF8= pdcurses.lib
-) else (
 	nmake -f vcwin32.mak DEBUG= UTF8= pdcurses.lib
+) else (
+	nmake -f vcwin32.mak UTF8= pdcurses.lib
 )
 
 set PDCURSES_RESULT=%ERRORLEVEL%
