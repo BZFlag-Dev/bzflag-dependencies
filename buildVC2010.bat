@@ -13,7 +13,16 @@ if not "%DevEnvDir%" == "" (
 set ARCH=x86
 if "%1" == "x64" set ARCH=x64
 
-call "C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\vcvarsall.bat" %ARCH%
+if exist "%ProgramFiles%\Microsoft Visual Studio 10.0\VC\vcvarsall.bat" (
+	call "%ProgramFiles%\Microsoft Visual Studio 10.0\VC\vcvarsall.bat" %ARCH%
+) else if exist "%ProgramFiles(x86)%\Microsoft Visual Studio 10.0\VC\vcvarsall.bat" (
+	call "%ProgramFiles(x86)%\Microsoft Visual Studio 10.0\VC\vcvarsall.bat" %ARCH%
+) else (
+	echo Unable to locate vcvarsall.bat, aborting
+	pause
+	goto:eof
+)
+
 
 call:buildDeps %ARCH% release
 call:buildDeps %ARCH% debug
