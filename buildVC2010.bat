@@ -155,9 +155,9 @@ echo ==============================
 
 cd %srcroot%\regex
 if "%ARCH%" == "x86" (
-	devenv /build "%CONF%|Win32" /project regex regex.sln
+	msbuild regex.sln /property:Configuration=%CONF% /property:Platform=Win32
 ) else (
-	devenv /build "%CONF%|x64" /project regex regex.sln
+	msbuild regex.sln /property:Configuration=%CONF% /property:Platform=x64
 )
 
 set REGEX_RESULT=%ERRORLEVEL%
