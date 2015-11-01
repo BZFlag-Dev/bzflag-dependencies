@@ -1,6 +1,6 @@
 
 /* Copyright 1998 by the Massachusetts Institute of Technology.
- * Copyright (C) 2007-2013 by Daniel Stenberg
+ * Copyright (C) 2007-2010 by Daniel Stenberg
  *
  * Permission to use, copy, modify, and distribute this
  * software and its documentation for any purpose and without
@@ -17,8 +17,20 @@
 
 #include "ares_setup.h"
 
+#ifdef USE_WINSOCK
+#include <iphlpapi.h>
+#endif
+
 #ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
+#endif
+
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
 #endif
 
 #ifdef HAVE_NETINET_IN_H
@@ -42,26 +54,31 @@
 #  include <arpa/nameser_compat.h>
 #endif
 
-#if defined(ANDROID) || defined(__ANDROID__)
-#include <sys/system_properties.h>
-/* From the Bionic sources */
-#define DNS_PROP_NAME_PREFIX  "net.dns"
-#define MAX_DNS_PROPERTIES    8
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
 #endif
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+#include <time.h>
+#include <errno.h>
 #include "ares.h"
-#include "ares_inet_net_pton.h"
+#include "inet_net_pton.h"
 #include "ares_library_init.h"
 #include "ares_nowarn.h"
-#include "ares_platform.h"
 #include "ares_private.h"
+
+#ifdef ANDROID
+#include <sys/system_properties.h>
+#endif
 
 #ifdef WATT32
 #undef WIN32  /* Redefined in MingW/MSVC headers */
 #endif
 
-static int init_by_options(ares_channel channel,
-                           const struct ares_options *options,
+static int init_by_options(ares_channel channel, const struct ares_options *options,
                            int optmask);
 static int init_by_environment(ares_channel channel);
 static int init_by_resolv_conf(ares_channel channel);
@@ -76,10 +93,8 @@ static int set_options(ares_channel channel, const char *str);
 static const char *try_option(const char *p, const char *q, const char *opt);
 static int init_id_key(rc4_key* key,int key_data_len);
 
-#if !defined(WIN32) && !defined(WATT32) && \
-    !defined(ANDROID) && !defined(__ANDROID__)
-static int sortlist_alloc(struct apattern **sortlist, int *nsort,
-                          struct apattern *pat);
+#if !defined(WIN32) && !defined(WATT32)
+static int sortlist_alloc(struct apattern **sortlist, int *nsort, struct apattern *pat);
 static int ip_addr(const char *s, ssize_t len, struct in_addr *addr);
 static void natural_mask(struct apattern *pat);
 static int config_domain(ares_channel channel, char *str);
@@ -87,7 +102,7 @@ static int config_lookup(ares_channel channel, const char *str,
                          const char *bindch, const char *filech);
 static int config_sortlist(struct apattern **sortlist, int *nsort,
                            const char *str);
-static char *try_config(char *s, const char *opt, char scc);
+static char *try_config(char *s, const char *opt);
 #endif
 
 #define ARES_CONFIG_CHECK(x) (x->lookups && x->nsort > -1 && \
@@ -144,7 +159,6 @@ int ares_init_options(ares_channel *channelptr, struct ares_options *options,
   channel->rotate = -1;
   channel->udp_port = -1;
   channel->tcp_port = -1;
-  channel->ednspsz = -1;
   channel->socket_send_buffer_size = -1;
   channel->socket_receive_buffer_size = -1;
   channel->nservers = -1;
@@ -281,8 +295,7 @@ int ares_dup(ares_channel *dest, ares_channel src)
   (*dest)->sock_create_cb      = src->sock_create_cb;
   (*dest)->sock_create_cb_data = src->sock_create_cb_data;
 
-  strncpy((*dest)->local_dev_name, src->local_dev_name,
-          sizeof(src->local_dev_name));
+  strncpy((*dest)->local_dev_name, src->local_dev_name, sizeof(src->local_dev_name));
   (*dest)->local_ip4 = src->local_ip4;
   memcpy((*dest)->local_ip6, src->local_ip6, sizeof(src->local_ip6));
 
@@ -337,8 +350,8 @@ int ares_save_options(ares_channel channel, struct ares_options *options,
   options->timeout = channel->timeout;
   options->tries   = channel->tries;
   options->ndots   = channel->ndots;
-  options->udp_port = ntohs(aresx_sitous(channel->udp_port));
-  options->tcp_port = ntohs(aresx_sitous(channel->tcp_port));
+  options->udp_port = (unsigned short)channel->udp_port;
+  options->tcp_port = (unsigned short)channel->tcp_port;
   options->sock_state_cb     = channel->sock_state_cb;
   options->sock_state_cb_data = channel->sock_state_cb_data;
 
@@ -350,7 +363,7 @@ int ares_save_options(ares_channel channel, struct ares_options *options,
         ipv4_nservers++;
     }
     if (ipv4_nservers) {
-      options->servers = malloc(ipv4_nservers * sizeof(struct in_addr));
+      options->servers = malloc(ipv4_nservers * sizeof(struct server_state));
       if (!options->servers)
         return ARES_ENOMEM;
       for (i = j = 0; i < channel->nservers; i++)
@@ -420,9 +433,9 @@ static int init_by_options(ares_channel channel,
   if ((optmask & ARES_OPT_ROTATE) && channel->rotate == -1)
     channel->rotate = 1;
   if ((optmask & ARES_OPT_UDP_PORT) && channel->udp_port == -1)
-    channel->udp_port = htons(options->udp_port);
+    channel->udp_port = options->udp_port;
   if ((optmask & ARES_OPT_TCP_PORT) && channel->tcp_port == -1)
-    channel->tcp_port = htons(options->tcp_port);
+    channel->tcp_port = options->tcp_port;
   if ((optmask & ARES_OPT_SOCK_STATE_CB) && channel->sock_state_cb == NULL)
     {
       channel->sock_state_cb = options->sock_state_cb;
@@ -434,9 +447,6 @@ static int init_by_options(ares_channel channel,
   if ((optmask & ARES_OPT_SOCK_RCVBUF)
       && channel->socket_receive_buffer_size == -1)
     channel->socket_receive_buffer_size = options->socket_receive_buffer_size;
-
-  if ((optmask & ARES_OPT_EDNSPSZ) && channel->ednspsz == -1)
-    channel->ednspsz = options->ednspsz;
 
   /* Copy the IPv4 servers, if given. */
   if ((optmask & ARES_OPT_SERVERS) && channel->nservers == -1)
@@ -531,531 +541,133 @@ static int init_by_environment(ares_channel channel)
 
 #ifdef WIN32
 /*
- * get_REG_SZ()
- *
- * Given a 'hKey' handle to an open registry key and a 'leafKeyName' pointer
- * to the name of the registry leaf key to be queried, fetch it's string
- * value and return a pointer in *outptr to a newly allocated memory area
- * holding it as a null-terminated string.
- *
- * Returns 0 and nullifies *outptr upon inability to return a string value.
- *
- * Returns 1 and sets *outptr when returning a dynamically allocated string.
- *
- * Supported on Windows NT 3.5 and newer.
+ * Warning: returns a dynamically allocated buffer, the user MUST
+ * use free() if the function returns 1
  */
-static int get_REG_SZ(HKEY hKey, const char *leafKeyName, char **outptr)
+static int get_res_nt(HKEY hKey, const char *subkey, char **obuf)
 {
+  /* Test for the size we need */
   DWORD size = 0;
-  int   res;
+  int result;
 
-  *outptr = NULL;
-
-  /* Find out size of string stored in registry */
-  res = RegQueryValueEx(hKey, leafKeyName, 0, NULL, NULL, &size);
-  if ((res != ERROR_SUCCESS && res != ERROR_MORE_DATA) || !size)
+  result = RegQueryValueEx(hKey, subkey, 0, NULL, NULL, &size);
+  if ((result != ERROR_SUCCESS && result != ERROR_MORE_DATA) || !size)
+    return 0;
+  *obuf = malloc(size+1);
+  if (!*obuf)
     return 0;
 
-  /* Allocate buffer of indicated size plus one given that string
-     might have been stored without null termination */
-  *outptr = malloc(size+1);
-  if (!*outptr)
-    return 0;
-
-  /* Get the value for real */
-  res = RegQueryValueEx(hKey, leafKeyName, 0, NULL,
-                        (unsigned char *)*outptr, &size);
-  if ((res != ERROR_SUCCESS) || (size == 1))
+  if (RegQueryValueEx(hKey, subkey, 0, NULL,
+                      (LPBYTE)*obuf, &size) != ERROR_SUCCESS)
   {
-    free(*outptr);
-    *outptr = NULL;
+    free(*obuf);
     return 0;
   }
-
-  /* Null terminate buffer allways */
-  *(*outptr + size) = '\0';
-
+  if (size == 1)
+  {
+    free(*obuf);
+    return 0;
+  }
   return 1;
 }
 
-/*
- * get_REG_SZ_9X()
- *
- * Functionally identical to get_REG_SZ()
- *
- * Supported on Windows 95, 98 and ME.
- */
-static int get_REG_SZ_9X(HKEY hKey, const char *leafKeyName, char **outptr)
+static int get_res_interfaces_nt(HKEY hKey, const char *subkey, char **obuf)
 {
-  DWORD dataType = 0;
-  DWORD size = 0;
-  int   res;
+  char enumbuf[39]; /* GUIDs are 38 chars + 1 for NULL */
+  DWORD enum_size = 39;
+  int idx = 0;
+  HKEY hVal;
 
-  *outptr = NULL;
-
-  /* Find out size of string stored in registry */
-  res = RegQueryValueEx(hKey, leafKeyName, 0, &dataType, NULL, &size);
-  if ((res != ERROR_SUCCESS && res != ERROR_MORE_DATA) || !size)
-    return 0;
-
-  /* Allocate buffer of indicated size plus one given that string
-     might have been stored without null termination */
-  *outptr = malloc(size+1);
-  if (!*outptr)
-    return 0;
-
-  /* Get the value for real */
-  res = RegQueryValueEx(hKey, leafKeyName, 0, &dataType,
-                        (unsigned char *)*outptr, &size);
-  if ((res != ERROR_SUCCESS) || (size == 1))
+  while (RegEnumKeyEx(hKey, idx++, enumbuf, &enum_size, 0,
+                      NULL, NULL, NULL) != ERROR_NO_MORE_ITEMS)
   {
-    free(*outptr);
-    *outptr = NULL;
-    return 0;
-  }
+    int rc;
 
-  /* Null terminate buffer allways */
-  *(*outptr + size) = '\0';
-
-  return 1;
-}
-
-/*
- * get_enum_REG_SZ()
- *
- * Given a 'hKeyParent' handle to an open registry key and a 'leafKeyName'
- * pointer to the name of the registry leaf key to be queried, parent key
- * is enumerated searching in child keys for given leaf key name and its
- * associated string value. When located, this returns a pointer in *outptr
- * to a newly allocated memory area holding it as a null-terminated string.
- *
- * Returns 0 and nullifies *outptr upon inability to return a string value.
- *
- * Returns 1 and sets *outptr when returning a dynamically allocated string.
- *
- * Supported on Windows NT 3.5 and newer.
- */
-static int get_enum_REG_SZ(HKEY hKeyParent, const char *leafKeyName,
-                           char **outptr)
-{
-  char  enumKeyName[256];
-  DWORD enumKeyNameBuffSize;
-  DWORD enumKeyIdx = 0;
-  HKEY  hKeyEnum;
-  int   gotString;
-  int   res;
-
-  *outptr = NULL;
-
-  for(;;)
-  {
-    enumKeyNameBuffSize = sizeof(enumKeyName);
-    res = RegEnumKeyEx(hKeyParent, enumKeyIdx++, enumKeyName,
-                       &enumKeyNameBuffSize, 0, NULL, NULL, NULL);
-    if (res != ERROR_SUCCESS)
-      break;
-    res = RegOpenKeyEx(hKeyParent, enumKeyName, 0, KEY_QUERY_VALUE,
-                       &hKeyEnum);
-    if (res != ERROR_SUCCESS)
+    enum_size = 39;
+    if (RegOpenKeyEx(hKey, enumbuf, 0, KEY_QUERY_VALUE, &hVal) !=
+        ERROR_SUCCESS)
       continue;
-    gotString = get_REG_SZ(hKeyEnum, leafKeyName, outptr);
-    RegCloseKey(hKeyEnum);
-    if (gotString)
-      break;
-  }
-
-  if (!*outptr)
-    return 0;
-
-  return 1;
+    rc = get_res_nt(hVal, subkey, obuf);
+      RegCloseKey(hVal);
+    if (rc)
+      return 1;
+    }
+  return 0;
 }
 
-/*
- * get_DNS_Registry_9X()
- *
- * Functionally identical to get_DNS_Registry()
- *
- * Implementation supports Windows 95, 98 and ME.
- */
-static int get_DNS_Registry_9X(char **outptr)
+static int get_iphlpapi_dns_info (char *ret_buf, size_t ret_size)
 {
-  HKEY hKey_VxD_MStcp;
-  int  gotString;
-  int  res;
-
-  *outptr = NULL;
-
-  res = RegOpenKeyEx(HKEY_LOCAL_MACHINE, WIN_NS_9X, 0, KEY_READ,
-                     &hKey_VxD_MStcp);
-  if (res != ERROR_SUCCESS)
-    return 0;
-
-  gotString = get_REG_SZ_9X(hKey_VxD_MStcp, NAMESERVER, outptr);
-  RegCloseKey(hKey_VxD_MStcp);
-
-  if (!gotString || !*outptr)
-    return 0;
-
-  return 1;
-}
-
-/*
- * get_DNS_Registry_NT()
- *
- * Functionally identical to get_DNS_Registry()
- *
- * Refs: Microsoft Knowledge Base articles KB120642 and KB314053.
- *
- * Implementation supports Windows NT 3.5 and newer.
- */
-static int get_DNS_Registry_NT(char **outptr)
-{
-  HKEY hKey_Interfaces = NULL;
-  HKEY hKey_Tcpip_Parameters;
-  int  gotString;
-  int  res;
-
-  *outptr = NULL;
-
-  res = RegOpenKeyEx(HKEY_LOCAL_MACHINE, WIN_NS_NT_KEY, 0, KEY_READ,
-                     &hKey_Tcpip_Parameters);
-  if (res != ERROR_SUCCESS)
-    return 0;
-
-  /*
-  ** Global DNS settings override adapter specific parameters when both
-  ** are set. Additionally static DNS settings override DHCP-configured
-  ** parameters when both are set.
-  */
-
-  /* Global DNS static parameters */
-  gotString = get_REG_SZ(hKey_Tcpip_Parameters, NAMESERVER, outptr);
-  if (gotString)
-    goto done;
-
-  /* Global DNS DHCP-configured parameters */
-  gotString = get_REG_SZ(hKey_Tcpip_Parameters, DHCPNAMESERVER, outptr);
-  if (gotString)
-    goto done;
-
-  /* Try adapter specific parameters */
-  res = RegOpenKeyEx(hKey_Tcpip_Parameters, "Interfaces", 0,
-                     KEY_QUERY_VALUE | KEY_ENUMERATE_SUB_KEYS,
-                     &hKey_Interfaces);
-  if (res != ERROR_SUCCESS)
-  {
-    hKey_Interfaces = NULL;
-    goto done;
-  }
-
-  /* Adapter specific DNS static parameters */
-  gotString = get_enum_REG_SZ(hKey_Interfaces, NAMESERVER, outptr);
-  if (gotString)
-    goto done;
-
-  /* Adapter specific DNS DHCP-configured parameters */
-  gotString = get_enum_REG_SZ(hKey_Interfaces, DHCPNAMESERVER, outptr);
-
-done:
-  if (hKey_Interfaces)
-    RegCloseKey(hKey_Interfaces);
-
-  RegCloseKey(hKey_Tcpip_Parameters);
-
-  if (!gotString || !*outptr)
-    return 0;
-
-  return 1;
-}
-
-/*
- * get_DNS_Registry()
- *
- * Locates DNS info in the registry. When located, this returns a pointer
- * in *outptr to a newly allocated memory area holding a null-terminated
- * string with a space or comma seperated list of DNS IP addresses.
- *
- * Returns 0 and nullifies *outptr upon inability to return DNSes string.
- *
- * Returns 1 and sets *outptr when returning a dynamically allocated string.
- */
-static int get_DNS_Registry(char **outptr)
-{
-  win_platform platform;
-  int gotString = 0;
-
-  *outptr = NULL;
-
-  platform = ares__getplatform();
-
-  if (platform == WIN_NT)
-    gotString = get_DNS_Registry_NT(outptr);
-  else if (platform == WIN_9X)
-    gotString = get_DNS_Registry_9X(outptr);
-
-  if (!gotString)
-    return 0;
-
-  return 1;
-}
-
-/*
- * commajoin()
- *
- * RTF code.
- */
-static void commajoin(char **dst, const char *src)
-{
-  char *tmp;
-
-  if (*dst)
-  {
-    tmp = malloc(strlen(*dst) + strlen(src) + 2);
-    if (!tmp)
-      return;
-    sprintf(tmp, "%s,%s", *dst, src);
-    free(*dst);
-    *dst = tmp;
-  }
-  else
-  {
-    *dst = malloc(strlen(src) + 1);
-    if (!*dst)
-      return;
-    strcpy(*dst, src);
-  }
-}
-
-/*
- * get_DNS_NetworkParams()
- *
- * Locates DNS info using GetNetworkParams() function from the Internet
- * Protocol Helper (IP Helper) API. When located, this returns a pointer
- * in *outptr to a newly allocated memory area holding a null-terminated
- * string with a space or comma seperated list of DNS IP addresses.
- *
- * Returns 0 and nullifies *outptr upon inability to return DNSes string.
- *
- * Returns 1 and sets *outptr when returning a dynamically allocated string.
- *
- * Implementation supports Windows 98 and newer.
- *
- * Note: Ancient PSDK required in order to build a W98 target.
- */
-static int get_DNS_NetworkParams(char **outptr)
-{
-  FIXED_INFO       *fi, *newfi;
-  struct ares_addr namesrvr;
-  char             *txtaddr;
-  IP_ADDR_STRING   *ipAddr;
-  int              res;
-  DWORD            size = sizeof (*fi);
-
-  *outptr = NULL;
-
-  /* Verify run-time availability of GetNetworkParams() */
-  if (ares_fpGetNetworkParams == ZERO_NULL)
-    return 0;
+  FIXED_INFO    *fi, *newfi;
+  DWORD          size = sizeof (*fi);
+  IP_ADDR_STRING *ipAddr;
+  int            i, count = 0;
+  int            debug  = 0;
+  size_t         ip_size = sizeof("255.255.255.255,")-1;
+  size_t         left = ret_size;
+  char          *ret = ret_buf;
+  HRESULT        res;
 
   fi = malloc(size);
   if (!fi)
-    return 0;
+     return 0;
 
   res = (*ares_fpGetNetworkParams) (fi, &size);
   if ((res != ERROR_BUFFER_OVERFLOW) && (res != ERROR_SUCCESS))
-    goto done;
+     goto quit;
 
   newfi = realloc(fi, size);
   if (!newfi)
-    goto done;
+     goto quit;
 
   fi = newfi;
   res = (*ares_fpGetNetworkParams) (fi, &size);
   if (res != ERROR_SUCCESS)
-    goto done;
+     goto quit;
 
-  for (ipAddr = &fi->DnsServerList; ipAddr; ipAddr = ipAddr->Next)
+  if (debug)
   {
-    txtaddr = &ipAddr->IpAddress.String[0];
-
-    /* Validate converting textual address to binary format. */
-    if (ares_inet_pton(AF_INET, txtaddr, &namesrvr.addrV4) == 1)
-    {
-      if ((namesrvr.addrV4.S_un.S_addr == INADDR_ANY) ||
-          (namesrvr.addrV4.S_un.S_addr == INADDR_NONE))
-        continue;
-    }
-    else if (ares_inet_pton(AF_INET6, txtaddr, &namesrvr.addrV6) == 1)
-    {
-      if (memcmp(&namesrvr.addrV6, &ares_in6addr_any,
-                 sizeof(namesrvr.addrV6)) == 0)
-        continue;
-    }
-    else
-      continue;
-
-    commajoin(outptr, txtaddr);
-
-    if (!*outptr)
-      break;
+    printf ("Host Name: %s\n", fi->HostName);
+    printf ("Domain Name: %s\n", fi->DomainName);
+    printf ("DNS Servers:\n"
+            "    %s (primary)\n", fi->DnsServerList.IpAddress.String);
+  }
+  if (strlen(fi->DnsServerList.IpAddress.String) > 0 &&
+      inet_addr(fi->DnsServerList.IpAddress.String) != INADDR_NONE &&
+      left > ip_size)
+  {
+    ret += sprintf (ret, "%s,", fi->DnsServerList.IpAddress.String);
+    left -= ret - ret_buf;
+    count++;
   }
 
-done:
+  for (i = 0, ipAddr = fi->DnsServerList.Next; ipAddr && left > ip_size;
+       ipAddr = ipAddr->Next, i++)
+  {
+    if (inet_addr(ipAddr->IpAddress.String) != INADDR_NONE)
+    {
+       ret += sprintf (ret, "%s,", ipAddr->IpAddress.String);
+       left -= ret - ret_buf;
+       count++;
+    }
+    if (debug)
+       printf ("    %s (secondary %d)\n", ipAddr->IpAddress.String, i+1);
+  }
+
+quit:
   if (fi)
-    free(fi);
+     free(fi);
 
-  if (!*outptr)
-    return 0;
-
-  return 1;
-}
-
-/*
- * get_DNS_AdaptersAddresses()
- *
- * Locates DNS info using GetAdaptersAddresses() function from the Internet
- * Protocol Helper (IP Helper) API. When located, this returns a pointer
- * in *outptr to a newly allocated memory area holding a null-terminated
- * string with a space or comma seperated list of DNS IP addresses.
- *
- * Returns 0 and nullifies *outptr upon inability to return DNSes string.
- *
- * Returns 1 and sets *outptr when returning a dynamically allocated string.
- *
- * Implementation supports Windows XP and newer.
- */
-#define IPAA_INITIAL_BUF_SZ 15 * 1024
-#define IPAA_MAX_TRIES 3
-static int get_DNS_AdaptersAddresses(char **outptr)
-{
-  IP_ADAPTER_DNS_SERVER_ADDRESS *ipaDNSAddr;
-  IP_ADAPTER_ADDRESSES *ipaa, *newipaa, *ipaaEntry;
-  ULONG ReqBufsz = IPAA_INITIAL_BUF_SZ;
-  ULONG Bufsz = IPAA_INITIAL_BUF_SZ;
-  ULONG AddrFlags = 0;
-  int trying = IPAA_MAX_TRIES;
-  int res;
-
-  union {
-    struct sockaddr     *sa;
-    struct sockaddr_in  *sa4;
-    struct sockaddr_in6 *sa6;
-  } namesrvr;
-
-  char txtaddr[sizeof("ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255")];
-
-  *outptr = NULL;
-
-  /* Verify run-time availability of GetAdaptersAddresses() */
-  if (ares_fpGetAdaptersAddresses == ZERO_NULL)
-    return 0;
-
-  ipaa = malloc(Bufsz);
-  if (!ipaa)
-    return 0;
-
-  /* Usually this call suceeds with initial buffer size */
-  res = (*ares_fpGetAdaptersAddresses) (AF_UNSPEC, AddrFlags, NULL,
-                                        ipaa, &ReqBufsz);
-  if ((res != ERROR_BUFFER_OVERFLOW) && (res != ERROR_SUCCESS))
-    goto done;
-
-  while ((res == ERROR_BUFFER_OVERFLOW) && (--trying))
-  {
-    if (Bufsz < ReqBufsz)
-    {
-      newipaa = realloc(ipaa, ReqBufsz);
-      if (!newipaa)
-        goto done;
-      Bufsz = ReqBufsz;
-      ipaa = newipaa;
-    }
-    res = (*ares_fpGetAdaptersAddresses) (AF_UNSPEC, AddrFlags, NULL,
-                                          ipaa, &ReqBufsz);
-    if (res == ERROR_SUCCESS)
-      break;
-  }
-  if (res != ERROR_SUCCESS)
-    goto done;
-
-  for (ipaaEntry = ipaa; ipaaEntry; ipaaEntry = ipaaEntry->Next)
-  {
-    for (ipaDNSAddr = ipaaEntry->FirstDnsServerAddress;
-         ipaDNSAddr;
-         ipaDNSAddr = ipaDNSAddr->Next)
-    {
-      namesrvr.sa = ipaDNSAddr->Address.lpSockaddr;
-
-      if (namesrvr.sa->sa_family == AF_INET)
-      {
-        if ((namesrvr.sa4->sin_addr.S_un.S_addr == INADDR_ANY) ||
-            (namesrvr.sa4->sin_addr.S_un.S_addr == INADDR_NONE))
-          continue;
-        if (! ares_inet_ntop(AF_INET, &namesrvr.sa4->sin_addr,
-                             txtaddr, sizeof(txtaddr)))
-          continue;
-      }
-      else if (namesrvr.sa->sa_family == AF_INET6)
-      {
-        if (memcmp(&namesrvr.sa6->sin6_addr, &ares_in6addr_any,
-                   sizeof(namesrvr.sa6->sin6_addr)) == 0)
-          continue;
-        if (! ares_inet_ntop(AF_INET6, &namesrvr.sa6->sin6_addr,
-                             txtaddr, sizeof(txtaddr)))
-          continue;
-      }
-      else
-        continue;
-
-      commajoin(outptr, txtaddr);
-
-      if (!*outptr)
-        goto done;
-    }
-  }
-
-done:
-  if (ipaa)
-    free(ipaa);
-
-  if (!*outptr)
-    return 0;
-
-  return 1;
-}
-
-/*
- * get_DNS_Windows()
- *
- * Locates DNS info from Windows employing most suitable methods available at
- * run-time no matter which Windows version it is. When located, this returns
- * a pointer in *outptr to a newly allocated memory area holding a string with
- * a space or comma seperated list of DNS IP addresses, null-terminated.
- *
- * Returns 0 and nullifies *outptr upon inability to return DNSes string.
- *
- * Returns 1 and sets *outptr when returning a dynamically allocated string.
- *
- * Implementation supports Windows 95 and newer.
- */
-static int get_DNS_Windows(char **outptr)
-{
-  /* Try using IP helper API GetAdaptersAddresses() */
-  if (get_DNS_AdaptersAddresses(outptr))
-    return 1;
-
-  /* Try using IP helper API GetNetworkParams() */
-  if (get_DNS_NetworkParams(outptr))
-    return 1;
-
-  /* Fall-back to registry information */
-  return get_DNS_Registry(outptr);
+  if (debug && left <= ip_size)
+     printf ("Too many nameservers. Truncating to %d addressess", count);
+  if (ret > ret_buf)
+     ret[-1] = '\0';
+  return count;
 }
 #endif
 
 static int init_by_resolv_conf(ares_channel channel)
 {
-#if !defined(ANDROID) && !defined(__ANDROID__) && !defined(WATT32)
+#ifndef WATT32
   char *line = NULL;
 #endif
   int status = -1, nservers = 0, nsort = 0;
@@ -1064,13 +676,108 @@ static int init_by_resolv_conf(ares_channel channel)
 
 #ifdef WIN32
 
+    /*
+  NameServer info via IPHLPAPI (IP helper API):
+    GetNetworkParams() should be the trusted source for this.
+    Available in Win-98/2000 and later. If that fail, fall-back to
+    registry information.
+
+  NameServer Registry:
+
+   On Windows 9X, the DNS server can be found in:
+HKEY_LOCAL_MACHINE\System\CurrentControlSet\Services\VxD\MSTCP\NameServer
+
+        On Windows NT/2000/XP/2003:
+HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\NameServer
+        or
+HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\DhcpNameServer
+        or
+HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\{AdapterID}\
+NameServer
+        or
+HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\{AdapterID}\
+DhcpNameServer
+   */
+
+  HKEY mykey;
+  HKEY subkey;
+  DWORD data_type;
+  DWORD bytes;
+  DWORD result;
+  char  buf[256];
+
   if (channel->nservers > -1)  /* don't override ARES_OPT_SERVER */
      return ARES_SUCCESS;
 
-  if (get_DNS_Windows(&line))
+  if (get_iphlpapi_dns_info(buf,sizeof(buf)) > 0)
   {
-    status = config_nameserver(&servers, &nservers, line);
-    free(line);
+    status = config_nameserver(&servers, &nservers, buf);
+    if (status == ARES_SUCCESS)
+      goto okay;
+  }
+
+  if (IS_NT())
+  {
+    if (RegOpenKeyEx(
+          HKEY_LOCAL_MACHINE, WIN_NS_NT_KEY, 0,
+          KEY_READ, &mykey
+          ) == ERROR_SUCCESS)
+    {
+      RegOpenKeyEx(mykey, "Interfaces", 0,
+                   KEY_QUERY_VALUE|KEY_ENUMERATE_SUB_KEYS, &subkey);
+      if (get_res_nt(mykey, NAMESERVER, &line))
+      {
+        status = config_nameserver(&servers, &nservers, line);
+        free(line);
+      }
+      else if (get_res_nt(mykey, DHCPNAMESERVER, &line))
+      {
+        status = config_nameserver(&servers, &nservers, line);
+        free(line);
+      }
+      /* Try the interfaces */
+      else if (get_res_interfaces_nt(subkey, NAMESERVER, &line))
+      {
+        status = config_nameserver(&servers, &nservers, line);
+        free(line);
+      }
+      else if (get_res_interfaces_nt(subkey, DHCPNAMESERVER, &line))
+      {
+        status = config_nameserver(&servers, &nservers, line);
+        free(line);
+      }
+      RegCloseKey(subkey);
+      RegCloseKey(mykey);
+    }
+  }
+  else
+  {
+    if (RegOpenKeyEx(
+          HKEY_LOCAL_MACHINE, WIN_NS_9X, 0,
+          KEY_READ, &mykey
+          ) == ERROR_SUCCESS)
+    {
+      if ((result = RegQueryValueEx(
+             mykey, NAMESERVER, NULL, &data_type,
+             NULL, &bytes
+             )
+            ) == ERROR_SUCCESS ||
+          result == ERROR_MORE_DATA)
+      {
+        if (bytes)
+        {
+          line = malloc(bytes+1);
+          if (RegQueryValueEx(mykey, NAMESERVER, NULL, &data_type,
+                              (unsigned char *)line, &bytes) ==
+              ERROR_SUCCESS)
+          {
+            status = config_nameserver(&servers, &nservers, line);
+          }
+          free(line);
+        }
+      }
+    }
+    RegCloseKey(mykey);
   }
 
   if (status == ARES_SUCCESS)
@@ -1125,28 +832,15 @@ static int init_by_resolv_conf(ares_channel channel)
      return ARES_ENOMEM;
 
   for (i = 0; def_nameservers[i]; i++)
-  {
-    servers[i].addr.addrV4.s_addr = htonl(def_nameservers[i]);
-    servers[i].addr.family = AF_INET;
-  }
+      servers[i].addr.addrV4.s_addr = htonl(def_nameservers[i]);
   status = ARES_EOF;
 
-#elif defined(ANDROID) || defined(__ANDROID__)
-  unsigned int i;
-  char propname[PROP_NAME_MAX];
-  char propvalue[PROP_VALUE_MAX]="";
-
-  for (i = 1; i <= MAX_DNS_PROPERTIES; i++) {
-    snprintf(propname, sizeof(propname), "%s%u", DNS_PROP_NAME_PREFIX, i);
-    if (__system_property_get(propname, propvalue) < 1) {
-      status = ARES_EOF;
-      break;
-    }
-    status = config_nameserver(&servers, &nservers, propvalue);
-    if (status != ARES_SUCCESS)
-      break;
+#elif defined(ANDROID)
+  char value[PROP_VALUE_MAX]="";
+  __system_property_get("net.dns1", value);
+  status = config_nameserver(&servers, &nservers, value);
+  if (status == ARES_SUCCESS)
     status = ARES_EOF;
-  }
 #else
   {
     char *p;
@@ -1162,19 +856,17 @@ static int init_by_resolv_conf(ares_channel channel)
     if (fp) {
       while ((status = ares__read_line(fp, &line, &linesize)) == ARES_SUCCESS)
       {
-        if ((p = try_config(line, "domain", ';')))
+        if ((p = try_config(line, "domain")))
           status = config_domain(channel, p);
-        else if ((p = try_config(line, "lookup", ';')) && !channel->lookups)
+        else if ((p = try_config(line, "lookup")) && !channel->lookups)
           status = config_lookup(channel, p, "bind", "file");
-        else if ((p = try_config(line, "search", ';')))
+        else if ((p = try_config(line, "search")))
           status = set_search(channel, p);
-        else if ((p = try_config(line, "nameserver", ';')) &&
-                 channel->nservers == -1)
+        else if ((p = try_config(line, "nameserver")) && channel->nservers == -1)
           status = config_nameserver(&servers, &nservers, p);
-        else if ((p = try_config(line, "sortlist", ';')) &&
-                 channel->nsort == -1)
+        else if ((p = try_config(line, "sortlist")) && channel->nsort == -1)
           status = config_sortlist(&sortlist, &nsort, p);
-        else if ((p = try_config(line, "options", ';')))
+        else if ((p = try_config(line, "options")))
           status = set_options(channel, p);
         else
           status = ARES_SUCCESS;
@@ -1202,12 +894,10 @@ static int init_by_resolv_conf(ares_channel channel)
       /* Many systems (Solaris, Linux, BSD's) use nsswitch.conf */
       fp = fopen("/etc/nsswitch.conf", "r");
       if (fp) {
-        while ((status = ares__read_line(fp, &line, &linesize)) ==
-               ARES_SUCCESS)
+        while ((status = ares__read_line(fp, &line, &linesize)) == ARES_SUCCESS)
         {
-          if ((p = try_config(line, "hosts:", '\0')) && !channel->lookups)
-            /* ignore errors */
-            (void)config_lookup(channel, p, "dns", "files");
+          if ((p = try_config(line, "hosts:")) && !channel->lookups)
+            status = config_lookup(channel, p, "dns", "files");
         }
         fclose(fp);
       }
@@ -1221,8 +911,7 @@ static int init_by_resolv_conf(ares_channel channel)
         default:
           DEBUGF(fprintf(stderr, "fopen() failed with error: %d %s\n",
                          error, strerror(error)));
-          DEBUGF(fprintf(stderr, "Error opening file: %s\n",
-                         "/etc/nsswitch.conf"));
+          DEBUGF(fprintf(stderr, "Error opening file: %s\n", "/etc/nsswitch.conf"));
           status = ARES_EFILE;
         }
       }
@@ -1232,12 +921,10 @@ static int init_by_resolv_conf(ares_channel channel)
       /* Linux / GNU libc 2.x and possibly others have host.conf */
       fp = fopen("/etc/host.conf", "r");
       if (fp) {
-        while ((status = ares__read_line(fp, &line, &linesize)) ==
-               ARES_SUCCESS)
+        while ((status = ares__read_line(fp, &line, &linesize)) == ARES_SUCCESS)
         {
-          if ((p = try_config(line, "order", '\0')) && !channel->lookups)
-            /* ignore errors */
-            (void)config_lookup(channel, p, "bind", "hosts");
+          if ((p = try_config(line, "order")) && !channel->lookups)
+            status = config_lookup(channel, p, "bind", "hosts");
         }
         fclose(fp);
       }
@@ -1251,8 +938,7 @@ static int init_by_resolv_conf(ares_channel channel)
         default:
           DEBUGF(fprintf(stderr, "fopen() failed with error: %d %s\n",
                          error, strerror(error)));
-          DEBUGF(fprintf(stderr, "Error opening file: %s\n",
-                         "/etc/host.conf"));
+          DEBUGF(fprintf(stderr, "Error opening file: %s\n", "/etc/host.conf"));
           status = ARES_EFILE;
         }
       }
@@ -1262,12 +948,10 @@ static int init_by_resolv_conf(ares_channel channel)
       /* Tru64 uses /etc/svc.conf */
       fp = fopen("/etc/svc.conf", "r");
       if (fp) {
-        while ((status = ares__read_line(fp, &line, &linesize)) ==
-               ARES_SUCCESS)
+        while ((status = ares__read_line(fp, &line, &linesize)) == ARES_SUCCESS)
         {
-          if ((p = try_config(line, "hosts=", '\0')) && !channel->lookups)
-            /* ignore errors */
-            (void)config_lookup(channel, p, "bind", "local");
+          if ((p = try_config(line, "hosts=")) && !channel->lookups)
+            status = config_lookup(channel, p, "bind", "local");
         }
         fclose(fp);
       }
@@ -1304,6 +988,9 @@ static int init_by_resolv_conf(ares_channel channel)
     }
 
   /* If we got any name server entries, fill them in. */
+#ifdef WIN32
+okay:
+#endif
   if (servers)
     {
       channel->servers = servers;
@@ -1343,9 +1030,6 @@ static int init_by_defaults(ares_channel channel)
   if (channel->tcp_port == -1)
     channel->tcp_port = htons(NAMESERVER_PORT);
 
-  if (channel->ednspsz == -1)
-    channel->ednspsz = EDNSPACKETSZ;
-
   if (channel->nservers == -1) {
     /* If nobody specified servers, try a local named. */
     channel->servers = malloc(sizeof(struct server_state));
@@ -1358,27 +1042,21 @@ static int init_by_defaults(ares_channel channel)
     channel->nservers = 1;
   }
 
-#if defined(USE_WINSOCK)
-#define toolong(x) (x == -1) &&  (SOCKERRNO == WSAEFAULT)
-#elif defined(ENAMETOOLONG)
-#define toolong(x) (x == -1) && ((SOCKERRNO == ENAMETOOLONG) || \
-                                 (SOCKERRNO == EINVAL))
+#ifdef ENAMETOOLONG
+#define toolong(x) (x == -1) && ((ENAMETOOLONG == errno) || (EINVAL == errno))
 #else
-#define toolong(x) (x == -1) &&  (SOCKERRNO == EINVAL)
+#define toolong(x) (x == -1) && (EINVAL == errno)
 #endif
 
   if (channel->ndomains == -1) {
     /* Derive a default domain search list from the kernel hostname,
      * or set it to empty if the hostname isn't helpful.
      */
-#ifndef HAVE_GETHOSTNAME
-    channel->ndomains = 0; /* default to none */
-#else
-    GETHOSTNAME_TYPE_ARG2 lenv = 64;
     size_t len = 64;
     int res;
     channel->ndomains = 0; /* default to none */
 
+#ifdef HAVE_GETHOSTNAME
     hostname = malloc(len);
     if(!hostname) {
       rc = ARES_ENOMEM;
@@ -1386,12 +1064,11 @@ static int init_by_defaults(ares_channel channel)
     }
 
     do {
-      res = gethostname(hostname, lenv);
+      res = gethostname(hostname, len);
 
       if(toolong(res)) {
         char *p;
         len *= 2;
-        lenv *= 2;
         p = realloc(hostname, len);
         if(!p) {
           rc = ARES_ENOMEM;
@@ -1405,7 +1082,7 @@ static int init_by_defaults(ares_channel channel)
         goto error;
       }
 
-    } WHILE_FALSE;
+    } while(0);
 
     dot = strchr(hostname, '.');
     if (dot) {
@@ -1438,22 +1115,15 @@ static int init_by_defaults(ares_channel channel)
 
   error:
   if(rc) {
-    if(channel->servers) {
+    if(channel->servers)
       free(channel->servers);
-      channel->servers = NULL;
-    }
 
     if(channel->domains && channel->domains[0])
       free(channel->domains[0]);
-    if(channel->domains) {
+    if(channel->domains)
       free(channel->domains);
-      channel->domains = NULL;
-    }
-
-    if(channel->lookups) {
+    if(channel->lookups)
       free(channel->lookups);
-      channel->lookups = NULL;
-    }
   }
 
   if(hostname)
@@ -1462,8 +1132,7 @@ static int init_by_defaults(ares_channel channel)
   return rc;
 }
 
-#if !defined(WIN32) && !defined(WATT32) && \
-    !defined(ANDROID) && !defined(__ANDROID__)
+#if !defined(WIN32) && !defined(WATT32)
 static int config_domain(ares_channel channel, char *str)
 {
   char *q;
@@ -1511,7 +1180,7 @@ static int config_lookup(ares_channel channel, const char *str,
   channel->lookups = strdup(lookups);
   return (channel->lookups) ? ARES_SUCCESS : ARES_ENOMEM;
 }
-#endif  /* !WIN32 & !WATT32 & !ANDROID & !__ANDROID__ */
+#endif  /* !WIN32 & !WATT32 */
 
 #ifndef WATT32
 static int config_nameserver(struct server_state **servers, int *nservers,
@@ -1576,7 +1245,7 @@ static int config_nameserver(struct server_state **servers, int *nservers,
   return ARES_SUCCESS;
 }
 
-#if !defined(WIN32) && !defined(ANDROID) && !defined(__ANDROID__)
+#ifndef WIN32
 static int config_sortlist(struct apattern **sortlist, int *nsort,
                            const char *str)
 {
@@ -1618,9 +1287,9 @@ static int config_sortlist(struct apattern **sortlist, int *nsort,
           if (!sortlist_alloc(sortlist, nsort, &pat))
             return ARES_ENOMEM;
         }
-      else if (ipbufpfx[0] &&
-               (bits = ares_inet_net_pton(AF_INET, ipbufpfx, &pat.addrV4,
-                                          sizeof(pat.addrV4))) > 0)
+      if (ipbufpfx[0] &&
+          (bits = ares_inet_net_pton(AF_INET, ipbufpfx, &pat.addrV4,
+                                     sizeof(pat.addrV4))) > 0)
         {
           pat.type = PATTERN_CIDR;
           pat.mask.bits = (unsigned short)bits;
@@ -1657,7 +1326,7 @@ static int config_sortlist(struct apattern **sortlist, int *nsort,
 
   return ARES_SUCCESS;
 }
-#endif  /* !WIN32 & !ANDROID & !__ANDROID__ */
+#endif  /* !WIN32 */
 #endif  /* !WATT32 */
 
 static int set_search(ares_channel channel, const char *str)
@@ -1756,9 +1425,8 @@ static const char *try_option(const char *p, const char *q, const char *opt)
   return ((size_t)(q - p) >= len && !strncmp(p, opt, len)) ? &p[len] : NULL;
 }
 
-#if !defined(WIN32) && !defined(WATT32) && \
-    !defined(ANDROID) && !defined(__ANDROID__)
-static char *try_config(char *s, const char *opt, char scc)
+#if !defined(WIN32) && !defined(WATT32)
+static char *try_config(char *s, const char *opt)
 {
   size_t len;
   char *p;
@@ -1768,17 +1436,10 @@ static char *try_config(char *s, const char *opt, char scc)
     /* no line or no option */
     return NULL;
 
-  /* Hash '#' character is always used as primary comment char, additionally
-     a not-NUL secondary comment char will be considered when specified. */
-
   /* trim line comment */
   p = s;
-  if(scc)
-    while (*p && (*p != '#') && (*p != scc))
-      p++;
-  else
-    while (*p && (*p != '#'))
-      p++;
+  while (*p && (*p != '#'))
+    p++;
   *p = '\0';
 
   /* trim trailing whitespace */
@@ -1873,7 +1534,7 @@ static void natural_mask(struct apattern *pat)
   else
     pat->mask.addr4.s_addr = htonl(IN_CLASSC_NET);
 }
-#endif  /* !WIN32 & !WATT32 & !ANDROID & !__ANDROID__ */
+#endif /* !WIN32 && !WATT32 */
 
 /* initialize an rc4 key. If possible a cryptographically secure random key
    is generated using a suitable function (for example win32's RtlGenRandom as
@@ -1904,7 +1565,7 @@ static void randomize_key(unsigned char* key,int key_data_len)
 #endif
 #endif /* WIN32 */
 
-  if (!randomized) {
+  if ( !randomized ) {
     for (;counter<key_data_len;counter++)
       key[counter]=(unsigned char)(rand() % 256);
   }
@@ -1941,6 +1602,13 @@ static int init_id_key(rc4_key* key,int key_data_len)
   }
   free(key_data_ptr);
   return ARES_SUCCESS;
+}
+
+unsigned short ares__generate_new_id(rc4_key* key)
+{
+  unsigned short r=0;
+  ares__rc4(key, (unsigned char *)&r, sizeof(r));
+  return r;
 }
 
 void ares_set_local_ip4(ares_channel channel, unsigned int local_ip)

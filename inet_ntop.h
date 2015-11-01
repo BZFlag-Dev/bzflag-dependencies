@@ -1,6 +1,8 @@
+#ifndef __ARES_INET_NTOP_H
+#define __ARES_INET_NTOP_H
 
 
-/* Copyright 1998 by the Massachusetts Institute of Technology.
+/* Copyright (C) 2005 by Dominick Meglio
  *
  * Permission to use, copy, modify, and distribute this
  * software and its documentation for any purpose and without
@@ -15,16 +17,10 @@
  * without express or implied warranty.
  */
 
-#include "ares_setup.h"
-#include "ares_getenv.h"
-
-#ifndef HAVE_GETENV
-
-char *ares_getenv(const char *name)
-{
-#ifdef _WIN32_WCE
-  return NULL;
+#ifdef HAVE_INET_NTOP
+#define ares_inet_ntop(w,x,y,z) inet_ntop(w,x,y,z)
+#else
+const char *ares_inet_ntop(int af, const void *src, char *dst, size_t size);
 #endif
-}
 
-#endif
+#endif /* __ARES_INET_NTOP_H */

@@ -18,6 +18,9 @@
 
 #include "ares_setup.h"
 
+#ifdef HAVE_SYS_SOCKET_H
+#  include <sys/socket.h>
+#endif
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
 #endif
@@ -33,16 +36,21 @@
 #  include <arpa/nameser_compat.h>
 #endif
 
+#include <ctype.h>
+#include <errno.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
 #include "ares.h"
 #include "ares_ipv6.h"
-#include "ares_nowarn.h"
-#include "ares_inet_net_pton.h"
+#include "inet_net_pton.h"
 
 
 const struct ares_in6_addr ares_in6addr_any = { { { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 } } };
 
 
-#ifndef HAVE_INET_NET_PTON
+#if !defined(HAVE_INET_NET_PTON) || !defined(HAVE_INET_NET_PTON_IPV6)
 
 /*
  * static int
@@ -75,17 +83,16 @@ inet_net_pton_ipv4(const char *src, unsigned char *dst, size_t size)
 
   ch = *src++;
   if (ch == '0' && (src[0] == 'x' || src[0] == 'X')
-      && ISASCII(src[1])
       && ISXDIGIT(src[1])) {
     /* Hexadecimal: Eat nybble string. */
     if (!size)
       goto emsgsize;
     dirty = 0;
     src++;  /* skip x or X. */
-    while ((ch = *src++) != '\0' && ISASCII(ch) && ISXDIGIT(ch)) {
+    while ((ch = *src++) != '\0' && ISXDIGIT(ch)) {
       if (ISUPPER(ch))
         ch = tolower(ch);
-      n = aresx_sztosi(strchr(xdigits, ch) - xdigits);
+      n = (int)(strchr(xdigits, ch) - xdigits);
       if (dirty == 0)
         tmp = n;
       else
@@ -102,18 +109,18 @@ inet_net_pton_ipv4(const char *src, unsigned char *dst, size_t size)
         goto emsgsize;
       *dst++ = (unsigned char) (tmp << 4);
     }
-  } else if (ISASCII(ch) && ISDIGIT(ch)) {
+  } else if (ISDIGIT(ch)) {
     /* Decimal: eat dotted digit string. */
     for (;;) {
       tmp = 0;
       do {
-        n = aresx_sztosi(strchr(digits, ch) - digits);
+        n = (int)(strchr(digits, ch) - digits);
         tmp *= 10;
         tmp += n;
         if (tmp > 255)
           goto enoent;
       } while ((ch = *src++) != '\0' &&
-               ISASCII(ch) && ISDIGIT(ch));
+               ISDIGIT(ch));
       if (!size--)
         goto emsgsize;
       *dst++ = (unsigned char) tmp;
@@ -122,27 +129,27 @@ inet_net_pton_ipv4(const char *src, unsigned char *dst, size_t size)
       if (ch != '.')
         goto enoent;
       ch = *src++;
-      if (!ISASCII(ch) || !ISDIGIT(ch))
+      if (!ISDIGIT(ch))
         goto enoent;
     }
   } else
     goto enoent;
 
   bits = -1;
-  if (ch == '/' && ISASCII(src[0]) &&
+  if (ch == '/' &&
       ISDIGIT(src[0]) && dst > odst) {
     /* CIDR width specifier.  Nothing can follow it. */
     ch = *src++;    /* Skip over the /. */
     bits = 0;
     do {
-      n = aresx_sztosi(strchr(digits, ch) - digits);
+      n = (int)(strchr(digits, ch) - digits);
       bits *= 10;
       bits += n;
-      if (bits > 32)
-        goto enoent;
-    } while ((ch = *src++) != '\0' && ISASCII(ch) && ISDIGIT(ch));
+    } while ((ch = *src++) != '\0' && ISDIGIT(ch));
     if (ch != '\0')
       goto enoent;
+    if (bits > 32)
+      goto emsgsize;
   }
 
   /* Firey death and destruction unless we prefetched EOS. */
@@ -166,7 +173,7 @@ inet_net_pton_ipv4(const char *src, unsigned char *dst, size_t size)
       bits = 8;
     /* If imputed mask is narrower than specified octets, widen. */
     if (bits < ((dst - odst) * 8))
-      bits = aresx_sztosi(dst - odst) * 8;
+      bits = (int)(dst - odst) * 8;
     /*
      * If there are no additional bits specified for a class D
      * address adjust bits to 4.
@@ -209,7 +216,7 @@ getbits(const char *src, int *bitsp)
       if (n++ != 0 && val == 0)       /* no leading zeros */
         return (0);
       val *= 10;
-      val += aresx_sztosi(pch - digits);
+      val += (pch - digits);
       if (val > 128)                  /* range */
         return (0);
       continue;
@@ -241,7 +248,7 @@ getv4(const char *src, unsigned char *dst, int *bitsp)
       if (n++ != 0 && val == 0)       /* no leading zeros */
         return (0);
       val *= 10;
-      val += aresx_sztoui(pch - digits);
+      val += (pch - digits);
       if (val > 255)                  /* range */
         return (0);
       continue;
@@ -262,8 +269,8 @@ getv4(const char *src, unsigned char *dst, int *bitsp)
     return (0);
   if (dst - odst > 3)             /* too many octets? */
     return (0);
-  *dst = (unsigned char)val;
-  return 1;
+  *dst++ = (unsigned char)val;
+  return (1);
 }
 
 static int
@@ -301,7 +308,7 @@ inet_net_pton_ipv6(const char *src, unsigned char *dst, size_t size)
       pch = strchr((xdigits = xdigits_u), ch);
     if (pch != NULL) {
       val <<= 4;
-      val |= aresx_sztoui(pch - xdigits);
+      val |= (pch - xdigits);
       if (++digits > 4)
         goto enoent;
       saw_xdigit = 1;
@@ -418,7 +425,7 @@ ares_inet_net_pton(int af, const char *src, void *dst, size_t size)
   }
 }
 
-#endif /* HAVE_INET_NET_PTON */
+#endif
 
 #ifndef HAVE_INET_PTON
 int ares_inet_pton(int af, const char *src, void *dst)
@@ -440,11 +447,4 @@ int ares_inet_pton(int af, const char *src, void *dst)
     return 0;
   return (result > -1 ? 1 : -1);
 }
-#else /* HAVE_INET_PTON */
-int ares_inet_pton(int af, const char *src, void *dst)
-{
-  /* just relay this to the underlying function */
-  return inet_pton(af, src, dst);
-}
-
 #endif

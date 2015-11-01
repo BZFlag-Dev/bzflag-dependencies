@@ -14,6 +14,10 @@
 
 #include "ares_setup.h"
 
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+
 #include "ares.h"
 #include "ares_private.h"
 

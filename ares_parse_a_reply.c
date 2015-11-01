@@ -16,6 +16,9 @@
 
 #include "ares_setup.h"
 
+#ifdef HAVE_SYS_SOCKET_H
+#  include <sys/socket.h>
+#endif
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
 #endif
@@ -38,6 +41,8 @@
 #  include <strings.h>
 #endif
 
+#include <stdlib.h>
+#include <string.h>
 #ifdef HAVE_LIMITS_H
 #  include <limits.h>
 #endif
@@ -127,7 +132,6 @@ int ares_parse_a_reply(const unsigned char *abuf, int alen,
       aptr += len;
       if (aptr + RRFIXEDSZ > abuf + alen)
         {
-          free(rr_name);
           status = ARES_EBADRESP;
           break;
         }
@@ -136,12 +140,6 @@ int ares_parse_a_reply(const unsigned char *abuf, int alen,
       rr_len = DNS_RR_LEN(aptr);
       rr_ttl = DNS_RR_TTL(aptr);
       aptr += RRFIXEDSZ;
-      if (aptr + rr_len > abuf + alen)
-        {
-          free(rr_name);
-          status = ARES_EBADRESP;
-          break;
-        }
 
       if (rr_class == C_IN && rr_type == T_A
           && rr_len == sizeof(struct in_addr)
@@ -151,7 +149,6 @@ int ares_parse_a_reply(const unsigned char *abuf, int alen,
             {
               if (aptr + sizeof(struct in_addr) > abuf + alen)
               {
-                free(rr_name);
                 status = ARES_EBADRESP;
                 break;
               }
@@ -162,7 +159,6 @@ int ares_parse_a_reply(const unsigned char *abuf, int alen,
               struct ares_addrttl * const at = &addrttls[naddrs];
               if (aptr + sizeof(struct in_addr) > abuf + alen)
               {
-                free(rr_name);
                 status = ARES_EBADRESP;
                 break;
               }
@@ -242,8 +238,6 @@ int ares_parse_a_reply(const unsigned char *abuf, int alen,
                   for (i = 0; i < naddrs; i++)
                     hostent->h_addr_list[i] = (char *) &addrs[i];
                   hostent->h_addr_list[naddrs] = NULL;
-                  if (!naddrs && addrs)
-                    free(addrs);
                   *host = hostent;
                   return ARES_SUCCESS;
                 }

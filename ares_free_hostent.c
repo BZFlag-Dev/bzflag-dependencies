@@ -15,6 +15,7 @@
  */
 
 #include "ares_setup.h"
+#include <stdlib.h>
 
 #ifdef HAVE_NETDB_H
 #include <netdb.h>
@@ -26,9 +27,6 @@
 void ares_free_hostent(struct hostent *host)
 {
   char **p;
-
-  if (!host)
-    return;
 
   free((char *)(host->h_name));
   for (p = host->h_aliases; *p; p++)

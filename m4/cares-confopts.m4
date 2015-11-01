@@ -1,6 +1,7 @@
 #***************************************************************************
+# $Id$
 #
-# Copyright (C) 2008 - 2013 by Daniel Stenberg et al
+# Copyright (C) 2008 - 2010 by Daniel Stenberg et al
 #
 # Permission to use, copy, modify, and distribute this software and its
 # documentation for any purpose and without fee is hereby granted, provided
@@ -15,7 +16,7 @@
 #***************************************************************************
 
 # File version for 'aclocal' use. Keep it a single number.
-# serial 11
+# serial 9
 
 
 dnl CARES_CHECK_OPTION_CURLDEBUG
@@ -66,7 +67,7 @@ dnl variable want_debug value as appropriate.
 AC_DEFUN([CARES_CHECK_OPTION_DEBUG], [
   AC_BEFORE([$0],[CARES_CHECK_OPTION_WARNINGS])dnl
   AC_BEFORE([$0],[CARES_CHECK_OPTION_CURLDEBUG])dnl
-  AC_BEFORE([$0],[XC_CHECK_PROG_CC])dnl
+  AC_BEFORE([$0],[CARES_CHECK_PROG_CC])dnl
   AC_MSG_CHECKING([whether to enable debug build options])
   OPT_DEBUG_BUILD="default"
   AC_ARG_ENABLE(debug,
@@ -131,7 +132,7 @@ dnl shell variable want_optimize value as appropriate.
 
 AC_DEFUN([CARES_CHECK_OPTION_OPTIMIZE], [
   AC_REQUIRE([CARES_CHECK_OPTION_DEBUG])dnl
-  AC_BEFORE([$0],[XC_CHECK_PROG_CC])dnl
+  AC_BEFORE([$0],[CARES_CHECK_PROG_CC])dnl
   AC_MSG_CHECKING([whether to enable compiler optimizer])
   OPT_COMPILER_OPTIMIZE="default"
   AC_ARG_ENABLE(optimize,
@@ -228,7 +229,7 @@ dnl shell variable want_warnings as appropriate.
 AC_DEFUN([CARES_CHECK_OPTION_WARNINGS], [
   AC_REQUIRE([CARES_CHECK_OPTION_DEBUG])dnl
   AC_BEFORE([$0],[CARES_CHECK_OPTION_WERROR])dnl
-  AC_BEFORE([$0],[XC_CHECK_PROG_CC])dnl
+  AC_BEFORE([$0],[CARES_CHECK_PROG_CC])dnl
   AC_MSG_CHECKING([whether to enable strict compiler warnings])
   OPT_COMPILER_WARNINGS="default"
   AC_ARG_ENABLE(warnings,
@@ -329,26 +330,23 @@ dnl -------------------------------------------------
 dnl Depending on --enable-symbol-hiding or --disable-symbol-hiding
 dnl configure option, and compiler capability to actually honor such
 dnl option, this will modify compiler flags as appropriate and also
-dnl provide needed definitions for configuration and Makefile.am files.
+dnl provide needed definitions for configuration file.
 dnl This macro should not be used until all compilation tests have
 dnl been done to prevent interferences on other tests.
 
 AC_DEFUN([CARES_CONFIGURE_SYMBOL_HIDING], [
   AC_MSG_CHECKING([whether hiding of library internal symbols will actually happen])
-  CFLAG_CARES_SYMBOL_HIDING=""
-  doing_symbol_hiding="no"
   if test x"$ac_cv_native_windows" != "xyes" &&
     test "$want_symbol_hiding" = "yes" &&
     test "$supports_symbol_hiding" = "yes"; then
-    doing_symbol_hiding="yes"
-    CFLAG_CARES_SYMBOL_HIDING="$symbol_hiding_CFLAGS"
+    CFLAGS="$CFLAGS $symbol_hiding_CFLAGS"
+    AC_DEFINE_UNQUOTED(CARES_SYMBOL_HIDING, 1,
+      [Define to 1 to enable hiding of library internal symbols.])
     AC_DEFINE_UNQUOTED(CARES_SYMBOL_SCOPE_EXTERN, $symbol_hiding_EXTERN,
       [Definition to make a library symbol externally visible.])
     AC_MSG_RESULT([yes])
   else
     AC_MSG_RESULT([no])
   fi
-  AM_CONDITIONAL(DOING_CARES_SYMBOL_HIDING, test x$doing_symbol_hiding = xyes)
-  AC_SUBST(CFLAG_CARES_SYMBOL_HIDING)
 ])
 

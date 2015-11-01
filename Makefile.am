@@ -22,16 +22,16 @@ ACLOCAL_AMFLAGS = -I m4
 # $(top_srcdir) is for c-ares's ares_setup.h and other "c-ares-private" files
 
 if CURLDEBUG
-AM_CPPFLAGS = -I$(top_builddir)/../include/curl \
-              -I$(top_builddir)/../include      \
-              -I$(top_srcdir)/../include        \
-              -I$(top_builddir)/../lib          \
-              -I$(top_srcdir)/../lib            \
-              -I$(top_builddir)                 \
-              -I$(top_srcdir)
+INCLUDES = -I$(top_builddir)/../include/curl \
+           -I$(top_builddir)/../include      \
+           -I$(top_srcdir)/../include        \
+           -I$(top_builddir)/../lib          \
+           -I$(top_srcdir)/../lib            \
+           -I$(top_builddir)                 \
+           -I$(top_srcdir)
 else
-AM_CPPFLAGS = -I$(top_builddir) \
-              -I$(top_srcdir)
+INCLUDES = -I$(top_builddir) \
+           -I$(top_srcdir)
 endif
 
 lib_LTLIBRARIES = libcares.la
@@ -55,7 +55,7 @@ EXTRA_DIST = AUTHORS CHANGES README.cares Makefile.inc Makefile.dj	   \
  Makefile.m32 Makefile.netware Makefile.msvc Makefile.Watcom $(man_MANS)   \
  config-win32.h RELEASE-NOTES libcares.pc.in buildconf get_ver.awk maketgz \
  TODO ares_build.h.in $(PDFPAGES) cares.rc README.msvc $(MSVCFILES)	   \
- $(CSOURCES) $(HHEADERS) config-dos.h acountry.1 adig.1 ahost.1 INSTALL
+ $(CSOURCES) $(HHEADERS) config-dos.h
 
 CLEANFILES = $(PDFPAGES) $(HTMLPAGES)
 
@@ -64,7 +64,7 @@ DISTCLEANFILES = ares_build.h
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = libcares.pc
 
-CARES_VERSION_INFO = -version-info 3:0:1
+VER=-version-info 2:0:0
 # This flag accepts an argument of the form current[:revision[:age]]. So,
 # passing -version-info 3:12:1 sets current to 3, revision to 12, and age to
 # 1.
@@ -93,43 +93,15 @@ CARES_VERSION_INFO = -version-info 3:0:1
 # set age to 0. (c:r:a=0)
 #
 
-AM_LDFLAGS =
-
-libcares_la_LDFLAGS_EXTRA =
-
-if CARES_LT_SHLIB_USE_VERSION_INFO
-libcares_la_LDFLAGS_EXTRA += $(CARES_VERSION_INFO)
+if NO_UNDEFINED
+# The -no-undefined flag is crucial for this to build fine on some platforms
+UNDEF = -no-undefined
 endif
 
-if CARES_LT_SHLIB_USE_NO_UNDEFINED
-libcares_la_LDFLAGS_EXTRA += -no-undefined
-endif
-
-if CARES_LT_SHLIB_USE_MIMPURE_TEXT
-libcares_la_LDFLAGS_EXTRA += -mimpure-text
-endif
-
-libcares_la_LDFLAGS = $(AM_LDFLAGS) $(libcares_la_LDFLAGS_EXTRA)
+libcares_la_LDFLAGS = $(UNDEF) $(VER)
 
 # Add -Werror if defined
 CFLAGS += @CARES_CFLAG_EXTRAS@
-
-if USE_CPPFLAG_CARES_STATICLIB
-AM_CPPFLAGS += $(CPPFLAG_CARES_STATICLIB)
-endif
-
-libcares_la_CFLAGS_EXTRA =
-
-libcares_la_CPPFLAGS_EXTRA = -DCARES_BUILDING_LIBRARY
-
-if DOING_CARES_SYMBOL_HIDING
-libcares_la_CFLAGS_EXTRA += $(CFLAG_CARES_SYMBOL_HIDING)
-libcares_la_CPPFLAGS_EXTRA += -DCARES_SYMBOL_HIDING
-endif
-
-libcares_la_CFLAGS = $(AM_CFLAGS) $(libcares_la_CFLAGS_EXTRA)
-
-libcares_la_CPPFLAGS = $(AM_CPPFLAGS) $(libcares_la_CPPFLAGS_EXTRA)
 
 # Makefile.inc provides the CSOURCES and HHEADERS defines
 include Makefile.inc
@@ -145,17 +117,14 @@ libcares_la_HEADERS = ares.h ares_version.h ares_dns.h \
 ahost_SOURCES = ahost.c $(SAMPLESOURCES) $(SAMPLEHEADERS)
 ahost_LDADD = $(top_builddir)/libcares.la
 ahost_CFLAGS = $(AM_CFLAGS)
-ahost_CPPFLAGS = $(AM_CPPFLAGS)
 
 adig_SOURCES = adig.c $(SAMPLESOURCES) $(SAMPLEHEADERS)
 adig_LDADD = $(top_builddir)/libcares.la
 adig_CFLAGS = $(AM_CFLAGS)
-adig_CPPFLAGS = $(AM_CPPFLAGS)
 
 acountry_SOURCES = acountry.c $(SAMPLESOURCES) $(SAMPLEHEADERS)
 acountry_LDADD = $(top_builddir)/libcares.la
 acountry_CFLAGS = $(AM_CFLAGS)
-acountry_CPPFLAGS = $(AM_CPPFLAGS)
 
 SOURCEDMANDIR = man3
 SOURCEDMANPAGES = ares_init.3

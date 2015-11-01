@@ -1,8 +1,9 @@
 #***************************************************************************
+# $Id$
 #***************************************************************************
 
 # File version for 'aclocal' use. Keep it a single number.
-# serial 8
+# serial 3
 
 dnl CARES_OVERRIDE_AUTOCONF
 dnl -------------------------------------------------
@@ -15,6 +16,16 @@ AC_DEFUN([CARES_OVERRIDE_AUTOCONF], [
 AC_BEFORE([$0],[AC_PROG_LIBTOOL])
 # using cares-override.m4
 ])
+
+dnl Override some Libtool tests
+dnl -------------------------------------------------
+dnl This is done to prevent Libtool 1.5.X from doing
+dnl unnecesary C++, Fortran and Java tests and reduce
+dnl resulting configure script by nearly 300 Kb.
+
+m4_define([AC_LIBTOOL_LANG_CXX_CONFIG],[:])
+m4_define([AC_LIBTOOL_LANG_F77_CONFIG],[:])
+m4_define([AC_LIBTOOL_LANG_GCJ_CONFIG],[:])
 
 dnl Override Autoconf's AC_LANG_PROGRAM (C)
 dnl -------------------------------------------------
@@ -73,4 +84,19 @@ char $1 ();
 choke me
 #endif
 ], [return $1 ();])])
+
+dnl Override Autoconf's PATH_SEPARATOR check
+dnl -------------------------------------------------
+dnl This is done to ensure that the same check is
+dnl used across different Autoconf versions and to
+dnl allow us to use this macro early enough in the
+dnl configure script.
+
+m4_defun([_AS_PATH_SEPARATOR_PREPARE],
+[CARES_CHECK_PATH_SEPARATOR
+m4_define([$0],[])])
+
+m4_defun([_LT_AC_LIBTOOL_SYS_PATH_SEPARATOR],
+[CARES_CHECK_PATH_SEPARATOR
+m4_define([$0],[])])
 

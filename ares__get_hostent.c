@@ -1,5 +1,5 @@
 
-/* Copyright 1998, 2011 by the Massachusetts Institute of Technology.
+/* Copyright 1998, 2010 by the Massachusetts Institute of Technology.
  *
  * Permission to use, copy, modify, and distribute this
  * software and its documentation for any purpose and without
@@ -16,6 +16,9 @@
 
 #include "ares_setup.h"
 
+#ifdef HAVE_SYS_SOCKET_H
+#  include <sys/socket.h>
+#endif
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
 #endif
@@ -27,8 +30,7 @@
 #endif
 
 #include "ares.h"
-#include "ares_inet_net_pton.h"
-#include "ares_nowarn.h"
+#include "inet_net_pton.h"
 #include "ares_private.h"
 
 int ares__get_hostent(FILE *fp, int family, struct hostent **host)
@@ -217,8 +219,8 @@ int ares__get_hostent(FILE *fp, int family, struct hostent **host)
         break;
 
       /* Copy actual network address family and length. */
-      hostent->h_addrtype = aresx_sitoss(addr.family);
-      hostent->h_length = aresx_uztoss(addrlen);
+      hostent->h_addrtype = addr.family;
+      hostent->h_length = (int)addrlen;
 
       /* Free line buffer. */
       free(line);

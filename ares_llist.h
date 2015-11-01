@@ -36,4 +36,7 @@ void ares__insert_in_list(struct list_node* new_node,
 
 void ares__remove_from_list(struct list_node* node);
 
+void ares__swap_lists(struct list_node* head_a,
+                      struct list_node* head_b);
+
 #endif /* __ARES_LLIST_H */

@@ -22,6 +22,9 @@
 #  endif
 #endif
 
+#ifdef HAVE_SYS_SOCKET_H
+#  include <sys/socket.h>
+#endif
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
 #endif
@@ -44,9 +47,17 @@
 #include <net/if.h>
 #endif
 
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "ares.h"
 #include "ares_ipv6.h"
-#include "ares_nowarn.h"
+#include "inet_ntop.h"
 #include "ares_private.h"
 
 struct nameinfo_query {
@@ -176,7 +187,7 @@ void ares_getnameinfo(ares_channel channel, const struct sockaddr *sa,
         if (sa->sa_family == AF_INET)
           {
             niquery->family = AF_INET;
-            memcpy(&niquery->addr.addr4, addr, sizeof(niquery->addr.addr4));
+            memcpy(&niquery->addr.addr4, addr, sizeof(addr));
             ares_gethostbyaddr(channel, &addr->sin_addr,
                                sizeof(struct in_addr), AF_INET,
                                nameinfo_callback, niquery);
@@ -184,7 +195,7 @@ void ares_getnameinfo(ares_channel channel, const struct sockaddr *sa,
         else
           {
             niquery->family = AF_INET6;
-            memcpy(&niquery->addr.addr6, addr6, sizeof(niquery->addr.addr6));
+            memcpy(&niquery->addr.addr6, addr6, sizeof(addr6));
             ares_gethostbyaddr(channel, &addr6->sin6_addr,
                                sizeof(struct ares_in6_addr), AF_INET6,
                                nameinfo_callback, niquery);
