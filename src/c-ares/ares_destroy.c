@@ -1,6 +1,6 @@
 
 /* Copyright 1998 by the Massachusetts Institute of Technology.
- * Copyright (C) 2004-2011 by Daniel Stenberg
+ * Copyright (C) 2004-2010 by Daniel Stenberg
  *
  * Permission to use, copy, modify, and distribute this
  * software and its documentation for any purpose and without
@@ -16,9 +16,8 @@
  */
 
 #include "ares_setup.h"
-
 #include <assert.h>
-
+#include <stdlib.h>
 #include "ares.h"
 #include "ares_private.h"
 
@@ -30,12 +29,10 @@ void ares_destroy_options(struct ares_options *options)
     free(options->servers);
   for (i = 0; i < options->ndomains; i++)
     free(options->domains[i]);
-  if(options->domains)
-    free(options->domains);
+  free(options->domains);
   if(options->sortlist)
     free(options->sortlist);
-  if(options->lookups)
-    free(options->lookups);
+  free(options->lookups);
 }
 
 void ares_destroy(ares_channel channel)

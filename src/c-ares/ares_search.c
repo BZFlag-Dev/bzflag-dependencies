@@ -16,6 +16,12 @@
 
 #include "ares_setup.h"
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+#include <errno.h>
+
 #ifdef HAVE_STRINGS_H
 #  include <strings.h>
 #endif
@@ -286,7 +292,7 @@ static int single_domain(ares_channel channel, const char *name, char **s)
             }
           else
             {
-              error = ERRNO;
+              error = errno;
               switch(error)
                 {
                 case ENOENT:

@@ -1,8 +1,8 @@
-#ifndef HEADER_CARES_GETENV_H
-#define HEADER_CARES_GETENV_H
+#ifndef __ARES_INET_NET_PTON_H
+#define __ARES_INET_NET_PTON_H
 
 
-/* Copyright 1998 by the Massachusetts Institute of Technology.
+/* Copyright (C) 2005 by Daniel Stenberg
  *
  * Permission to use, copy, modify, and distribute this
  * software and its documentation for any purpose and without
@@ -17,10 +17,15 @@
  * without express or implied warranty.
  */
 
-#include "ares_setup.h"
-
-#ifndef HAVE_GETENV
-extern char *ares_getenv(const char *name);
+#ifdef HAVE_INET_PTON
+#define ares_inet_pton(x,y,z) inet_pton(x,y,z)
+#else
+int ares_inet_pton(int af, const char *src, void *dst);
+#endif
+#if defined(HAVE_INET_NET_PTON) && defined(HAVE_INET_NET_PTON_IPV6)
+#define ares_inet_net_pton(w,x,y,z) inet_net_pton(w,x,y,z)
+#else
+int ares_inet_net_pton(int af, const char *src, void *dst, size_t size);
 #endif
 
-#endif /* HEADER_CARES_GETENV_H */
+#endif /* __ARES_INET_NET_PTON_H */

@@ -17,6 +17,9 @@
 
 #include "ares_setup.h"
 
+#ifdef HAVE_SYS_SOCKET_H
+#  include <sys/socket.h>
+#endif
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
 #endif
@@ -35,6 +38,8 @@
 #  include <arpa/nameser_compat.h>
 #endif
 
+#include <stdlib.h>
+#include <string.h>
 #include "ares.h"
 #include "ares_dns.h"
 #include "ares_data.h"
@@ -42,7 +47,7 @@
 
 int
 ares_parse_mx_reply (const unsigned char *abuf, int alen,
-                     struct ares_mx_reply **mx_out)
+                      struct ares_mx_reply **mx_out)
 {
   unsigned int qdcount, ancount, i;
   const unsigned char *aptr, *vptr;
@@ -100,11 +105,6 @@ ares_parse_mx_reply (const unsigned char *abuf, int alen,
       rr_class = DNS_RR_CLASS (aptr);
       rr_len = DNS_RR_LEN (aptr);
       aptr += RRFIXEDSZ;
-      if (aptr + rr_len > abuf + alen)
-        {
-          status = ARES_EBADRESP;
-          break;
-        }
 
       /* Check if we are really looking at a MX record */
       if (rr_class == C_IN && rr_type == T_MX)
@@ -134,7 +134,7 @@ ares_parse_mx_reply (const unsigned char *abuf, int alen,
           mx_last = mx_curr;
 
           vptr = aptr;
-          mx_curr->priority = DNS__16BIT(vptr);
+          mx_curr->priority = ntohs (*((unsigned short *)vptr));
           vptr += sizeof(unsigned short);
 
           status = ares_expand_name (vptr, abuf, alen, &mx_curr->host, &len);

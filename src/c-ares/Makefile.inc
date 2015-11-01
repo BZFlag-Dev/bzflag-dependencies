@@ -11,7 +11,6 @@ CSOURCES = ares__close_sockets.c	\
   ares_fds.c				\
   ares_free_hostent.c			\
   ares_free_string.c			\
-  ares_getenv.c				\
   ares_gethostbyaddr.c			\
   ares_gethostbyname.c			\
   ares_getnameinfo.c			\
@@ -20,19 +19,15 @@ CSOURCES = ares__close_sockets.c	\
   ares_library_init.c			\
   ares_llist.c				\
   ares_mkquery.c			\
-  ares_create_query.c			\
   ares_nowarn.c				\
   ares_options.c			\
   ares_parse_a_reply.c			\
   ares_parse_aaaa_reply.c		\
   ares_parse_mx_reply.c			\
-  ares_parse_naptr_reply.c		\
   ares_parse_ns_reply.c			\
   ares_parse_ptr_reply.c		\
-  ares_parse_soa_reply.c		\
   ares_parse_srv_reply.c		\
   ares_parse_txt_reply.c		\
-  ares_platform.c			\
   ares_process.c			\
   ares_query.c				\
   ares_search.c				\
@@ -52,14 +47,10 @@ HHEADERS = ares.h			\
   ares_build.h				\
   ares_data.h				\
   ares_dns.h				\
-  ares_getenv.h				\
-  ares_inet_net_pton.h		\
-  ares_iphlpapi.h			\
   ares_ipv6.h				\
   ares_library_init.h			\
   ares_llist.h				\
   ares_nowarn.h				\
-  ares_platform.h			\
   ares_private.h			\
   ares_rules.h				\
   ares_strcasecmp.h			\
@@ -67,6 +58,8 @@ HHEADERS = ares.h			\
   ares_version.h			\
   ares_writev.h				\
   bitncmp.h				\
+  inet_net_pton.h			\
+  inet_ntop.h				\
   nameser.h				\
   ares_setup.h				\
   setup_once.h
@@ -92,14 +85,11 @@ MANPAGES = ares_cancel.3		\
   ares_library_cleanup.3		\
   ares_library_init.3			\
   ares_mkquery.3			\
-  ares_create_query.3			\
   ares_parse_a_reply.3			\
   ares_parse_aaaa_reply.3		\
   ares_parse_mx_reply.3			\
-  ares_parse_naptr_reply.3		\
   ares_parse_ns_reply.3			\
   ares_parse_ptr_reply.3		\
-  ares_parse_soa_reply.3		\
   ares_parse_srv_reply.3		\
   ares_parse_txt_reply.3		\
   ares_process.3			\
@@ -111,9 +101,7 @@ MANPAGES = ares_cancel.3		\
   ares_set_socket_callback.3		\
   ares_strerror.3			\
   ares_timeout.3			\
-  ares_version.3		        \
-  ares_inet_pton.3                      \
-  ares_inet_ntop.3
+  ares_version.3
 
 HTMLPAGES = ares_cancel.html		\
   ares_destroy.html			\
@@ -136,13 +124,11 @@ HTMLPAGES = ares_cancel.html		\
   ares_library_cleanup.html		\
   ares_library_init.html		\
   ares_mkquery.html			\
-  ares_create_query.html			\
   ares_parse_a_reply.html		\
   ares_parse_aaaa_reply.html		\
   ares_parse_mx_reply.html		\
   ares_parse_ns_reply.html		\
   ares_parse_ptr_reply.html		\
-  ares_parse_soa_reply.html		\
   ares_parse_srv_reply.html		\
   ares_parse_txt_reply.html		\
   ares_process.html			\
@@ -154,9 +140,7 @@ HTMLPAGES = ares_cancel.html		\
   ares_set_socket_callback.html		\
   ares_strerror.html			\
   ares_timeout.html			\
-  ares_version.html                     \
-  ares_inet_pton.html                   \
-  ares_inet_ntop.html
+  ares_version.html
 
 PDFPAGES = ares_cancel.pdf		\
   ares_destroy.pdf			\
@@ -179,13 +163,11 @@ PDFPAGES = ares_cancel.pdf		\
   ares_library_cleanup.pdf		\
   ares_library_init.pdf			\
   ares_mkquery.pdf			\
-  ares_create_query.pdf			\
   ares_parse_a_reply.pdf		\
   ares_parse_aaaa_reply.pdf		\
   ares_parse_mx_reply.pdf		\
   ares_parse_ns_reply.pdf		\
   ares_parse_ptr_reply.pdf		\
-  ares_parse_soa_reply.pdf		\
   ares_parse_srv_reply.pdf		\
   ares_parse_txt_reply.pdf		\
   ares_process.pdf			\
@@ -197,14 +179,14 @@ PDFPAGES = ares_cancel.pdf		\
   ares_set_socket_callback.pdf		\
   ares_strerror.pdf			\
   ares_timeout.pdf			\
-  ares_version.pdf                      \
-  ares_inet_pton.pdf                    \
-  ares_inet_ntop.pdf
+  ares_version.pdf
 
 SAMPLESOURCES = ares_getopt.c		\
-  ares_nowarn.c				\
-  ares_strcasecmp.c
+  ares_strcasecmp.c			\
+  inet_net_pton.c			\
+  inet_ntop.c
 
 SAMPLEHEADERS = ares_getopt.h		\
-  ares_nowarn.h				\
-  ares_strcasecmp.h
+  ares_strcasecmp.h			\
+  inet_net_pton.h			\
+  inet_ntop.h
