@@ -100,23 +100,25 @@ echo ==============================
 echo Building c-ares
 echo ==============================
 
-set INSTALL_DIR=%outputroot%
-
 cd %srcroot%\c-ares
 
 call buildconf.bat
 :: Not sure if we need to clean between builds
 ::nmake -f Makefile.msvc clean
-:: Rename the INSTALL file so that the nmake install target works...
-rename INSTALL INSTALL.temp
-nmake -f Makefile.msvc CFG=dll-%CONF% install
+nmake -f Makefile.msvc CFG=dll-%CONF% c-ares
 set CARES_RESULT=%ERRORLEVEL%
 cd %srcroot%\c-ares
-rename INSTALL.temp INSTALL
 
-:: Move the DLL files to the bin directory
+:: Copy the necessary files to the output directory
 if %CARES_RESULT% == 0 (
-    move "%outputroot%\lib\*.dll" "%outputroot%\bin\"
+	copy ares.h "%outputroot%\include\"
+	copy ares_build.h "%outputroot%\include\"
+	copy ares_rules.h "%outputroot%\include\"
+	copy ares_version.h "%outputroot%\include\"
+	
+	copy "msvc100\cares\dll-%CONF%\*.dll" "%outputroot%\bin\"
+	copy "msvc100\cares\dll-%CONF%\*.lib" "%outputroot%\lib\"
+	copy "msvc100\cares\dll-%CONF%\*.exp" "%outputroot%\lib\"
 )
 
 echo(
