@@ -25,3 +25,14 @@ src/c-ares/msvc*/
 # regex build files
 src/regex/regex*/
 src/regex/regex.vcxproj.user
+
+# SDL2 build files
+src/SDL2/VisualC/Win32/
+src/SDL2/VisualC/x64/
+src/SDL2/VisualC/*/Win32/
+src/SDL2/VisualC/*/x64/
+src/SDL2/VisualC/tests/*/Win32/
+src/SDL2/VisualC/tests/*/x64/
+src/SDL2/VisualC/tests/*/*.bmp
+src/SDL2/VisualC/tests/*/*.wav
+src/SDL2/VisualC/tests/*/*.dat
