@@ -175,6 +175,37 @@ if %REGEX_RESULT% == 0 (
 )
 
 echo(
+echo ==============================
+echo Building SDL2
+echo ==============================
+
+cd "%srcroot%\SDL2\VisualC"
+if "%ARCH%" == "x86" (
+	msbuild SDL.sln /property:Configuration=%CONF% /property:Platform=Win32
+) else (
+	msbuild SDL.sln /property:Configuration=%CONF% /property:Platform=x64
+)
+
+set SDL2_RESULT=%ERRORLEVEL%
+
+if %SDL2_RESULT% == 0 (
+	cd "%srcroot%\SDL2"
+	if "%ARCH%" == "x86" (
+		copy "VisualC\Win32\%CONF%\SDL2.dll" "%outputroot%\bin"
+		copy "VisualC\Win32\%CONF%\SDL2.lib" "%outputroot%\lib"
+		copy "VisualC\Win32\%CONF%\SDL2.pdb" "%outputroot%\lib"
+		copy "VisualC\Win32\%CONF%\SDL2main.lib" "%outputroot%\lib"
+	) else (
+		copy "VisualC\x64\%CONF%\SDL2.dll" "%outputroot%\bin"
+		copy "VisualC\x64\%CONF%\SDL2.lib" "%outputroot%\lib"
+		copy "VisualC\x64\%CONF%\SDL2.pdb" "%outputroot%\lib"
+		copy "VisualC\x64\%CONF%\SDL2main.lib" "%outputroot%\lib"
+	)
+	mkdir "%outputroot%\include\SDL2"
+	copy "include\*.h" "%outputroot%\include\SDL2\"
+)
+
+echo(
 echo(
 echo #######################
 echo # Final build results #
@@ -204,6 +235,11 @@ if %REGEX_RESULT% == 0 (
 	echo regex .................. SUCCESS!
 ) else (
 	echo regex .................. FAILED!
+)
+if %SDL2_RESULT% == 0 (
+	echo SDL2 ................... SUCCESS!
+) else (
+	echo SDL2 ................... FAILED!
 )
 
 cd %origroot%
