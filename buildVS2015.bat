@@ -2,7 +2,7 @@
 
 :: FIXME: 64-bit builds DO NOT work and instead seem to build as 32-bit or just fail.
 :: If you pass x64 as the first argument to the batch script, it would (in theory) build 64-bit versions of the libraries.
-::   C:\> buildVC2010.bat x64
+::   C:\> buildVS2015.bat x64
 
 if not "%DevEnvDir%" == "" (
 	echo.
@@ -13,10 +13,10 @@ if not "%DevEnvDir%" == "" (
 set ARCH=x86
 if "%1" == "x64" set ARCH=x64
 
-if exist "%ProgramFiles%\Microsoft Visual Studio 10.0\VC\vcvarsall.bat" (
-	call "%ProgramFiles%\Microsoft Visual Studio 10.0\VC\vcvarsall.bat" %ARCH%
-) else if exist "%ProgramFiles(x86)%\Microsoft Visual Studio 10.0\VC\vcvarsall.bat" (
-	call "%ProgramFiles(x86)%\Microsoft Visual Studio 10.0\VC\vcvarsall.bat" %ARCH%
+if exist "%ProgramFiles%\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" (
+	call "%ProgramFiles%\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" %ARCH%
+) else if exist "%ProgramFiles(x86)%\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" (
+	call "%ProgramFiles(x86)%\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" %ARCH%
 ) else (
 	echo Unable to locate vcvarsall.bat, aborting
 	pause
@@ -116,9 +116,9 @@ if %CARES_RESULT% == 0 (
 	copy ares_rules.h "%outputroot%\include\"
 	copy ares_version.h "%outputroot%\include\"
 	
-	copy "msvc100\cares\dll-%CONF%\*.dll" "%outputroot%\bin\"
-	copy "msvc100\cares\dll-%CONF%\*.lib" "%outputroot%\lib\"
-	copy "msvc100\cares\dll-%CONF%\*.exp" "%outputroot%\lib\"
+	copy "msvc140\cares\dll-%CONF%\*.dll" "%outputroot%\bin\"
+	copy "msvc140\cares\dll-%CONF%\*.lib" "%outputroot%\lib\"
+	copy "msvc140\cares\dll-%CONF%\*.exp" "%outputroot%\lib\"
 )
 
 echo(
