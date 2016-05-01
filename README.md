@@ -15,4 +15,4 @@ Here is a list of the upstream source locations:
 
 ## Building the libraries
 
-Building these libraries requires Visual C++ 2010 at present, since this is the compiler that BZFlag 2.4 uses. Run the buildVC2010.bat file and it should build the libraries. Output will go into a folder such as output-release-x86.
+Building these libraries requires Visual Studio 2015 at present, since this is the compiler that BZFlag 2.4 uses. Run the buildVS2015.bat file and it should build the libraries. Output will go into a folder such as output-release-x86.
