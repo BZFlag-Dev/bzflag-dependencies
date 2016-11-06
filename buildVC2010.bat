@@ -43,16 +43,16 @@ set origroot=%~dp0
 set srcroot=%origroot%src
 set outputroot=%origroot%output-%CONF%-%ARCH%
 
-if not exist %outputroot% mkdir %outputroot%
-if not exist %outputroot%\bin mkdir %outputroot%\bin
-if not exist %outputroot%\lib mkdir %outputroot%\lib
-if not exist %outputroot%\include mkdir %outputroot%\include
+if not exist "%outputroot%" mkdir "%outputroot%"
+if not exist "%outputroot%\bin" mkdir "%outputroot%\bin"
+if not exist "%outputroot%\lib" mkdir "%outputroot%\lib"
+if not exist "%outputroot%\include" mkdir "%outputroot%\include"
 
 echo ==============================
 echo Building PDCurses
 echo ==============================
 
-cd %srcroot%\pdcurses\win32
+cd "%srcroot%\pdcurses\win32"
 :: Not sure if we need to clean between builds
 ::nmake -f vcwin32.mak clean
 ::del none pdcurses.ilk
@@ -66,9 +66,9 @@ if "%CONF%" == "debug" (
 set PDCURSES_RESULT=%ERRORLEVEL%
 
 if %PDCURSES_RESULT% == 0 (
-	cd %srcroot%\pdcurses
-	copy win32\*.lib %outputroot%\lib\
-	copy *.h %outputroot%\include\
+	cd "%srcroot%\pdcurses"
+	copy win32\*.lib "%outputroot%\lib\"
+	copy *.h "%outputroot%\include\"
 )
 
 echo(
@@ -76,7 +76,7 @@ echo ==============================
 echo Building zlib
 echo ==============================
 
-cd %srcroot%\zlib
+cd "%srcroot%\zlib"
 :: Not sure if we need to clean between builds
 ::nmake -f win32\Makefile.msc clean
 nmake -f win32\Makefile.msc zdll.lib
@@ -84,15 +84,15 @@ nmake -f win32\Makefile.msc zdll.lib
 set ZLIB_RESULT=%ERRORLEVEL%
 
 if %ZLIB_RESULT% == 0 (
-	cd %srcroot%\zlib
-	copy *.dll %outputroot%\bin\
+	cd "%srcroot%\zlib"
+	copy *.dll "%outputroot%\bin\"
 	:: The curl build expects the zdll.* files to be named zlib.*
-	copy zdll.lib %outputroot%\lib\zlib.lib
+	copy zdll.lib "%outputroot%\lib\zlib.lib"
 	if "%CONF%" == "debug" (
-		copy zdll.pdb %outputroot%\lib\zlib.pbd
+		copy zdll.pdb "%outputroot%\lib\zlib.pbd"
 	)
-	copy zdll.exp %outputroot%\lib\zlib.exp
-	copy *.h %outputroot%\include\
+	copy zdll.exp "%outputroot%\lib\zlib.exp"
+	copy *.h "%outputroot%\include\"
 )
 
 echo(
@@ -100,14 +100,14 @@ echo ==============================
 echo Building c-ares
 echo ==============================
 
-cd %srcroot%\c-ares
+cd "%srcroot%\c-ares"
 
 call buildconf.bat
 :: Not sure if we need to clean between builds
 ::nmake -f Makefile.msvc clean
 nmake -f Makefile.msvc CFG=dll-%CONF% c-ares
 set CARES_RESULT=%ERRORLEVEL%
-cd %srcroot%\c-ares
+cd "%srcroot%\c-ares"
 
 :: Copy the necessary files to the output directory
 if %CARES_RESULT% == 0 (
@@ -126,28 +126,28 @@ echo ==============================
 echo Building libcurl
 echo ==============================
 
-cd %srcroot%\curl
+cd "%srcroot%\curl"
 
 call buildconf.bat
 
-cd %srcroot%\curl\winbuild
+cd "%srcroot%\curl\winbuild"
 
 if "%CONF%" == "debug" (
-	nmake -f Makefile.vc mode=dll VC=10 WITH_DEVEL=%outputroot% WITH_ZLIB=dll WITH_CARES=dll ENABLE_IDN=no ENABLE_WINSSL=yes GEN_PDB=no DEBUG=yes MACHINE=%ARCH%
+	nmake -f Makefile.vc mode=dll VC=10 WITH_DEVEL="%outputroot%" WITH_ZLIB=dll WITH_CARES=dll ENABLE_IDN=no ENABLE_WINSSL=yes GEN_PDB=no DEBUG=yes MACHINE=%ARCH%
 ) else (
-	nmake -f Makefile.vc mode=dll VC=10 WITH_DEVEL=%outputroot% WITH_ZLIB=dll WITH_CARES=dll ENABLE_IDN=no ENABLE_WINSSL=yes GEN_PDB=no DEBUG=no MACHINE=%ARCH%
+	nmake -f Makefile.vc mode=dll VC=10 WITH_DEVEL="%outputroot%" WITH_ZLIB=dll WITH_CARES=dll ENABLE_IDN=no ENABLE_WINSSL=yes GEN_PDB=no DEBUG=no MACHINE=%ARCH%
 )
 
 set CURL_RESULT=%ERRORLEVEL%
 
 if %CURL_RESULT% == 0 (
-    cd %srcroot%\curl\builds\libcurl-vc10-%ARCH%-%CONF%-dll-cares-dll-zlib-dll-ipv6-sspi-winssl
-    copy bin\*.dll %outputroot%\bin\
-    copy lib\*.lib %outputroot%\lib\
-    copy lib\*.exp %outputroot%\lib\
-    copy lib\*.pdb %outputroot%\lib\
-    if not exist %outputroot%\include\curl mkdir %outputroot%\include\curl
-    copy include\curl\*.h %outputroot%\include\curl\
+    cd "%srcroot%\curl\builds\libcurl-vc10-%ARCH%-%CONF%-dll-cares-dll-zlib-dll-ipv6-sspi-winssl"
+    copy bin\*.dll "%outputroot%\bin\"
+    copy lib\*.lib "%outputroot%\lib\"
+    copy lib\*.exp "%outputroot%\lib\"
+    copy lib\*.pdb "%outputroot%\lib\"
+    if not exist %outputroot%\include\curl mkdir "%outputroot%\include\curl"
+    copy include\curl\*.h "%outputroot%\include\curl\"
 )
 
 echo(
@@ -155,7 +155,7 @@ echo ==============================
 echo Building regex
 echo ==============================
 
-cd %srcroot%\regex
+cd "%srcroot%\regex"
 if "%ARCH%" == "x86" (
 	msbuild regex.sln /property:Configuration=%CONF% /property:Platform=Win32
 ) else (
@@ -165,13 +165,13 @@ if "%ARCH%" == "x86" (
 set REGEX_RESULT=%ERRORLEVEL%
 
 if %REGEX_RESULT% == 0 (
-	cd %srcroot%\regex
+	cd "%srcroot%\regex"
 	if "%ARCH%" == "x86" (
-		copy regex_Win32_%CONF%\regex.lib %outputroot%\lib
+		copy regex_Win32_%CONF%\regex.lib "%outputroot%\lib"
 	) else (
-		copy regex_x64_%CONF%\regex.lib %outputroot%\lib
+		copy regex_x64_%CONF%\regex.lib "%outputroot%\lib"
 	)
-	copy regex.h %outputroot%\include
+	copy regex.h "%outputroot%\include"
 )
 
 echo(
