@@ -16,9 +16,6 @@
 
 #include "ares_setup.h"
 
-#ifdef HAVE_SYS_SOCKET_H
-#  include <sys/socket.h>
-#endif
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
 #endif
@@ -28,8 +25,6 @@
 #  include "nameser.h"
 #endif
 
-#include <string.h>
-#include <stdlib.h>
 #include "ares.h"
 #include "ares_private.h" /* for the memdebug */
 
@@ -59,7 +54,7 @@ int ares_expand_string(const unsigned char *encoded,
 
   encoded++;
 
-  *s = malloc(elen.uns+1);
+  *s = ares_malloc(elen.uns+1);
   if (*s == NULL)
     return ARES_ENOMEM;
   q = *s;

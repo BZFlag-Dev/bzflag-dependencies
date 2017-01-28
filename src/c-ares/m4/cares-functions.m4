@@ -1,7 +1,6 @@
 #***************************************************************************
-# $Id$
 #
-# Copyright (C) 2008 - 2009 by Daniel Stenberg et al
+# Copyright (C) 2008 - 2012 by Daniel Stenberg et al
 #
 # Permission to use, copy, modify, and distribute this software and its
 # documentation for any purpose and without fee is hereby granted, provided
@@ -16,7 +15,7 @@
 #***************************************************************************
 
 # File version for 'aclocal' use. Keep it a single number.
-# serial 39
+# serial 46
 
 
 dnl CARES_INCLUDES_ARPA_INET
@@ -884,6 +883,7 @@ AC_DEFUN([CARES_CHECK_FUNC_GETADDRINFO], [
   AC_REQUIRE([CARES_INCLUDES_STRING])dnl
   AC_REQUIRE([CARES_INCLUDES_SYS_SOCKET])dnl
   AC_REQUIRE([CARES_INCLUDES_NETDB])dnl
+  AC_REQUIRE([CURL_CHECK_NATIVE_WINDOWS])dnl
   #
   tst_links_getaddrinfo="unknown"
   tst_proto_getaddrinfo="unknown"
@@ -1060,18 +1060,57 @@ AC_DEFUN([CARES_CHECK_FUNC_GETADDRINFO], [
         tst_tsafe_getaddrinfo="yes"
         ;;
     esac
+    if test "$tst_tsafe_getaddrinfo" = "unknown" &&
+       test "$ac_cv_native_windows" = "yes"; then
+      tst_tsafe_getaddrinfo="yes"
+    fi
     if test "$tst_tsafe_getaddrinfo" = "unknown"; then
       CURL_CHECK_DEF_CC([h_errno], [
-        $cares_includes_ws2tcpip
         $cares_includes_sys_socket
         $cares_includes_netdb
         ], [silent])
-      if test "$curl_cv_have_def_h_errno" = "no"; then
-        tst_tsafe_getaddrinfo="no"
+      if test "$curl_cv_have_def_h_errno" = "yes"; then
+        tst_h_errno_macro="yes"
+      else
+        tst_h_errno_macro="no"
       fi
-    fi
-    if test "$tst_tsafe_getaddrinfo" = "unknown"; then
-      tst_tsafe_getaddrinfo="yes"
+      AC_COMPILE_IFELSE([
+        AC_LANG_PROGRAM([[
+          $cares_includes_sys_socket
+          $cares_includes_netdb
+        ]],[[
+          h_errno = 2;
+          if(0 != h_errno)
+            return 1;
+        ]])
+      ],[
+        tst_h_errno_modifiable_lvalue="yes"
+      ],[
+        tst_h_errno_modifiable_lvalue="no"
+      ])
+      AC_COMPILE_IFELSE([
+        AC_LANG_PROGRAM([[
+        ]],[[
+#if defined(_POSIX_C_SOURCE) && (_POSIX_C_SOURCE >= 200809L)
+          return 0;
+#elif defined(_XOPEN_SOURCE) && (_XOPEN_SOURCE >= 700)
+          return 0;
+#else
+          force compilation error
+#endif
+        ]])
+      ],[
+        tst_h_errno_sbs_issue_7="yes"
+      ],[
+        tst_h_errno_sbs_issue_7="no"
+      ])
+      if test "$tst_h_errno_macro" = "no" &&
+         test "$tst_h_errno_modifiable_lvalue" = "no" &&
+         test "$tst_h_errno_sbs_issue_7" = "no"; then
+        tst_tsafe_getaddrinfo="no"
+      else
+        tst_tsafe_getaddrinfo="yes"
+      fi
     fi
     AC_MSG_RESULT([$tst_tsafe_getaddrinfo])
     if test "$tst_tsafe_getaddrinfo" = "yes"; then
@@ -1081,6 +1120,91 @@ AC_DEFUN([CARES_CHECK_FUNC_GETADDRINFO], [
     else
       ac_cv_func_getaddrinfo_threadsafe="no"
     fi
+  fi
+])
+
+
+dnl CARES_CHECK_FUNC_GETENV
+dnl -------------------------------------------------
+dnl Verify if getenv is available, prototyped, and
+dnl can be compiled. If all of these are true, and
+dnl usage has not been previously disallowed with
+dnl shell variable cares_disallow_getenv, then
+dnl HAVE_GETENV will be defined.
+
+AC_DEFUN([CARES_CHECK_FUNC_GETENV], [
+  AC_REQUIRE([CARES_INCLUDES_STDLIB])dnl
+  #
+  tst_links_getenv="unknown"
+  tst_proto_getenv="unknown"
+  tst_compi_getenv="unknown"
+  tst_allow_getenv="unknown"
+  #
+  AC_MSG_CHECKING([if getenv can be linked])
+  AC_LINK_IFELSE([
+    AC_LANG_FUNC_LINK_TRY([getenv])
+  ],[
+    AC_MSG_RESULT([yes])
+    tst_links_getenv="yes"
+  ],[
+    AC_MSG_RESULT([no])
+    tst_links_getenv="no"
+  ])
+  #
+  if test "$tst_links_getenv" = "yes"; then
+    AC_MSG_CHECKING([if getenv is prototyped])
+    AC_EGREP_CPP([getenv],[
+      $cares_includes_stdlib
+    ],[
+      AC_MSG_RESULT([yes])
+      tst_proto_getenv="yes"
+    ],[
+      AC_MSG_RESULT([no])
+      tst_proto_getenv="no"
+    ])
+  fi
+  #
+  if test "$tst_proto_getenv" = "yes"; then
+    AC_MSG_CHECKING([if getenv is compilable])
+    AC_COMPILE_IFELSE([
+      AC_LANG_PROGRAM([[
+        $cares_includes_stdlib
+      ]],[[
+        if(0 != getenv(0))
+          return 1;
+      ]])
+    ],[
+      AC_MSG_RESULT([yes])
+      tst_compi_getenv="yes"
+    ],[
+      AC_MSG_RESULT([no])
+      tst_compi_getenv="no"
+    ])
+  fi
+  #
+  if test "$tst_compi_getenv" = "yes"; then
+    AC_MSG_CHECKING([if getenv usage allowed])
+    if test "x$cares_disallow_getenv" != "xyes"; then
+      AC_MSG_RESULT([yes])
+      tst_allow_getenv="yes"
+    else
+      AC_MSG_RESULT([no])
+      tst_allow_getenv="no"
+    fi
+  fi
+  #
+  AC_MSG_CHECKING([if getenv might be used])
+  if test "$tst_links_getenv" = "yes" &&
+     test "$tst_proto_getenv" = "yes" &&
+     test "$tst_compi_getenv" = "yes" &&
+     test "$tst_allow_getenv" = "yes"; then
+    AC_MSG_RESULT([yes])
+    AC_DEFINE_UNQUOTED(HAVE_GETENV, 1,
+      [Define to 1 if you have the getenv function.])
+    ac_cv_func_getenv="yes"
+  else
+    AC_MSG_RESULT([no])
+    ac_cv_func_getenv="no"
   fi
 ])
 
@@ -1284,6 +1408,7 @@ dnl HAVE_GETHOSTNAME will be defined.
 AC_DEFUN([CARES_CHECK_FUNC_GETHOSTNAME], [
   AC_REQUIRE([CARES_INCLUDES_WINSOCK2])dnl
   AC_REQUIRE([CARES_INCLUDES_UNISTD])dnl
+  AC_REQUIRE([CARES_PREPROCESS_CALLCONV])dnl
   #
   tst_links_gethostname="unknown"
   tst_proto_gethostname="unknown"
@@ -1338,6 +1463,35 @@ AC_DEFUN([CARES_CHECK_FUNC_GETHOSTNAME], [
       AC_MSG_RESULT([no])
       tst_compi_gethostname="no"
     ])
+  fi
+  #
+  if test "$tst_compi_gethostname" = "yes"; then
+    AC_MSG_CHECKING([for gethostname arg 2 data type])
+    tst_gethostname_type_arg2="unknown"
+    for tst_arg1 in 'char *' 'unsigned char *' 'void *'; do
+      for tst_arg2 in 'int' 'unsigned int' 'size_t'; do
+        if test "$tst_gethostname_type_arg2" = "unknown"; then
+          AC_COMPILE_IFELSE([
+            AC_LANG_PROGRAM([[
+              $cares_includes_winsock2
+              $cares_includes_unistd
+              $cares_preprocess_callconv
+              extern int FUNCALLCONV gethostname($tst_arg1, $tst_arg2);
+            ]],[[
+              if(0 != gethostname(0, 0))
+                return 1;
+            ]])
+          ],[
+            tst_gethostname_type_arg2="$tst_arg2"
+          ])
+        fi
+      done
+    done
+    AC_MSG_RESULT([$tst_gethostname_type_arg2])
+    if test "$tst_gethostname_type_arg2" != "unknown"; then
+      AC_DEFINE_UNQUOTED(GETHOSTNAME_TYPE_ARG2, $tst_gethostname_type_arg2,
+        [Define to the type of arg 2 for gethostname.])
+    fi
   fi
   #
   if test "$tst_compi_gethostname" = "yes"; then
@@ -1503,6 +1657,232 @@ AC_DEFUN([CARES_CHECK_FUNC_GETSERVBYPORT_R], [
   else
     AC_MSG_RESULT([no])
     ac_cv_func_getservbyport_r="no"
+  fi
+])
+
+
+dnl CARES_CHECK_FUNC_INET_NET_PTON
+dnl -------------------------------------------------
+dnl Verify if inet_net_pton is available, prototyped, can
+dnl be compiled and seems to work. If all of these are
+dnl true, and usage has not been previously disallowed
+dnl with shell variable cares_disallow_inet_net_pton, then
+dnl HAVE_INET_NET_PTON will be defined.
+
+AC_DEFUN([CARES_CHECK_FUNC_INET_NET_PTON], [
+  AC_REQUIRE([CARES_INCLUDES_STDLIB])dnl
+  AC_REQUIRE([CARES_INCLUDES_ARPA_INET])dnl
+  AC_REQUIRE([CARES_INCLUDES_STRING])dnl
+  #
+  tst_links_inet_net_pton="unknown"
+  tst_proto_inet_net_pton="unknown"
+  tst_compi_inet_net_pton="unknown"
+  tst_works_inet_net_pton="unknown"
+  tst_allow_inet_net_pton="unknown"
+  #
+  AC_MSG_CHECKING([if inet_net_pton can be linked])
+  AC_LINK_IFELSE([
+    AC_LANG_FUNC_LINK_TRY([inet_net_pton])
+  ],[
+    AC_MSG_RESULT([yes])
+    tst_links_inet_net_pton="yes"
+  ],[
+    AC_MSG_RESULT([no])
+    tst_links_inet_net_pton="no"
+  ])
+  #
+  if test "$tst_links_inet_net_pton" = "yes"; then
+    AC_MSG_CHECKING([if inet_net_pton is prototyped])
+    AC_EGREP_CPP([inet_net_pton],[
+      $cares_includes_arpa_inet
+    ],[
+      AC_MSG_RESULT([yes])
+      tst_proto_inet_net_pton="yes"
+    ],[
+      AC_MSG_RESULT([no])
+      tst_proto_inet_net_pton="no"
+    ])
+  fi
+  #
+  if test "$tst_proto_inet_net_pton" = "yes"; then
+    AC_MSG_CHECKING([if inet_net_pton is compilable])
+    AC_COMPILE_IFELSE([
+      AC_LANG_PROGRAM([[
+        $cares_includes_arpa_inet
+      ]],[[
+        if(0 != inet_net_pton(0, 0, 0, 0))
+          return 1;
+      ]])
+    ],[
+      AC_MSG_RESULT([yes])
+      tst_compi_inet_net_pton="yes"
+    ],[
+      AC_MSG_RESULT([no])
+      tst_compi_inet_net_pton="no"
+    ])
+  fi
+  #
+  dnl only do runtime verification when not cross-compiling
+  if test "x$cross_compiling" != "xyes" &&
+    test "$tst_compi_inet_net_pton" = "yes"; then
+    AC_MSG_CHECKING([if inet_net_pton seems to work])
+    AC_RUN_IFELSE([
+      AC_LANG_PROGRAM([[
+        $cares_includes_stdlib
+        $cares_includes_arpa_inet
+        $cares_includes_string
+      ]],[[
+        unsigned char ipv6a[16+1];
+        unsigned char ipv4a[4+1];
+        const char *ipv6net1 = "fe80::214:4fff:fe0b:76c8";
+        const char *ipv6net2 = "::fffe:7f00:1";
+        const char *ipv6net3 = "7f20:1::/64";
+        const char *ipv6net4 = "7f20:1::/2147483649";
+        const char *ipv4net1 = "192.168.100.1";
+        const char *ipv4net2 = "192.168.100/32";
+        const char *ipv4net3 = "192.168.100.1/2147483649";
+        /* - */
+        memset(ipv4a, 1, sizeof(ipv4a));
+        if(32 != inet_net_pton(AF_INET, ipv4net1, ipv4a, 4))
+          exit(1); /* fail */
+        /* - */
+        if( (ipv4a[0x00] != 0xc0) ||
+            (ipv4a[0x01] != 0xa8) ||
+            (ipv4a[0x02] != 0x64) ||
+            (ipv4a[0x03] != 0x01) ||
+            (ipv4a[0x04] != 0x01) )
+          exit(1); /* fail */
+        /* - */
+        memset(ipv4a, 1, sizeof(ipv4a));
+        if(32 != inet_net_pton(AF_INET, ipv4net2, ipv4a, 4))
+          exit(1); /* fail */
+        /* - */
+        if( (ipv4a[0x00] != 0xc0) ||
+            (ipv4a[0x01] != 0xa8) ||
+            (ipv4a[0x02] != 0x64) ||
+            (ipv4a[0x03] != 0x00) ||
+            (ipv4a[0x04] != 0x01) )
+          exit(1); /* fail */
+        /* - */
+        memset(ipv4a, 1, sizeof(ipv4a));
+        if(-1 != inet_net_pton(AF_INET, ipv4net3, ipv4a, 4))
+          exit(1); /* fail */
+        /* - */
+        memset(ipv6a, 1, sizeof(ipv6a));
+        if(128 != inet_net_pton(AF_INET6, ipv6net1, ipv6a, 16))
+          exit(1); /* fail */
+        /* - */
+        if( (ipv6a[0x00] != 0xfe) ||
+            (ipv6a[0x01] != 0x80) ||
+            (ipv6a[0x08] != 0x02) ||
+            (ipv6a[0x09] != 0x14) ||
+            (ipv6a[0x0a] != 0x4f) ||
+            (ipv6a[0x0b] != 0xff) ||
+            (ipv6a[0x0c] != 0xfe) ||
+            (ipv6a[0x0d] != 0x0b) ||
+            (ipv6a[0x0e] != 0x76) ||
+            (ipv6a[0x0f] != 0xc8) ||
+            (ipv6a[0x10] != 0x01) )
+          exit(1); /* fail */
+        /* - */
+        if( (ipv6a[0x02] != 0x0) ||
+            (ipv6a[0x03] != 0x0) ||
+            (ipv6a[0x04] != 0x0) ||
+            (ipv6a[0x05] != 0x0) ||
+            (ipv6a[0x06] != 0x0) ||
+            (ipv6a[0x07] != 0x0) )
+          exit(1); /* fail */
+        /* - */
+        memset(ipv6a, 0, sizeof(ipv6a));
+        ipv6a[0x10] = 0x01;
+        if(128 != inet_net_pton(AF_INET6, ipv6net2, ipv6a, 16))
+          exit(1); /* fail */
+        /* - */
+        if( (ipv6a[0x0a] != 0xff) ||
+            (ipv6a[0x0b] != 0xfe) ||
+            (ipv6a[0x0c] != 0x7f) ||
+            (ipv6a[0x0f] != 0x01) ||
+            (ipv6a[0x10] != 0x01) )
+          exit(1); /* fail */
+        /* - */
+        if( (ipv6a[0x00] != 0x0) ||
+            (ipv6a[0x01] != 0x0) ||
+            (ipv6a[0x02] != 0x0) ||
+            (ipv6a[0x03] != 0x0) ||
+            (ipv6a[0x04] != 0x0) ||
+            (ipv6a[0x05] != 0x0) ||
+            (ipv6a[0x06] != 0x0) ||
+            (ipv6a[0x07] != 0x0) ||
+            (ipv6a[0x08] != 0x0) ||
+            (ipv6a[0x09] != 0x0) ||
+            (ipv6a[0x0d] != 0x0) ||
+            (ipv6a[0x0e] != 0x0) )
+          exit(1); /* fail */
+        /* - */
+        memset(ipv6a, 1, sizeof(ipv6a));
+        if(64 != inet_net_pton(AF_INET6, ipv6net3, ipv6a, 16))
+          exit(1); /* fail */
+        if( (ipv6a[0x00] != 0x7f) ||
+            (ipv6a[0x01] != 0x20) ||
+            (ipv6a[0x03] != 0x01) ||
+            (ipv6a[0x08] != 0x01) ||
+            (ipv6a[0x09] != 0x01) ||
+            (ipv6a[0x0a] != 0x01) ||
+            (ipv6a[0x0b] != 0x01) ||
+            (ipv6a[0x0c] != 0x01) ||
+            (ipv6a[0x0d] != 0x01) ||
+            (ipv6a[0x0e] != 0x01) ||
+            (ipv6a[0x0f] != 0x01) ||
+            (ipv6a[0x10] != 0x01) )
+          exit(1); /* fail */
+        if( (ipv6a[0x02] != 0x0) ||
+            (ipv6a[0x04] != 0x0) ||
+            (ipv6a[0x05] != 0x0) ||
+            (ipv6a[0x06] != 0x0) ||
+            (ipv6a[0x07] != 0x0) ||
+            (ipv6a[0x07] != 0x0) )
+          exit(1); /* fail */
+        /* - */
+        memset(ipv6a, 1, sizeof(ipv6a));
+        if(-1 != inet_net_pton(AF_INET6, ipv6net4, ipv6a, 16))
+          exit(1); /* fail */
+        /* - */
+        exit(0);
+      ]])
+    ],[
+      AC_MSG_RESULT([yes])
+      tst_works_inet_net_pton="yes"
+    ],[
+      AC_MSG_RESULT([no])
+      tst_works_inet_net_pton="no"
+    ])
+  fi
+  #
+  if test "$tst_compi_inet_net_pton" = "yes" &&
+    test "$tst_works_inet_net_pton" != "no"; then
+    AC_MSG_CHECKING([if inet_net_pton usage allowed])
+    if test "x$cares_disallow_inet_net_pton" != "xyes"; then
+      AC_MSG_RESULT([yes])
+      tst_allow_inet_net_pton="yes"
+    else
+      AC_MSG_RESULT([no])
+      tst_allow_inet_net_pton="no"
+    fi
+  fi
+  #
+  AC_MSG_CHECKING([if inet_net_pton might be used])
+  if test "$tst_links_inet_net_pton" = "yes" &&
+     test "$tst_proto_inet_net_pton" = "yes" &&
+     test "$tst_compi_inet_net_pton" = "yes" &&
+     test "$tst_allow_inet_net_pton" = "yes" &&
+     test "$tst_works_inet_net_pton" != "no"; then
+    AC_MSG_RESULT([yes])
+    AC_DEFINE_UNQUOTED(HAVE_INET_NET_PTON, 1,
+      [Define to 1 if you have a IPv6 capable working inet_net_pton function.])
+    ac_cv_func_inet_net_pton="yes"
+  else
+    AC_MSG_RESULT([no])
+    ac_cv_func_inet_net_pton="no"
   fi
 ])
 

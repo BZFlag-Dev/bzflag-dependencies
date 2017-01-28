@@ -1,5 +1,5 @@
 
-/* Copyright 1998, 2010 by the Massachusetts Institute of Technology.
+/* Copyright 1998, 2011 by the Massachusetts Institute of Technology.
  *
  * Permission to use, copy, modify, and distribute this
  * software and its documentation for any purpose and without
@@ -16,9 +16,6 @@
 
 #include "ares_setup.h"
 
-#ifdef HAVE_SYS_SOCKET_H
-#  include <sys/socket.h>
-#endif
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
 #endif
@@ -30,7 +27,8 @@
 #endif
 
 #include "ares.h"
-#include "inet_net_pton.h"
+#include "ares_inet_net_pton.h"
+#include "ares_nowarn.h"
 #include "ares_private.h"
 
 int ares__get_hostent(FILE *fp, int family, struct hostent **host)
@@ -96,7 +94,7 @@ int ares__get_hostent(FILE *fp, int family, struct hostent **host)
         p++;
       if (!*p)
         /* Ignore line if reached end of line. */
-        continue;
+        continue;  /* LCOV_EXCL_LINE: trailing whitespace already stripped */
 
       /* Pointer to start of host name. */
       txthost = p;
@@ -166,7 +164,7 @@ int ares__get_hostent(FILE *fp, int family, struct hostent **host)
       */
 
       /* Allocate memory for the hostent structure. */
-      hostent = malloc(sizeof(struct hostent));
+      hostent = ares_malloc(sizeof(struct hostent));
       if (!hostent)
         break;
 
@@ -175,16 +173,16 @@ int ares__get_hostent(FILE *fp, int family, struct hostent **host)
       hostent->h_addr_list = NULL;
 
       /* Copy official host name. */
-      hostent->h_name = strdup(txthost);
+      hostent->h_name = ares_strdup(txthost);
       if (!hostent->h_name)
         break;
 
       /* Copy network address. */
-      hostent->h_addr_list = malloc(2 * sizeof(char *));
+      hostent->h_addr_list = ares_malloc(2 * sizeof(char *));
       if (!hostent->h_addr_list)
         break;
       hostent->h_addr_list[1] = NULL;
-      hostent->h_addr_list[0] = malloc(addrlen);
+      hostent->h_addr_list[0] = ares_malloc(addrlen);
       if (!hostent->h_addr_list[0])
         break;
       if (addr.family == AF_INET)
@@ -193,7 +191,7 @@ int ares__get_hostent(FILE *fp, int family, struct hostent **host)
         memcpy(hostent->h_addr_list[0], &addr.addrV6, sizeof(addr.addrV6));
 
       /* Copy aliases. */
-      hostent->h_aliases = malloc((naliases + 1) * sizeof(char *));
+      hostent->h_aliases = ares_malloc((naliases + 1) * sizeof(char *));
       if (!hostent->h_aliases)
         break;
       alias = hostent->h_aliases;
@@ -209,7 +207,7 @@ int ares__get_hostent(FILE *fp, int family, struct hostent **host)
           while (*q && ISSPACE(*q))
             q++;
           *p = '\0';
-          if ((*alias = strdup(txtalias)) == NULL)
+          if ((*alias = ares_strdup(txtalias)) == NULL)
             break;
           alias++;
           txtalias = *q ? q : NULL;
@@ -219,11 +217,11 @@ int ares__get_hostent(FILE *fp, int family, struct hostent **host)
         break;
 
       /* Copy actual network address family and length. */
-      hostent->h_addrtype = addr.family;
-      hostent->h_length = (int)addrlen;
+      hostent->h_addrtype = aresx_sitoss(addr.family);
+      hostent->h_length = aresx_uztoss(addrlen);
 
       /* Free line buffer. */
-      free(line);
+      ares_free(line);
 
       /* Return hostent successfully */
       *host = hostent;
@@ -233,7 +231,7 @@ int ares__get_hostent(FILE *fp, int family, struct hostent **host)
 
   /* If allocated, free line buffer. */
   if (line)
-    free(line);
+    ares_free(line);
 
   if (status == ARES_SUCCESS)
     {
@@ -241,20 +239,20 @@ int ares__get_hostent(FILE *fp, int family, struct hostent **host)
       if (hostent)
         {
           if (hostent->h_name)
-            free((char *) hostent->h_name);
+            ares_free((char *) hostent->h_name);
           if (hostent->h_aliases)
             {
               for (alias = hostent->h_aliases; *alias; alias++)
-                free(*alias);
-              free(hostent->h_aliases);
+                ares_free(*alias);
+              ares_free(hostent->h_aliases);
             }
           if (hostent->h_addr_list)
             {
               if (hostent->h_addr_list[0])
-                free(hostent->h_addr_list[0]);
-              free(hostent->h_addr_list);
+                ares_free(hostent->h_addr_list[0]);
+              ares_free(hostent->h_addr_list);
             }
-          free(hostent);
+          ares_free(hostent);
         }
       return ARES_ENOMEM;
     }

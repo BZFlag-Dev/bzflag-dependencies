@@ -15,11 +15,11 @@
  */
 
 #include "ares_setup.h"
-#include <stdlib.h>
+
 #include "ares.h"
 #include "ares_private.h"
 
 void ares_free_string(void *str)
 {
-  free(str);
+  ares_free(str);
 }

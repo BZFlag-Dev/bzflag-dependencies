@@ -16,11 +16,8 @@
 
 #include "ares_setup.h"
 
-#ifdef HAVE_SYS_TIME_H
-#include <sys/time.h>
-#endif
-
 #include "ares.h"
+#include "ares_nowarn.h"
 #include "ares_private.h"
 
 int ares_fds(ares_channel channel, fd_set *read_fds, fd_set *write_fds)

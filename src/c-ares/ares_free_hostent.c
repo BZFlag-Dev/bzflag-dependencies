@@ -15,7 +15,6 @@
  */
 
 #include "ares_setup.h"
-#include <stdlib.h>
 
 #ifdef HAVE_NETDB_H
 #include <netdb.h>
@@ -28,12 +27,15 @@ void ares_free_hostent(struct hostent *host)
 {
   char **p;
 
-  free((char *)(host->h_name));
+  if (!host)
+    return;
+
+  ares_free((char *)(host->h_name));
   for (p = host->h_aliases; *p; p++)
-    free(*p);
-  free(host->h_aliases);
-  free(host->h_addr_list[0]); /* no matter if there is one or many entries,
+    ares_free(*p);
+  ares_free(host->h_aliases);
+  ares_free(host->h_addr_list[0]); /* no matter if there is one or many entries,
                                  there is only one malloc for all of them */
-  free(host->h_addr_list);
-  free(host);
+  ares_free(host->h_addr_list);
+  ares_free(host);
 }

@@ -16,11 +16,6 @@
 
 #include "ares_setup.h"
 
-#include <stdlib.h>
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
-
 #include "ares.h"
 #include "ares_private.h"
 
@@ -35,14 +30,14 @@ void ares__close_sockets(ares_channel channel, struct server_state *server)
       sendreq = server->qhead;
       server->qhead = sendreq->next;
       if (sendreq->data_storage != NULL)
-        free(sendreq->data_storage);
-      free(sendreq);
+        ares_free(sendreq->data_storage);
+      ares_free(sendreq);
     }
   server->qtail = NULL;
 
   /* Reset any existing input buffer. */
   if (server->tcp_buffer)
-    free(server->tcp_buffer);
+    ares_free(server->tcp_buffer);
   server->tcp_buffer = NULL;
   server->tcp_lenbuf_pos = 0;
 

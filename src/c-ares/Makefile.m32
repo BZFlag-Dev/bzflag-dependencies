@@ -10,13 +10,16 @@
 
 LIB	= libcares.a
 
-CC	= gcc
-LD	= gcc
-RANLIB	= ranlib
+AR	= $(CROSSPREFIX)ar
+CC	= $(CROSSPREFIX)gcc
+LD	= $(CROSSPREFIX)gcc
+RANLIB	= $(CROSSPREFIX)ranlib
 #RM	= rm -f
+CP	= cp -afv
 
-CFLAGS	= -O2 -Wall
-LDFLAGS	= -s
+CFLAGS	= $(CARES_CFLAG_EXTRAS) -O2 -Wall -I.
+CFLAGS	+= -DCARES_STATICLIB
+LDFLAGS	= $(CARES_LDFLAG_EXTRAS) -s
 LIBS	= -lwsock32
 
 # Makefile.inc provides the CSOURCES and HHEADERS defines
@@ -26,7 +29,7 @@ OBJLIB	:= $(patsubst %.c,%.o,$(strip $(CSOURCES)))
 
 
 $(LIB): $(OBJLIB)
-	ar cru $@ $^
+	$(AR) cru $@ $^
 	$(RANLIB) $@
 
 all: $(LIB) demos
@@ -43,6 +46,9 @@ $(OBJLIB): ares.h ares_dns.h ares_private.h ares_build.h ares_rules.h
 
 .c.o:
 	$(CC) $(CFLAGS) -c $<
+
+ares_build.h:
+	$(CP) ares_build.h.dist ares_build.h
 
 check:
 
@@ -65,4 +71,6 @@ clean:
 
 distclean: clean
 	$(RM) config.cache config.log config.status Makefile
-
+ifeq "$(wildcard ares_build.h.dist)" "ares_build.h.dist"
+	$(RM) ares_build.h
+endif

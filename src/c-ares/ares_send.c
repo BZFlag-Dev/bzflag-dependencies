@@ -16,9 +16,6 @@
 
 #include "ares_setup.h"
 
-#ifdef HAVE_SYS_SOCKET_H
-#  include <sys/socket.h>
-#endif
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
 #endif
@@ -31,9 +28,6 @@
 #  include <arpa/nameser_compat.h>
 #endif
 
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
 #include "ares.h"
 #include "ares_dns.h"
 #include "ares_private.h"
@@ -42,7 +36,7 @@ void ares_send(ares_channel channel, const unsigned char *qbuf, int qlen,
                ares_callback callback, void *arg)
 {
   struct query *query;
-  int i;
+  int i, packetsz;
   struct timeval now;
 
   /* Verify that the query is at least long enough to hold the header. */
@@ -53,31 +47,31 @@ void ares_send(ares_channel channel, const unsigned char *qbuf, int qlen,
     }
 
   /* Allocate space for query and allocated fields. */
-  query = malloc(sizeof(struct query));
+  query = ares_malloc(sizeof(struct query));
   if (!query)
     {
       callback(arg, ARES_ENOMEM, 0, NULL, 0);
       return;
     }
-  query->tcpbuf = malloc(qlen + 2);
+  query->tcpbuf = ares_malloc(qlen + 2);
   if (!query->tcpbuf)
     {
-      free(query);
+      ares_free(query);
       callback(arg, ARES_ENOMEM, 0, NULL, 0);
       return;
     }
-  query->server_info = malloc(channel->nservers *
-                              sizeof(query->server_info[0]));
+  query->server_info = ares_malloc(channel->nservers *
+                                   sizeof(query->server_info[0]));
   if (!query->server_info)
     {
-      free(query->tcpbuf);
-      free(query);
+      ares_free(query->tcpbuf);
+      ares_free(query);
       callback(arg, ARES_ENOMEM, 0, NULL, 0);
       return;
     }
 
   /* Compute the query ID.  Start with no timeout. */
-  query->qid = (unsigned short)DNS_HEADER_QID(qbuf);
+  query->qid = DNS_HEADER_QID(qbuf);
   query->timeout.tv_sec = 0;
   query->timeout.tv_usec = 0;
 
@@ -96,7 +90,7 @@ void ares_send(ares_channel channel, const unsigned char *qbuf, int qlen,
   query->arg = arg;
 
   /* Initialize query status. */
-  query->try = 0;
+  query->try_count = 0;
 
   /* Choose the server to send the query to. If rotation is enabled, keep track
    * of the next server we want to use. */
@@ -109,7 +103,10 @@ void ares_send(ares_channel channel, const unsigned char *qbuf, int qlen,
       query->server_info[i].skip_server = 0;
       query->server_info[i].tcp_connection_generation = 0;
     }
-  query->using_tcp = (channel->flags & ARES_FLAG_USEVC) || qlen > PACKETSZ;
+
+  packetsz = (channel->flags & ARES_FLAG_EDNS) ? channel->ednspsz : PACKETSZ;
+  query->using_tcp = (channel->flags & ARES_FLAG_USEVC) || qlen > packetsz;
+
   query->error_status = ARES_ECONNREFUSED;
   query->timeouts = 0;
 

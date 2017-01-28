@@ -4,11 +4,15 @@ dnl Version not hardcoded here. Fetched later from ares_version.h
 AC_INIT([c-ares], [-],
   [c-ares mailing list: http://cool.haxx.se/mailman/listinfo/c-ares])
 
+XC_OVR_ZZ50
+XC_OVR_ZZ60
 CARES_OVERRIDE_AUTOCONF
 
 AC_CONFIG_SRCDIR([ares_ipv6.h])
-AM_CONFIG_HEADER([ares_config.h ares_build.h])
+AC_CONFIG_HEADERS([ares_config.h ares_build.h])
+AC_CONFIG_MACRO_DIR([m4])
 AM_MAINTAINER_MODE
+m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
 CARES_CHECK_OPTION_DEBUG
 CARES_CHECK_OPTION_OPTIMIZE
@@ -16,8 +20,9 @@ CARES_CHECK_OPTION_WARNINGS
 CARES_CHECK_OPTION_WERROR
 CARES_CHECK_OPTION_CURLDEBUG
 CARES_CHECK_OPTION_SYMBOL_HIDING
+CARES_CHECK_OPTION_EXPOSE_STATICS
 
-CARES_CHECK_PATH_SEPARATOR_REQUIRED
+XC_CHECK_PATH_SEPARATOR
 
 dnl SED is mandatory for configure process and libtool.
 dnl Set it now, allowing it to be changed later.
@@ -61,16 +66,12 @@ if test -z "$AR" || test "$AR" = "not_found"; then
 fi
 AC_SUBST([AR])
 
+AX_CODE_COVERAGE
+
 dnl Remove non-configure distributed ares_build.h
 if test -f ${srcdir}/ares_build.h; then
   rm -f ${srcdir}/ares_build.h
 fi
-
-dnl Fetch c-ares version from ares_version.h
-VERSION=`$SED -ne 's/^#define ARES_VERSION_STR "\(.*\)"/\1/p' ${srcdir}/ares_version.h`
-AM_INIT_AUTOMAKE([c-ares], [$VERSION])
-AC_MSG_CHECKING([c-ares version])
-AC_MSG_RESULT([$VERSION])
 
 dnl
 dnl Detect the canonical host and target build environment
@@ -80,9 +81,10 @@ AC_CANONICAL_HOST
 dnl Get system canonical name
 AC_DEFINE_UNQUOTED(OS, "${host}", [cpu-machine-OS])
 
-CARES_CHECK_PROG_CC
-AM_PROG_CC_C_O
-AC_PROG_INSTALL
+XC_CHECK_PROG_CC
+AX_CXX_COMPILE_STDCXX_11([noext],[optional])
+
+XC_AUTOMAKE
 
 dnl This defines _ALL_SOURCE for AIX
 CARES_CHECK_AIX_ALL_SOURCE
@@ -100,53 +102,49 @@ case $host_os in
     ;;
 esac
 
-dnl support building of Windows DLLs
-AC_LIBTOOL_WIN32_DLL
+XC_LIBTOOL
 
-dnl force libtool to build static libraries with PIC on AMD64-Linux & FreeBSD
-AC_MSG_CHECKING([if arch-OS host is AMD64-Linux/FreeBSD (to build static libraries with PIC)])
-case $host in
-  x86_64*linux*|amd64*freebsd*|ia64*freebsd*)
-    AC_MSG_RESULT([yes])
-    with_pic=yes
-    ;;
-  *)
-    AC_MSG_RESULT([no])
-    ;;
-esac
+#
+# Automake conditionals based on libtool related checks
+#
 
-AC_MSG_CHECKING([if compiler is icc (to build with PIC)])
-case $CC in
-  icc | */icc)
-    AC_MSG_RESULT([yes])
-    with_pic=yes
-    ;;
-  *)
-    AC_MSG_RESULT([no])
-    ;;
-esac
+AM_CONDITIONAL([CARES_LT_SHLIB_USE_VERSION_INFO],
+  [test "x$xc_lt_shlib_use_version_info" = 'xyes'])
+AM_CONDITIONAL([CARES_LT_SHLIB_USE_NO_UNDEFINED],
+  [test "x$xc_lt_shlib_use_no_undefined" = 'xyes'])
+AM_CONDITIONAL([CARES_LT_SHLIB_USE_MIMPURE_TEXT],
+  [test "x$xc_lt_shlib_use_mimpure_text" = 'xyes'])
 
-dnl libtool setup
-AC_PROG_LIBTOOL
+#
+# Due to libtool and automake machinery limitations of not allowing
+# specifying separate CPPFLAGS or CFLAGS when compiling objects for
+# inclusion of these in shared or static libraries, we are forced to
+# build using separate configure runs for shared and static libraries
+# on systems where different CPPFLAGS or CFLAGS are mandatory in order
+# to compile objects for each kind of library. Notice that relying on
+# the '-DPIC' CFLAG that libtool provides is not valid given that the
+# user might for example choose to build static libraries with PIC.
+#
 
-AC_MSG_CHECKING([if we need CARES_BUILDING_LIBRARY])
-case $host in
-  *-*-mingw*)
-    AC_DEFINE(CARES_BUILDING_LIBRARY, 1, [when building c-ares library])
-    AC_MSG_RESULT(yes)
-    AC_MSG_CHECKING([if we need CARES_STATICLIB])
-    if test "X$enable_shared" = "Xno"
-    then
-      AC_DEFINE(CARES_STATICLIB, 1, [when not building a shared library])
-      AC_MSG_RESULT(yes)
-    else
-      AC_MSG_RESULT(no)
-    fi
-    ;;
-  *)
-    AC_MSG_RESULT(no)
-    ;;
-esac
+#
+# Make our Makefile.am files use the staticlib CPPFLAG only when strictly
+# targeting a static library and not building its shared counterpart.
+#
+
+AM_CONDITIONAL([USE_CPPFLAG_CARES_STATICLIB],
+  [test "x$xc_lt_build_static_only" = 'xyes'])
+
+#
+# Make staticlib CPPFLAG variable and its definition visible in output
+# files unconditionally, providing an empty definition unless strictly
+# targeting a static library and not building its shared counterpart.
+#
+
+CPPFLAG_CARES_STATICLIB=
+if test "x$xc_lt_build_static_only" = 'xyes'; then
+  CPPFLAG_CARES_STATICLIB='-DCARES_STATICLIB'
+fi
+AC_SUBST([CPPFLAG_CARES_STATICLIB])
 
 dnl **********************************************************************
 dnl platform/compiler/architecture specific checks/flags
@@ -172,10 +170,8 @@ fi
 
 CARES_CHECK_COMPILER_HALT_ON_ERROR
 CARES_CHECK_COMPILER_ARRAY_SIZE_NEGATIVE
+CARES_CHECK_COMPILER_PROTOTYPE_MISMATCH
 CARES_CHECK_COMPILER_SYMBOL_HIDING
-
-CARES_CHECK_NO_UNDEFINED
-AM_CONDITIONAL(NO_UNDEFINED, test x$need_no_undefined = xyes)
 
 CARES_CHECK_CURLDEBUG
 AM_CONDITIONAL(CURLDEBUG, test x$want_curldebug = xyes)
@@ -355,6 +351,30 @@ if test "$HAVE_GETHOSTBYNAME" != "1"; then
   AC_MSG_ERROR([couldn't find libraries for gethostbyname()])
 fi
 
+dnl resolv lib for iPhone
+AS_IF([test "x$host_vendor" = "xapple"], [
+  AC_MSG_CHECKING([for iPhone target])
+  AC_COMPILE_IFELSE([
+    AC_LANG_PROGRAM([[
+#include "TargetConditionals.h"
+    ]], [[
+#if TARGET_OS_IPHONE == 0
+#error Not an iPhone target
+#endif
+return 0;
+    ]])
+  ],[
+    AC_MSG_RESULT([yes])
+    AC_SEARCH_LIBS([res_servicename], [resolv], [
+      AC_DEFINE([CARES_USE_LIBRESOLV], [1], [Use resolver library to configure cares])
+    ], [
+      AC_MSG_ERROR([Unable to find libresolv which is required for iPhone targets])
+    ])
+  ],[
+    AC_MSG_RESULT([no])
+  ])
+])
+
 dnl resolve lib?
 AC_CHECK_FUNC(strcasecmp, , [ AC_CHECK_LIB(resolve, strcasecmp) ])
 
@@ -462,12 +482,6 @@ AC_TYPE_SIZE_T
 AC_HEADER_TIME
 CURL_CHECK_STRUCT_TIMEVAL
 
-AC_CHECK_SIZEOF(size_t)
-AC_CHECK_SIZEOF(int)
-AC_CHECK_SIZEOF(long)
-CARES_CONFIGURE_LONG
-AC_CHECK_SIZEOF(time_t)
-
 AC_CHECK_TYPE(long long,
    [AC_DEFINE(HAVE_LONGLONG, 1,
      [Define to 1 if the compiler supports the 'long long' data type.])]
@@ -528,10 +542,12 @@ CARES_CHECK_FUNC_CONNECT
 CARES_CHECK_FUNC_FCNTL
 CARES_CHECK_FUNC_FREEADDRINFO
 CARES_CHECK_FUNC_GETADDRINFO
+CARES_CHECK_FUNC_GETENV
 CARES_CHECK_FUNC_GETHOSTBYADDR
 CARES_CHECK_FUNC_GETHOSTBYNAME
 CARES_CHECK_FUNC_GETHOSTNAME
 CARES_CHECK_FUNC_GETSERVBYPORT_R
+CARES_CHECK_FUNC_INET_NET_PTON
 CARES_CHECK_FUNC_INET_NTOP
 CARES_CHECK_FUNC_INET_PTON
 CARES_CHECK_FUNC_IOCTL
@@ -730,100 +746,12 @@ AC_CHECK_FUNCS([bitncmp \
   ],[
     AC_MSG_RESULT([yes])
     eval "ac_cv_func_$func=yes"
-    AC_DEFINE_UNQUOTED(AS_TR_CPP([HAVE_$func]), [1],
+    AC_DEFINE_UNQUOTED(XC_SH_TR_CPP([HAVE_$func]), [1],
       [Define to 1 if you have the $func function.])
   ],[
     AC_MSG_RESULT([but still no])
   ])
 ])
-
-
-dnl Check for inet_net_pton
-AC_CHECK_FUNCS(inet_net_pton)
-dnl Again, some systems have it, but not IPv6
-if test "$ac_cv_func_inet_net_pton" = "yes" ; then
-AC_MSG_CHECKING(if inet_net_pton supports IPv6)
-AC_TRY_RUN(
-  [
-#ifdef HAVE_SYS_TYPES_H
-#include <sys/types.h>
-#endif
-#ifdef HAVE_SYS_SOCKET_H
-#include <sys/socket.h>
-#endif
-#ifdef HAVE_NETINET_IN_H
-#include <netinet/in.h>
-#endif
-int main()
-  {
-    struct in6_addr addr6;
-    if (inet_net_pton(AF_INET6, "::1", &addr6, sizeof(addr6)) < 1)
-      exit(1);
-    else
-      exit(0);
-  }
-  ], [
-       AC_MSG_RESULT(yes)
-       AC_DEFINE_UNQUOTED(HAVE_INET_NET_PTON_IPV6,1,[Define to 1 if inet_net_pton supports IPv6.])
-     ], AC_MSG_RESULT(no),AC_MSG_RESULT(no))
-fi
-
-
-AC_CHECK_SIZEOF(struct in6_addr, ,
-[
-#undef inline
-#ifdef HAVE_WINDOWS_H
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#include <windows.h>
-#ifdef HAVE_WINSOCK2_H
-#include <winsock2.h>
-#ifdef HAVE_WS2TCPIP_H
-#include <ws2tcpip.h>
-#endif
-#endif
-#else
-#ifdef HAVE_SYS_TYPES_H
-#include <sys/types.h>
-#endif
-#ifdef HAVE_SYS_SOCKET_H
-#include <sys/socket.h>
-#endif
-#ifdef HAVE_NETINET_IN_H
-#include <netinet/in.h>
-#endif
-#endif
-]
-)
-
-AC_CHECK_SIZEOF(struct in_addr, ,
-[
-#undef inline
-#ifdef HAVE_WINDOWS_H
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#include <windows.h>
-#ifdef HAVE_WINSOCK2_H
-#include <winsock2.h>
-#ifdef HAVE_WS2TCPIP_H
-#include <ws2tcpip.h>
-#endif
-#endif
-#else
-#ifdef HAVE_SYS_TYPES_H
-#include <sys/types.h>
-#endif
-#ifdef HAVE_SYS_SOCKET_H
-#include <sys/socket.h>
-#endif
-#ifdef HAVE_NETINET_IN_H
-#include <netinet/in.h>
-#endif
-#endif
-]
-)
 
 
 dnl Check if the getnameinfo function is available
@@ -870,7 +798,7 @@ CARES_PRIVATE_LIBS="$LIBS"
 AC_SUBST(CARES_PRIVATE_LIBS)
 
 CARES_CFLAG_EXTRAS=""
-if test X"$want_werror" == Xyes; then
+if test X"$want_werror" = Xyes; then
   CARES_CFLAG_EXTRAS="-Werror"
 fi
 AC_SUBST(CARES_CFLAG_EXTRAS)
@@ -885,5 +813,34 @@ squeeze LIBS
 
 squeeze CARES_PRIVATE_LIBS
 
+XC_CHECK_BUILD_FLAGS
+
+AC_MSG_CHECKING([whether to build tests])
+AC_ARG_ENABLE(tests,
+	AC_HELP_STRING([--enable-tests], [build test suite]),
+	[ build_tests="$enableval" ],
+	[ if test "x$HAVE_CXX11" = "x1" && test "x$cross_compiling" = "xno" ; then
+	    build_tests="yes"
+	  else
+	    build_tests="no"
+	  fi
+	]
+)
+
+if test "x$build_tests" = "xyes" ; then
+	if test "x$HAVE_CXX11" = "0" ; then
+		AC_MSG_ERROR([*** Building tests requires a CXX11 compiler])
+	fi
+	if test "x$cross_compiling" = "xyes" ; then
+		AC_MSG_ERROR([*** Tests not supported when cross compiling])
+	fi
+fi
+AC_MSG_RESULT([$build_tests])
+
+if test "x$build_tests" = "xyes" ; then
+  AC_CONFIG_SUBDIRS([test])
+fi
+
 AC_CONFIG_FILES([Makefile libcares.pc])
 AC_OUTPUT
+XC_AMEND_DISTCLEAN(['.'])

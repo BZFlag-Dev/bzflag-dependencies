@@ -17,9 +17,6 @@
 
 #include "ares_setup.h"
 
-#ifdef HAVE_SYS_SOCKET_H
-#  include <sys/socket.h>
-#endif
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
 #endif
@@ -42,15 +39,13 @@
 #  include <strings.h>
 #endif
 
-#include <stdlib.h>
-#include <string.h>
 #ifdef HAVE_LIMITS_H
 #  include <limits.h>
 #endif
 
 #include "ares.h"
 #include "ares_dns.h"
-#include "inet_net_pton.h"
+#include "ares_inet_net_pton.h"
 #include "ares_private.h"
 
 int ares_parse_aaaa_reply(const unsigned char *abuf, int alen,
@@ -92,7 +87,7 @@ int ares_parse_aaaa_reply(const unsigned char *abuf, int alen,
     return status;
   if (aptr + len + QFIXEDSZ > abuf + alen)
     {
-      free(hostname);
+      ares_free(hostname);
       return ARES_EBADRESP;
     }
   aptr += len + QFIXEDSZ;
@@ -100,17 +95,17 @@ int ares_parse_aaaa_reply(const unsigned char *abuf, int alen,
   /* Allocate addresses and aliases; ancount gives an upper bound for both. */
   if (host)
     {
-      addrs = malloc(ancount * sizeof(struct ares_in6_addr));
+      addrs = ares_malloc(ancount * sizeof(struct ares_in6_addr));
       if (!addrs)
         {
-          free(hostname);
+          ares_free(hostname);
           return ARES_ENOMEM;
         }
-      aliases = malloc((ancount + 1) * sizeof(char *));
+      aliases = ares_malloc((ancount + 1) * sizeof(char *));
       if (!aliases)
         {
-          free(hostname);
-          free(addrs);
+          ares_free(hostname);
+          ares_free(addrs);
           return ARES_ENOMEM;
         }
     }
@@ -132,6 +127,7 @@ int ares_parse_aaaa_reply(const unsigned char *abuf, int alen,
       aptr += len;
       if (aptr + RRFIXEDSZ > abuf + alen)
         {
+          ares_free(rr_name);
           status = ARES_EBADRESP;
           break;
         }
@@ -140,6 +136,12 @@ int ares_parse_aaaa_reply(const unsigned char *abuf, int alen,
       rr_len = DNS_RR_LEN(aptr);
       rr_ttl = DNS_RR_TTL(aptr);
       aptr += RRFIXEDSZ;
+      if (aptr + rr_len > abuf + alen)
+        {
+          ares_free(rr_name);
+          status = ARES_EBADRESP;
+          break;
+        }
 
       if (rr_class == C_IN && rr_type == T_AAAA
           && rr_len == sizeof(struct ares_in6_addr)
@@ -148,20 +150,22 @@ int ares_parse_aaaa_reply(const unsigned char *abuf, int alen,
           if (addrs)
             {
               if (aptr + sizeof(struct ares_in6_addr) > abuf + alen)
-              {
+              {  /* LCOV_EXCL_START: already checked above */
+                ares_free(rr_name);
                 status = ARES_EBADRESP;
                 break;
-              }
+              }  /* LCOV_EXCL_STOP */
               memcpy(&addrs[naddrs], aptr, sizeof(struct ares_in6_addr));
             }
           if (naddrs < max_addr_ttls)
             {
               struct ares_addr6ttl * const at = &addrttls[naddrs];
               if (aptr + sizeof(struct ares_in6_addr) > abuf + alen)
-              {
+              {  /* LCOV_EXCL_START: already checked above */
+                ares_free(rr_name);
                 status = ARES_EBADRESP;
                 break;
-              }
+              }  /* LCOV_EXCL_STOP */
               memcpy(&at->ip6addr, aptr,  sizeof(struct ares_in6_addr));
               at->ttl = rr_ttl;
             }
@@ -175,7 +179,7 @@ int ares_parse_aaaa_reply(const unsigned char *abuf, int alen,
           if (aliases)
             aliases[naliases] = rr_name;
           else
-            free(rr_name);
+            ares_free(rr_name);
           naliases++;
 
           /* Decode the RR data and replace the hostname with it. */
@@ -183,7 +187,7 @@ int ares_parse_aaaa_reply(const unsigned char *abuf, int alen,
                                                   &len);
           if (status != ARES_SUCCESS)
             break;
-          free(hostname);
+          ares_free(hostname);
           hostname = rr_data;
 
           /* Take the min of the TTLs we see in the CNAME chain. */
@@ -191,17 +195,19 @@ int ares_parse_aaaa_reply(const unsigned char *abuf, int alen,
             cname_ttl = rr_ttl;
         }
       else
-        free(rr_name);
+        ares_free(rr_name);
 
       aptr += rr_len;
       if (aptr > abuf + alen)
-        {
+        {  /* LCOV_EXCL_START: already checked above */
           status = ARES_EBADRESP;
           break;
-        }
+        }  /* LCOV_EXCL_STOP */
     }
 
-  if (status == ARES_SUCCESS && naddrs == 0)
+  /* the check for naliases to be zero is to make sure CNAME responses
+     don't get caught here */
+  if (status == ARES_SUCCESS && naddrs == 0 && naliases == 0)
     status = ARES_ENODATA;
   if (status == ARES_SUCCESS)
     {
@@ -222,10 +228,10 @@ int ares_parse_aaaa_reply(const unsigned char *abuf, int alen,
       if (host)
         {
           /* Allocate memory to build the host entry. */
-          hostent = malloc(sizeof(struct hostent));
+          hostent = ares_malloc(sizeof(struct hostent));
           if (hostent)
             {
-              hostent->h_addr_list = malloc((naddrs + 1) * sizeof(char *));
+              hostent->h_addr_list = ares_malloc((naddrs + 1) * sizeof(char *));
               if (hostent->h_addr_list)
                 {
                   /* Fill in the hostent and return successfully. */
@@ -236,10 +242,12 @@ int ares_parse_aaaa_reply(const unsigned char *abuf, int alen,
                   for (i = 0; i < naddrs; i++)
                     hostent->h_addr_list[i] = (char *) &addrs[i];
                   hostent->h_addr_list[naddrs] = NULL;
+                  if (!naddrs && addrs)
+                    ares_free(addrs);
                   *host = hostent;
                   return ARES_SUCCESS;
                 }
-              free(hostent);
+              ares_free(hostent);
             }
           status = ARES_ENOMEM;
         }
@@ -247,10 +255,10 @@ int ares_parse_aaaa_reply(const unsigned char *abuf, int alen,
   if (aliases)
     {
       for (i = 0; i < naliases; i++)
-        free(aliases[i]);
-      free(aliases);
+        ares_free(aliases[i]);
+      ares_free(aliases);
     }
-  free(addrs);
-  free(hostname);
+  ares_free(addrs);
+  ares_free(hostname);
   return status;
 }

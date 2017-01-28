@@ -22,9 +22,6 @@
 #  endif
 #endif
 
-#ifdef HAVE_SYS_SOCKET_H
-#  include <sys/socket.h>
-#endif
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
 #endif
@@ -47,17 +44,9 @@
 #include <net/if.h>
 #endif
 
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 #include "ares.h"
 #include "ares_ipv6.h"
-#include "inet_ntop.h"
+#include "ares_nowarn.h"
 #include "ares_private.h"
 
 struct nameinfo_query {
@@ -88,7 +77,7 @@ static char *lookup_service(unsigned short port, int flags,
 static void append_scopeid(struct sockaddr_in6 *addr6, unsigned int scopeid,
                            char *buf, size_t buflen);
 #endif
-static char *ares_striendstr(const char *s1, const char *s2);
+STATIC_TESTABLE char *ares_striendstr(const char *s1, const char *s2);
 
 void ares_getnameinfo(ares_channel channel, const struct sockaddr *sa,
                       ares_socklen_t salen,
@@ -174,7 +163,7 @@ void ares_getnameinfo(ares_channel channel, const struct sockaddr *sa,
     /* This is where a DNS lookup becomes necessary */
     else
       {
-        niquery = malloc(sizeof(struct nameinfo_query));
+        niquery = ares_malloc(sizeof(struct nameinfo_query));
         if (!niquery)
           {
             callback(arg, ARES_ENOMEM, 0, NULL, NULL);
@@ -187,7 +176,7 @@ void ares_getnameinfo(ares_channel channel, const struct sockaddr *sa,
         if (sa->sa_family == AF_INET)
           {
             niquery->family = AF_INET;
-            memcpy(&niquery->addr.addr4, addr, sizeof(addr));
+            memcpy(&niquery->addr.addr4, addr, sizeof(niquery->addr.addr4));
             ares_gethostbyaddr(channel, &addr->sin_addr,
                                sizeof(struct in_addr), AF_INET,
                                nameinfo_callback, niquery);
@@ -195,7 +184,7 @@ void ares_getnameinfo(ares_channel channel, const struct sockaddr *sa,
         else
           {
             niquery->family = AF_INET6;
-            memcpy(&niquery->addr.addr6, addr6, sizeof(addr6));
+            memcpy(&niquery->addr.addr6, addr6, sizeof(niquery->addr.addr6));
             ares_gethostbyaddr(channel, &addr6->sin6_addr,
                                sizeof(struct ares_in6_addr), AF_INET6,
                                nameinfo_callback, niquery);
@@ -245,7 +234,7 @@ static void nameinfo_callback(void *arg, int status, int timeouts,
       niquery->callback(niquery->arg, ARES_SUCCESS, niquery->timeouts,
                         (char *)(host->h_name),
                         service);
-      free(niquery);
+      ares_free(niquery);
       return;
     }
   /* We couldn't find the host, but it's OK, we can use the IP */
@@ -276,11 +265,11 @@ static void nameinfo_callback(void *arg, int status, int timeouts,
         }
       niquery->callback(niquery->arg, ARES_SUCCESS, niquery->timeouts, ipbuf,
                         service);
-      free(niquery);
+      ares_free(niquery);
       return;
     }
   niquery->callback(niquery->arg, status, niquery->timeouts, NULL, NULL);
-  free(niquery);
+  ares_free(niquery);
 }
 
 static char *lookup_service(unsigned short port, int flags,
@@ -292,6 +281,8 @@ static char *lookup_service(unsigned short port, int flags,
   struct servent se;
 #endif
   char tmpbuf[4096];
+  char *name;
+  size_t name_len;
 
   if (port)
     {
@@ -308,12 +299,13 @@ static char *lookup_service(unsigned short port, int flags,
           else
             proto = "tcp";
 #ifdef HAVE_GETSERVBYPORT_R
+          memset(&se, 0, sizeof(se));
           sep = &se;
           memset(tmpbuf, 0, sizeof(tmpbuf));
 #if GETSERVBYPORT_R_ARGS == 6
           if (getservbyport_r(port, proto, &se, (void *)tmpbuf,
                               sizeof(tmpbuf), &sep) != 0)
-            sep = NULL;
+            sep = NULL;  /* LCOV_EXCL_LINE: buffer large so this never fails */
 #elif GETSERVBYPORT_R_ARGS == 5
           sep = getservbyport_r(port, proto, &se, (void *)tmpbuf,
                                 sizeof(tmpbuf));
@@ -334,17 +326,23 @@ static char *lookup_service(unsigned short port, int flags,
 #endif
         }
       if (sep && sep->s_name)
-        /* get service name */
-        strcpy(tmpbuf, sep->s_name);
+        {
+          /* get service name */
+          name = sep->s_name;
+        }
       else
-        /* get port as a string */
-        sprintf(tmpbuf, "%u", (unsigned int)ntohs(port));
-      if (strlen(tmpbuf) < buflen)
+        {
+          /* get port as a string */
+          sprintf(tmpbuf, "%u", (unsigned int)ntohs(port));
+          name = tmpbuf;
+        }
+      name_len = strlen(name);
+      if (name_len < buflen)
         /* return it if buffer big enough */
-        strcpy(buf, tmpbuf);
+        memcpy(buf, name, name_len + 1);
       else
         /* avoid reusing previous one */
-        buf[0] = '\0';
+        buf[0] = '\0';  /* LCOV_EXCL_LINE: no real service names are too big */
       return buf;
     }
   buf[0] = '\0';
@@ -394,7 +392,7 @@ static void append_scopeid(struct sockaddr_in6 *addr6, unsigned int flags,
 #endif
 
 /* Determines if s1 ends with the string in s2 (case-insensitive) */
-static char *ares_striendstr(const char *s1, const char *s2)
+STATIC_TESTABLE char *ares_striendstr(const char *s1, const char *s2)
 {
   const char *c1, *c2, *c1_begin;
   int lo1, lo2;
@@ -420,7 +418,5 @@ static char *ares_striendstr(const char *s1, const char *s2)
           c2++;
         }
     }
-  if (c2 == c1 && c2 == NULL)
-    return (char *)c1_begin;
-  return NULL;
+  return (char *)c1_begin;
 }
