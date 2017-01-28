@@ -1,5 +1,5 @@
 
-/* Copyright (C) 2009-2010 by Daniel Stenberg
+/* Copyright (C) 2009-2013 by Daniel Stenberg
  *
  * Permission to use, copy, modify, and distribute this
  * software and its documentation for any purpose and without
@@ -67,7 +67,7 @@ void ares_free_data(void *dataptr)
         if (ptr->data.mx_reply.next)
           ares_free_data(ptr->data.mx_reply.next);
         if (ptr->data.mx_reply.host)
-          free(ptr->data.mx_reply.host);
+          ares_free(ptr->data.mx_reply.host);
         break;
 
       case ARES_DATATYPE_SRV_REPLY:
@@ -75,15 +75,16 @@ void ares_free_data(void *dataptr)
         if (ptr->data.srv_reply.next)
           ares_free_data(ptr->data.srv_reply.next);
         if (ptr->data.srv_reply.host)
-          free(ptr->data.srv_reply.host);
+          ares_free(ptr->data.srv_reply.host);
         break;
 
       case ARES_DATATYPE_TXT_REPLY:
+      case ARES_DATATYPE_TXT_EXT:
 
         if (ptr->data.txt_reply.next)
           ares_free_data(ptr->data.txt_reply.next);
         if (ptr->data.txt_reply.txt)
-          free(ptr->data.txt_reply.txt);
+          ares_free(ptr->data.txt_reply.txt);
         break;
 
       case ARES_DATATYPE_ADDR_NODE:
@@ -92,11 +93,38 @@ void ares_free_data(void *dataptr)
           ares_free_data(ptr->data.addr_node.next);
         break;
 
+      case ARES_DATATYPE_ADDR_PORT_NODE:
+
+        if (ptr->data.addr_port_node.next)
+          ares_free_data(ptr->data.addr_port_node.next);
+        break;
+
+      case ARES_DATATYPE_NAPTR_REPLY:
+
+        if (ptr->data.naptr_reply.next)
+          ares_free_data(ptr->data.naptr_reply.next);
+        if (ptr->data.naptr_reply.flags)
+          ares_free(ptr->data.naptr_reply.flags);
+        if (ptr->data.naptr_reply.service)
+          ares_free(ptr->data.naptr_reply.service);
+        if (ptr->data.naptr_reply.regexp)
+          ares_free(ptr->data.naptr_reply.regexp);
+        if (ptr->data.naptr_reply.replacement)
+          ares_free(ptr->data.naptr_reply.replacement);
+        break;
+
+      case ARES_DATATYPE_SOA_REPLY:
+        if (ptr->data.soa_reply.nsname)
+          ares_free(ptr->data.soa_reply.nsname);
+        if (ptr->data.soa_reply.hostmaster)
+          ares_free(ptr->data.soa_reply.hostmaster);
+	break;
+
       default:
         return;
     }
 
-  free(ptr);
+  ares_free(ptr);
 }
 
 
@@ -115,7 +143,7 @@ void *ares_malloc_data(ares_datatype type)
 {
   struct ares_data *ptr;
 
-  ptr = malloc(sizeof(struct ares_data));
+  ptr = ares_malloc(sizeof(struct ares_data));
   if (!ptr)
     return NULL;
 
@@ -135,10 +163,14 @@ void *ares_malloc_data(ares_datatype type)
         ptr->data.srv_reply.port = 0;
         break;
 
+      case ARES_DATATYPE_TXT_EXT:
+        ptr->data.txt_ext.record_start = 0;
+        /* FALLTHROUGH */
+
       case ARES_DATATYPE_TXT_REPLY:
         ptr->data.txt_reply.next = NULL;
         ptr->data.txt_reply.txt = NULL;
-        ptr->data.txt_reply.length  = 0;
+        ptr->data.txt_reply.length = 0;
         break;
 
       case ARES_DATATYPE_ADDR_NODE:
@@ -148,8 +180,37 @@ void *ares_malloc_data(ares_datatype type)
                sizeof(ptr->data.addr_node.addrV6));
         break;
 
+      case ARES_DATATYPE_ADDR_PORT_NODE:
+        ptr->data.addr_port_node.next = NULL;
+        ptr->data.addr_port_node.family = 0;
+        ptr->data.addr_port_node.udp_port = 0;
+        ptr->data.addr_port_node.tcp_port = 0;
+        memset(&ptr->data.addr_port_node.addrV6, 0,
+               sizeof(ptr->data.addr_port_node.addrV6));
+        break;
+
+      case ARES_DATATYPE_NAPTR_REPLY:
+        ptr->data.naptr_reply.next = NULL;
+        ptr->data.naptr_reply.flags = NULL;
+        ptr->data.naptr_reply.service = NULL;
+        ptr->data.naptr_reply.regexp = NULL;
+        ptr->data.naptr_reply.replacement = NULL;
+        ptr->data.naptr_reply.order = 0;
+        ptr->data.naptr_reply.preference = 0;
+        break;
+
+      case ARES_DATATYPE_SOA_REPLY:
+        ptr->data.soa_reply.nsname = NULL;
+        ptr->data.soa_reply.hostmaster = NULL;
+        ptr->data.soa_reply.serial = 0;
+        ptr->data.soa_reply.refresh = 0;
+        ptr->data.soa_reply.retry = 0;
+        ptr->data.soa_reply.expire = 0;
+        ptr->data.soa_reply.minttl = 0;
+	break;
+
       default:
-        free(ptr);
+        ares_free(ptr);
         return NULL;
     }
 
@@ -157,34 +218,4 @@ void *ares_malloc_data(ares_datatype type)
   ptr->type = type;
 
   return &ptr->data;
-}
-
-
-/*
-** ares_get_datatype() - c-ares internal helper function.
-**
-** This function returns the ares_datatype of the data stored in a
-** private ares_data struct when given the public API pointer.
-*/
-
-ares_datatype ares_get_datatype(void * dataptr)
-{
-  struct ares_data *ptr;
-
-#ifdef __INTEL_COMPILER
-#  pragma warning(push)
-#  pragma warning(disable:1684)
-   /* 1684: conversion from pointer to same-sized integral type */
-#endif
-
-  ptr = (void *)((char *)dataptr - offsetof(struct ares_data, data));
-
-#ifdef __INTEL_COMPILER
-#  pragma warning(pop)
-#endif
-
-  if (ptr->mark == ARES_DATATYPE_MARK)
-    return ptr->type;
-
-  return ARES_DATATYPE_UNKNOWN;
 }

@@ -15,9 +15,6 @@
  */
 #include "ares_setup.h"
 
-#ifdef HAVE_SYS_SOCKET_H
-#  include <sys/socket.h>
-#endif
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
 #endif
@@ -36,12 +33,9 @@
 #  include <arpa/nameser_compat.h>
 #endif
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 #include "ares.h"
-#include "inet_net_pton.h"
+#include "ares_inet_net_pton.h"
+#include "ares_platform.h"
 #include "ares_private.h"
 
 #ifdef WATT32
@@ -85,7 +79,7 @@ void ares_gethostbyaddr(ares_channel channel, const void *addr, int addrlen,
       return;
     }
 
-  aquery = malloc(sizeof(struct addr_query));
+  aquery = ares_malloc(sizeof(struct addr_query));
   if (!aquery)
     {
       callback(arg, ARES_ENOMEM, 0, NULL);
@@ -175,7 +169,7 @@ static void end_aquery(struct addr_query *aquery, int status,
   aquery->callback(aquery->arg, status, aquery->timeouts, host);
   if (host)
     ares_free_hostent(host);
-  free(aquery);
+  ares_free(aquery);
 }
 
 static int file_lookup(struct ares_addr *addr, struct hostent **host)
@@ -186,7 +180,13 @@ static int file_lookup(struct ares_addr *addr, struct hostent **host)
 
 #ifdef WIN32
   char PATH_HOSTS[MAX_PATH];
-  if (IS_NT()) {
+  win_platform platform;
+
+  PATH_HOSTS[0] = '\0';
+
+  platform = ares__getplatform();
+
+  if (platform == WIN_NT) {
     char tmp[MAX_PATH];
     HKEY hkeyHosts;
 
@@ -200,8 +200,10 @@ static int file_lookup(struct ares_addr *addr, struct hostent **host)
       RegCloseKey(hkeyHosts);
     }
   }
-  else
+  else if (platform == WIN_9X)
     GetWindowsDirectory(PATH_HOSTS, MAX_PATH);
+  else
+    return ARES_ENOTFOUND;
 
   strcat(PATH_HOSTS, WIN_PATH_HOSTS);
 

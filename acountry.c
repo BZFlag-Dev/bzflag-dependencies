@@ -15,7 +15,7 @@
  *
  * Ref: http://countries.nerd.dk/more.html
  *
- * Written by G. Vanem <gvanem@broadpark.no> 2006, 2007
+ * Written by G. Vanem <gvanem@yahoo.no> 2006, 2007
  *
  * NB! This program may not be big-endian aware.
  *
@@ -34,14 +34,6 @@
 
 #include "ares_setup.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <string.h>
-#include <ctype.h>
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
 #ifdef HAVE_STRINGS_H
 #include <strings.h>
 #endif
@@ -49,7 +41,6 @@
 #if defined(WIN32) && !defined(WATT32)
   #include <winsock.h>
 #else
-  #include <sys/socket.h>
   #include <arpa/inet.h>
   #include <netinet/in.h>
   #include <netdb.h>
@@ -57,8 +48,7 @@
 
 #include "ares.h"
 #include "ares_getopt.h"
-#include "inet_net_pton.h"
-#include "inet_ntop.h"
+#include "ares_nowarn.h"
 
 #ifndef HAVE_STRDUP
 #  include "ares_strdup.h"
@@ -81,14 +71,14 @@
 
 static const char *usage      = "acountry [-vh?] {host|addr} ...\n";
 static const char  nerd_fmt[] = "%u.%u.%u.%u.zz.countries.nerd.dk";
-static const char *nerd_ver1  = nerd_fmt + 14;
-static const char *nerd_ver2  = nerd_fmt + 11;
+static const char *nerd_ver1  = nerd_fmt + 14;  /* .countries.nerd.dk */
+static const char *nerd_ver2  = nerd_fmt + 11;  /* .zz.countries.nerd.dk */
 static int         verbose    = 0;
 
 #define TRACE(fmt) do {               \
                      if (verbose > 0) \
                        printf fmt ;   \
-                   } while (0)
+                   } WHILE_FALSE
 
 static void wait_ares(ares_channel channel);
 static void callback(void *arg, int status, int timeouts, struct hostent *host);
@@ -210,7 +200,9 @@ static void wait_ares(ares_channel channel)
       if (nfds == 0)
         break;
       tvp = ares_timeout(channel, NULL, &tv);
-      select(nfds, &read_fds, &write_fds, NULL, tvp);
+      nfds = select(nfds, &read_fds, &write_fds, NULL, tvp);
+      if (nfds < 0)
+        continue;
       ares_process(channel, &read_fds, &write_fds);
     }
 }
@@ -569,9 +561,10 @@ static void find_country_from_cname(const char *cname, struct in_addr addr)
   if (ver_1)
     {
       const char *dot = strchr(cname, '.');
-      if ((z0 != 'z' && z1 != 'z') || dot != cname+4)
+      if (dot != cname+4)
         {
           printf("Unexpected CNAME %s (ver_1)\n", cname);
+          free(ccopy);
           return;
         }
     }
@@ -582,12 +575,14 @@ static void find_country_from_cname(const char *cname, struct in_addr addr)
       if (z0 != 'z' && z1 != 'z')
         {
           printf("Unexpected CNAME %s (ver_2)\n", cname);
+          free(ccopy);
           return;
         }
     }
   else
     {
       printf("Unexpected CNAME %s (ver?)\n", cname);
+      free(ccopy);
       return;
     }
 
@@ -624,4 +619,3 @@ static void find_country_from_cname(const char *cname, struct in_addr addr)
     }
   free(ccopy);
 }
-

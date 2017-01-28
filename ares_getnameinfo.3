@@ -109,6 +109,9 @@ was not found.
 .B ARES_ENOMEM
 Memory was exhausted.
 .TP 19
+.B ARES_ECANCELLED
+The query was cancelled.
+.TP 19
 .B ARES_EDESTRUCTION
 The name service channel
 .I channel
@@ -142,7 +145,6 @@ will be
 .BR NULL .
 .SH SEE ALSO
 .BR ares_process (3),
-.BR ares_getaddrinfo (3)
 .SH AUTHOR
 Dominick Meglio
 .br

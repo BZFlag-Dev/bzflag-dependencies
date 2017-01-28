@@ -8,6 +8,8 @@
 
 #define PACKAGE  "c-ares"
 
+#define HAVE_ERRNO_H           1
+#define HAVE_GETENV            1
 #define HAVE_GETTIMEOFDAY      1
 #define HAVE_IOCTLSOCKET       1
 #define HAVE_IOCTLSOCKET_FIONBIO   1
@@ -30,9 +32,6 @@
 #define NEED_MALLOC_H          1
 
 #define RETSIGTYPE             void
-#define SIZEOF_INT             4
-#define SIZEOF_SHORT           2
-#define SIZEOF_SIZE_T          4
 #define TIME_WITH_SYS_TIME     1
 
 /* Qualifiers for send(), recv(), recvfrom() and getnameinfo(). */
@@ -63,7 +62,7 @@
 
 #if defined(__HIGHC__) || \
     (defined(__GNUC__) && (__GNUC__ < 4))
-#define ssize_t    int
+  #define ssize_t  int
 #endif
 
 /* Target HAVE_x section */
@@ -84,13 +83,14 @@
 
 #elif defined(__HIGHC__)
   #define HAVE_SYS_TIME_H 1
+  #define strerror(e) strerror_s_((e))
 #endif
 
 #ifdef WATT32
   #define HAVE_AF_INET6                    1
   #define HAVE_ARPA_INET_H                 1
   #define HAVE_ARPA_NAMESER_H              1
-  #define HAVE_CLOSESOCKET_CAMEL           1
+  #define HAVE_CLOSE_S                     1
   #define HAVE_GETHOSTNAME                 1
   #define HAVE_NETDB_H                     1
   #define HAVE_NETINET_IN_H                1
@@ -104,7 +104,6 @@
   #define HAVE_SYS_UIO_H                   1
   #define NS_INADDRSZ                      4
   #define HAVE_STRUCT_SOCKADDR_IN6         1
-  #define CloseSocket(s)                   close_s((s))
 #endif
 
 #undef word

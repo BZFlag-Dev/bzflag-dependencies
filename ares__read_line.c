@@ -15,9 +15,7 @@
  */
 
 #include "ares_setup.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+
 #include "ares.h"
 #include "ares_nowarn.h"
 #include "ares_private.h"
@@ -38,7 +36,7 @@ int ares__read_line(FILE *fp, char **buf, size_t *bufsize)
 
   if (*buf == NULL)
     {
-      *buf = malloc(128);
+      *buf = ares_malloc(128);
       if (!*buf)
         return ARES_ENOMEM;
       *bufsize = 128;
@@ -61,9 +59,13 @@ int ares__read_line(FILE *fp, char **buf, size_t *bufsize)
         continue;
 
       /* Allocate more space. */
-      newbuf = realloc(*buf, *bufsize * 2);
+      newbuf = ares_realloc(*buf, *bufsize * 2);
       if (!newbuf)
-        return ARES_ENOMEM;
+        {
+          ares_free(*buf);
+          *buf = NULL;
+          return ARES_ENOMEM;
+        }
       *buf = newbuf;
       *bufsize *= 2;
     }

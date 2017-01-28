@@ -26,34 +26,34 @@
  * bitncmp(l, r, n)
  *	compare bit masks l and r, for n bits.
  * return:
- *	-1, 1, or 0 in the libc tradition.
+ *	<0, >0, or 0 in the libc tradition.
  * note:
  *	network byte order assumed.  this means 192.5.5.240/28 has
  *	0x11110000 in its fourth octet.
  * author:
  *	Paul Vixie (ISC), June 1996
  */
-int
-ares_bitncmp(const void *l, const void *r, int n) {
-	unsigned int lb, rb;
-	int x, b;
+int ares__bitncmp(const void *l, const void *r, int n)
+{
+  unsigned int lb, rb;
+  int x, b;
 
-	b = n / 8;
-	x = memcmp(l, r, b);
-	if (x || (n % 8) == 0)
-		return (x);
+  b = n / 8;
+  x = memcmp(l, r, b);
+  if (x || (n % 8) == 0)
+    return (x);
 
-	lb = ((const unsigned char *)l)[b];
-	rb = ((const unsigned char *)r)[b];
-	for (b = n % 8; b > 0; b--) {
-		if ((lb & 0x80) != (rb & 0x80)) {
-			if (lb & 0x80)
-				return (1);
-			return (-1);
-		}
-		lb <<= 1;
-		rb <<= 1;
-	}
-	return (0);
+  lb = ((const unsigned char *)l)[b];
+  rb = ((const unsigned char *)r)[b];
+  for (b = n % 8; b > 0; b--) {
+    if ((lb & 0x80) != (rb & 0x80)) {
+      if (lb & 0x80)
+        return (1);
+      return (-1);
+    }
+    lb <<= 1;
+    rb <<= 1;
+  }
+  return (0);
 }
 #endif
