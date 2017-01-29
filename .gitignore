@@ -36,3 +36,7 @@ src/SDL2/VisualC/tests/*/x64/
 src/SDL2/VisualC/tests/*/*.bmp
 src/SDL2/VisualC/tests/*/*.wav
 src/SDL2/VisualC/tests/*/*.dat
+
+# Other Visual C++ files
+*.VC.db
+*.suo

@@ -17,6 +17,12 @@ Here is a list of the upstream source locations:
 
 ## Building the libraries
 
-Batch files to build for either Visual C++ 2010 or 2015 are provided. Run the buildVC2010.bat or
-buildVC2015.bat file and it should build the libraries. Output will go into a folder such as
-output-release-x86. Run a 'git clean -x -f -d' before switching between Visual C++ versions.
+A batch file to build for Visual C++ 2015 is provided. Run the buildVC2015.bat file and it should
+build the libraries. Output will go into a folder such as output-release-x86. Run a 
+'git clean -x -f -d' before switching between Visual C++ versions.
+
+## Using the libraries
+
+Create an environment variable called BZ_DEPS that points to the directory that the output
+directories are contained within. For instance, if output-release-x86 is at
+'D:\bzflag-dependencies\output-release-x86', then BZ_DEPS should be 'D:\bzflag-dependencies\'.
