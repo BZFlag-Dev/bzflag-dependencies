@@ -19,6 +19,11 @@ src/zlib/*.pdb
 src/zlib/*.dll
 src/zlib/*.res
 
+# libpng build files
+src/libpng/*.lib
+src/libpng/*.obj
+src/libpng/pnglibconf.h
+
 # c-ares build files
 src/c-ares/msvc*/
 
