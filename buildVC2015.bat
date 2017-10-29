@@ -102,7 +102,6 @@ echo ==============================
 
 cd "%srcroot%\c-ares"
 
-call buildconf.bat
 :: Not sure if we need to clean between builds
 ::nmake -f Makefile.msvc clean
 nmake -f Makefile.msvc CFG=dll-%CONF% c-ares
@@ -127,8 +126,6 @@ echo Building libcurl
 echo ==============================
 
 cd "%srcroot%\curl"
-
-call buildconf.bat
 
 cd "%srcroot%\curl\winbuild"
 
