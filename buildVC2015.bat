@@ -13,10 +13,14 @@ if not "%DevEnvDir%" == "" (
 set ARCH=x86
 if "%1" == "x64" set ARCH=x64
 
+:: Note: We're forcing the use of the Windows 8.1 SDK, since, at least when Visual Studio 2017 is also installed, the
+:: Visual Studio 2015 script to find the Windows 10 SDK finds the wrong path and thus rc.exe is missing, which causes
+:: c-ares to fail to build
+
 if exist "%ProgramFiles%\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" (
-	call "%ProgramFiles%\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" %ARCH%
+	call "%ProgramFiles%\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" %ARCH% 8.1
 ) else if exist "%ProgramFiles(x86)%\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" (
-	call "%ProgramFiles(x86)%\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" %ARCH%
+	call "%ProgramFiles(x86)%\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" %ARCH% 8.1
 ) else (
 	echo Unable to locate vcvarsall.bat, aborting
 	pause
