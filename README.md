@@ -14,6 +14,7 @@ Here is a list of the upstream source locations:
 * regex - Looks like it was some version from NetBSD. Haven't yet found the ideal location to pull a
   new version from, so I'm using what we had.
 * [libpng](https://git.code.sf.net/p/libpng/)
+* [SDL2](https://libsdl.org/)
 * [zlib](https://github.com/madler/zlib)
 
 ## Building the libraries
@@ -27,3 +28,13 @@ build the libraries. Output will go into a folder such as output-release-x86. Ru
 Create an environment variable called BZ_DEPS that points to the directory that the output
 directories are contained within. For instance, if output-release-x86 is at
 'D:\bzflag-dependencies\output-release-x86', then BZ_DEPS should be 'D:\bzflag-dependencies\'.
+
+## Updating the libraries
+
+When new versions of these dependencies are released, we should update our copies. There are two ways this is accomplished in this repository. For libpng and zlib, which have properly tagged git repositories, this is done with the `git subtree` command. Replace TAG with the tag you wish to pull. 
+
+git subtree pull --prefix src/libpng https://git.code.sf.net/p/libpng/code TAG --squash
+\-or\-
+git subtree pull --prefix src/zlib https://github.com/madler/zlib TAG --squash
+
+For the others, just delete the contents and replace with the new contents of the source tars.

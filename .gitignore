@@ -27,6 +27,11 @@ src/libpng/pnglibconf.h
 # c-ares build files
 src/c-ares/msvc*/
 
+# curl build files
+src/curl/builds/*
+src/curl/winbuild/*.inc
+src/curl/winbuild/*.idb
+
 # regex build files
 src/regex/regex*/
 src/regex/regex.vcxproj.user

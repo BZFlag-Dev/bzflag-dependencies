@@ -8,7 +8,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef WIN32
+#include <io.h>
+#else
 #include <unistd.h>
+#endif
 
 #define kMaxAflInputSize (1 << 20)
 static unsigned char afl_buffer[kMaxAflInputSize];
@@ -21,16 +25,17 @@ static unsigned char afl_buffer[kMaxAflInputSize];
 #define KEEP_FUZZING(count) ((count) < 1)
 #endif
 
-/* In ares-test-fuzz.c: */
+/* In ares-test-fuzz.c and ares-test-fuzz-name.c: */
 int LLVMFuzzerTestOneInput(const unsigned char *data, unsigned long size);
 
 static void ProcessFile(int fd) {
-  ssize_t count = read(fd, afl_buffer, kMaxAflInputSize);
+  int count = read(fd, afl_buffer, kMaxAflInputSize);
   /*
    * Make a copy of the data so that it's not part of a larger
    * buffer (where buffer overflows would go unnoticed).
    */
   unsigned char *copied_data = (unsigned char *)malloc(count);
+  memcpy(copied_data, afl_buffer, count);
   LLVMFuzzerTestOneInput(copied_data, count);
   free(copied_data);
 }
