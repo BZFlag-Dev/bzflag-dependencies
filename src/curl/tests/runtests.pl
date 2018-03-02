@@ -6,7 +6,7 @@
 #                            | (__| |_| |  _ <| |___
 #                             \___|\___/|_| \_\_____|
 #
-# Copyright (C) 1998 - 2017, Daniel Stenberg, <daniel@haxx.se>, et al.
+# Copyright (C) 1998 - 2018, Daniel Stenberg, <daniel@haxx.se>, et al.
 #
 # This software is licensed as described in the file COPYING, which
 # you should have received as part of this distribution. The terms
@@ -217,6 +217,7 @@ my $gopher_ipv6;    # set if Gopher server has IPv6 support
 my $has_ipv6;       # set if libcurl is built with IPv6 support
 my $has_unix;       # set if libcurl is built with Unix sockets support
 my $has_libz;       # set if libcurl is built with libz support
+my $has_brotli;     # set if libcurl is built with brotli support
 my $has_getrlimit;  # set if system has getrlimit()
 my $has_ntlm;       # set if libcurl is built with NTLM support
 my $has_ntlm_wb;    # set if libcurl is built with NTLM delegation to winbind
@@ -339,6 +340,7 @@ $ENV{'CURL_MEMDEBUG'} = $memdump;
 $ENV{'CURL_ENTROPY'}="12345678";
 $ENV{'CURL_FORCETIME'}=1; # for debug NTLM magic
 $ENV{'HOME'}=$pwd;
+$ENV{'COLUMNS'}=79; # screen width!
 
 sub catch_zap {
     my $signame = shift;
@@ -601,7 +603,7 @@ sub torture {
             my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) =
                 localtime(time());
             my $now = sprintf("%02d:%02d:%02d ", $hour, $min, $sec);
-            logmsg "Fail funcion no: $limit at $now\r";
+            logmsg "Fail function no: $limit at $now\r";
         }
 
         # make the memory allocation function number $limit return failure
@@ -2880,6 +2882,9 @@ sub checksystem {
             if($feat =~ /libz/i) {
                 $has_libz = 1;
             }
+            if($feat =~ /brotli/i) {
+                $has_brotli = 1;
+            }
             if($feat =~ /NTLM/i) {
                 # NTLM enabled
                 $has_ntlm=1;
@@ -3396,6 +3401,11 @@ sub singletest {
                     next;
                 }
             }
+            elsif($1 eq "brotli") {
+                if($has_brotli) {
+                    next;
+                }
+            }
             elsif($1 eq "NTLM") {
                 if($has_ntlm) {
                     next;
@@ -3549,6 +3559,11 @@ sub singletest {
                 }
                 elsif($1 eq "libz") {
                     if(!$has_libz) {
+                        next;
+                    }
+                }
+                elsif($1 eq "brotli") {
+                    if(!$has_brotli) {
                         next;
                     }
                 }

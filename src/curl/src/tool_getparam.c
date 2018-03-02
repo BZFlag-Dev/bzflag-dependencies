@@ -424,6 +424,58 @@ GetFileAndPassword(char *nextarg, char **file, char **password)
   cleanarg(nextarg);
 }
 
+/* Get a size parameter for '--limit-rate' or '--max-filesize'.
+ * We support a 'G', 'M' or 'K' suffix too.
+  */
+static ParameterError GetSizeParameter(struct GlobalConfig *global,
+                                       const char *arg,
+                                       const char *which,
+                                       curl_off_t *value_out)
+{
+  char *unit;
+  curl_off_t value;
+
+  if(curlx_strtoofft(arg, &unit, 0, &value)) {
+    warnf(global, "invalid number specified for %s\n", which);
+    return PARAM_BAD_USE;
+  }
+
+  if(!*unit)
+    unit = (char *)"b";
+  else if(strlen(unit) > 1)
+    unit = (char *)"w"; /* unsupported */
+
+  switch(*unit) {
+  case 'G':
+  case 'g':
+    if(value > (CURL_OFF_T_MAX / (1024*1024*1024)))
+      return PARAM_NUMBER_TOO_LARGE;
+    value *= 1024*1024*1024;
+    break;
+  case 'M':
+  case 'm':
+    if(value > (CURL_OFF_T_MAX / (1024*1024)))
+      return PARAM_NUMBER_TOO_LARGE;
+    value *= 1024*1024;
+    break;
+  case 'K':
+  case 'k':
+    if(value > (CURL_OFF_T_MAX / 1024))
+      return PARAM_NUMBER_TOO_LARGE;
+    value *= 1024;
+    break;
+  case 'b':
+  case 'B':
+    /* for plain bytes, leave as-is */
+    break;
+  default:
+    warnf(global, "unsupported %s unit. Use G, M, K or B!\n", which);
+    return PARAM_BAD_USE;
+  }
+  *value_out = value;
+  return PARAM_OK;
+}
+
 ParameterError getparameter(const char *flag, /* f or -long-flag */
                             char *nextarg,    /* NULL if unset */
                             bool *usedarg,    /* set to TRUE if the arg
@@ -589,40 +641,11 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
         break;
       case 'i': /* --limit-rate */
       {
-        /* We support G, M, K too */
-        char *unit;
         curl_off_t value;
-        if(curlx_strtoofft(nextarg, &unit, 0, &value)) {
-          warnf(global, "unsupported rate\n");
-          return PARAM_BAD_USE;
-        }
+        ParameterError pe = GetSizeParameter(global, nextarg, "rate", &value);
 
-        if(!*unit)
-          unit = (char *)"b";
-        else if(strlen(unit) > 1)
-          unit = (char *)"w"; /* unsupported */
-
-        switch(*unit) {
-        case 'G':
-        case 'g':
-          value *= 1024*1024*1024;
-          break;
-        case 'M':
-        case 'm':
-          value *= 1024*1024;
-          break;
-        case 'K':
-        case 'k':
-          value *= 1024;
-          break;
-        case 'b':
-        case 'B':
-          /* for plain bytes, leave as-is */
-          break;
-        default:
-          warnf(global, "unsupported rate unit. Use G, M, K or B!\n");
-          return PARAM_BAD_USE;
-        }
+        if(pe != PARAM_OK)
+           return pe;
         config->recvpersecond = value;
         config->sendpersecond = value;
       }
@@ -753,9 +776,15 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
           return PARAM_LIBCURL_DOESNT_SUPPORT;
         break;
       case 'y': /* --max-filesize */
-        err = str2offset(&config->max_filesize, nextarg);
-        if(err)
-          return err;
+        {
+          curl_off_t value;
+          ParameterError pe =
+            GetSizeParameter(global, nextarg, "max-filesize", &value);
+
+          if(pe != PARAM_OK)
+             return pe;
+          config->max_filesize = value;
+        }
         break;
       case 'z': /* --disable-eprt */
         config->disable_eprt = toggle;
@@ -787,7 +816,7 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
           url = config->url_get;
         else
           /* there was no free node, create one! */
-          url = new_getout(config);
+          config->url_get = url = new_getout(config);
 
         if(!url)
           return PARAM_NO_MEM;
@@ -1787,7 +1816,7 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
         url = config->url_out;
       else
         /* there was no free node, create one! */
-        url = new_getout(config);
+        config->url_out = url = new_getout(config);
 
       if(!url)
         return PARAM_NO_MEM;
@@ -1912,23 +1941,23 @@ ParameterError getparameter(const char *flag, /* f or -long-flag */
       /* we are uploading */
     {
       struct getout *url;
-      if(!config->url_out)
-        config->url_out = config->url_list;
-      if(config->url_out) {
+      if(!config->url_ul)
+        config->url_ul = config->url_list;
+      if(config->url_ul) {
         /* there's a node here, if it already is filled-in continue to find
            an "empty" node */
-        while(config->url_out && (config->url_out->flags & GETOUT_UPLOAD))
-          config->url_out = config->url_out->next;
+        while(config->url_ul && (config->url_ul->flags & GETOUT_UPLOAD))
+          config->url_ul = config->url_ul->next;
       }
 
       /* now there might or might not be an available node to fill in! */
 
-      if(config->url_out)
+      if(config->url_ul)
         /* existing node */
-        url = config->url_out;
+        url = config->url_ul;
       else
         /* there was no free node, create one! */
-        url = new_getout(config);
+        config->url_ul = url = new_getout(config);
 
       if(!url)
         return PARAM_NO_MEM;
