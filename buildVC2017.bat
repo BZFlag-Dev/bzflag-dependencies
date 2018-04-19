@@ -101,6 +101,24 @@ if %ZLIB_RESULT% == 0 (
 
 echo(
 echo ==============================
+echo Building libpng
+echo ==============================
+
+cd "%srcroot%\libpng"
+:: Not sure if we need to clean between builds
+::nmake -f scripts\makefile.vcwin32 clean
+nmake -f scripts\makefile.vcwin32 libpng.lib
+
+set LIBPNG_RESULT=%ERRORLEVEL%
+
+if %LIBPNG_RESULT% == 0 (
+	cd "%srcroot%\libpng"
+	copy libpng.lib "%outputroot%\lib\"
+	copy *.h "%outputroot%\include\"
+)
+
+echo(
+echo ==============================
 echo Building c-ares
 echo ==============================
 
@@ -221,6 +239,11 @@ if %PDCURSES_RESULT% == 0 (
 	echo zlib ................... SUCCESS!
 ) else (
 	echo zlib ................... FAILED!
+)
+if %LIBPNG_RESULT% == 0 (
+	echo libpng ................. SUCCESS!
+) else (
+	echo libpng ................. FAILED!
 )
 if %CARES_RESULT% == 0 (
 	echo c-ares ................. SUCCESS!
