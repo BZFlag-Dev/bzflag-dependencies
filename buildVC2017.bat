@@ -51,6 +51,7 @@ if not exist "%outputroot%" mkdir "%outputroot%"
 if not exist "%outputroot%\bin" mkdir "%outputroot%\bin"
 if not exist "%outputroot%\lib" mkdir "%outputroot%\lib"
 if not exist "%outputroot%\include" mkdir "%outputroot%\include"
+if not exist "%origroot%\licenses" mkdir "%origroot%\licenses"
 
 echo ==============================
 echo Building PDCurses
@@ -73,6 +74,7 @@ if %PDCURSES_RESULT% == 0 (
 	cd "%srcroot%\pdcurses"
 	copy win32\*.lib "%outputroot%\lib\"
 	copy *.h "%outputroot%\include\"
+	copy README "%origroot%\licenses\pdcurses.txt"
 )
 
 echo(
@@ -97,6 +99,7 @@ if %ZLIB_RESULT% == 0 (
 	)
 	copy zdll.exp "%outputroot%\lib\zlib.exp"
 	copy *.h "%outputroot%\include\"
+	copy README "%origroot%\licenses\zlib.txt"
 )
 
 echo(
@@ -122,6 +125,7 @@ if %CARES_RESULT% == 0 (
 	copy "msvc\cares\dll-%CONF%\*.dll" "%outputroot%\bin\"
 	copy "msvc\cares\dll-%CONF%\*.lib" "%outputroot%\lib\"
 	copy "msvc\cares\dll-%CONF%\*.exp" "%outputroot%\lib\"
+	copy LICENSE.md "%origroot%\licenses\c-ares.txt"
 )
 
 echo(
@@ -142,13 +146,15 @@ if "%CONF%" == "debug" (
 set CURL_RESULT=%ERRORLEVEL%
 
 if %CURL_RESULT% == 0 (
-    cd "%srcroot%\curl\builds\libcurl-vc15-%ARCH%-%CONF%-dll-cares-dll-zlib-dll-ipv6-sspi-winssl"
-    copy bin\*.dll "%outputroot%\bin\"
-    copy lib\*.lib "%outputroot%\lib\"
-    copy lib\*.exp "%outputroot%\lib\"
-    copy lib\*.pdb "%outputroot%\lib\"
-    if not exist %outputroot%\include\curl mkdir "%outputroot%\include\curl"
-    copy include\curl\*.h "%outputroot%\include\curl\"
+	cd "%srcroot%\curl\builds\libcurl-vc15-%ARCH%-%CONF%-dll-cares-dll-zlib-dll-ipv6-sspi-winssl"
+	copy bin\*.dll "%outputroot%\bin\"
+	copy lib\*.lib "%outputroot%\lib\"
+	copy lib\*.exp "%outputroot%\lib\"
+	copy lib\*.pdb "%outputroot%\lib\"
+	if not exist %outputroot%\include\curl mkdir "%outputroot%\include\curl"
+	copy include\curl\*.h "%outputroot%\include\curl\"
+	cd "%srcroot%\curl"
+	copy COPYING "%origroot%\licenses\curl.txt"
 )
 
 echo(
@@ -173,6 +179,7 @@ if %REGEX_RESULT% == 0 (
 		copy regex_x64_%CONF%\regex.lib "%outputroot%\lib"
 	)
 	copy regex.h "%outputroot%\include"
+	copy license.txt "%origroot%\licenses\regex.txt"
 )
 
 echo(
@@ -204,6 +211,7 @@ if %SDL2_RESULT% == 0 (
 	)
 	mkdir "%outputroot%\include\SDL2"
 	copy "include\*.h" "%outputroot%\include\SDL2\"
+	copy COPYING.txt "%origroot%\licenses\SDL2.txt"
 )
 
 echo(
