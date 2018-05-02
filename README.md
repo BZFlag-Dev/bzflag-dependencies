@@ -18,7 +18,7 @@ Here is a list of the upstream source locations:
 
 ## Building the libraries
 
-A batch file to build for Visual C++ 2015 is provided. Run the buildVC2015.bat file and it should
+A batch file to build for Visual C++ 2017 is provided. Run the buildVC2017.bat file and it should
 build the libraries. Output will go into a folder such as output-release-x86. Run a 
 'git clean -x -f -d' before switching between Visual C++ versions.
 
@@ -32,8 +32,6 @@ directories are contained within. For instance, if output-release-x86 is at
 
 When new versions of these dependencies are released, we should update our copies. There are two ways this is accomplished in this repository. For libpng and zlib, which have properly tagged git repositories, this is done with the `git subtree` command. Replace TAG with the tag you wish to pull. 
 
-git subtree pull --prefix src/libpng https://git.code.sf.net/p/libpng/code TAG --squash
-\-or\-
 git subtree pull --prefix src/zlib https://github.com/madler/zlib TAG --squash
 
 For the others, just delete the contents and replace with the new contents of the source tars.
