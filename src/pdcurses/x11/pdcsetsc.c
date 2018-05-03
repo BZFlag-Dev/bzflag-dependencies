@@ -2,34 +2,40 @@
 
 #include "pdcx11.h"
 
-RCSID("$Id: pdcsetsc.c,v 1.33 2008/07/14 04:24:52 wmcbrine Exp $")
-
 #include <string.h>
 
 /*man-start**************************************************************
 
-  Name:                                                         pdcsetsc
+pdcsetsc
+--------
 
-  Synopsis:
-        int PDC_set_blink(bool blinkon);
-        void PDC_set_title(const char *title);
+### Synopsis
 
-  Description:
-        PDC_set_blink() toggles whether the A_BLINK attribute sets an
-        actual blink mode (TRUE), or sets the background color to high
-        intensity (FALSE). The default is platform-dependent (FALSE in
-        most cases). It returns OK if it could set the state to match 
-        the given parameter, ERR otherwise. Current platforms also 
-        adjust the value of COLORS according to this function -- 16 for 
-        FALSE, and 8 for TRUE.
+    int PDC_set_blink(bool blinkon);
+    int PDC_set_bold(bool boldon);
+    void PDC_set_title(const char *title);
 
-        PDC_set_title() sets the title of the window in which the curses
-        program is running. This function may not do anything on some
-        platforms. (Currently it only works in Win32 and X11.)
+### Description
 
-  Portability                                X/Open    BSD    SYS V
-        PDC_set_blink                           -       -       -
-        PDC_set_title                           -       -       -
+   PDC_set_blink() toggles whether the A_BLINK attribute sets an
+   actual blink mode (TRUE), or sets the background color to high
+   intensity (FALSE). The default is platform-dependent (FALSE in
+   most cases). It returns OK if it could set the state to match
+   the given parameter, ERR otherwise.
+
+   PDC_set_bold() toggles whether the A_BOLD attribute selects an actual
+   bold font (TRUE), or sets the foreground color to high intensity
+   (FALSE). It returns OK if it could set the state to match the given
+   parameter, ERR otherwise.
+
+   PDC_set_title() sets the title of the window in which the curses
+   program is running. This function may not do anything on some
+   platforms.
+
+### Portability
+                             X/Open    BSD    SYS V
+    PDC_set_blink               -       -       -
+    PDC_set_title               -       -       -
 
 **man-end****************************************************************/
 
@@ -68,7 +74,19 @@ void PDC_set_title(const char *title)
 int PDC_set_blink(bool blinkon)
 {
     if (pdc_color_started)
-        COLORS = 16;
+        COLORS = 256;
 
-    return blinkon ? ERR : OK;
+    XCursesInstruct(blinkon ? CURSES_BLINK_ON : CURSES_BLINK_OFF);
+
+    return OK;
+}
+
+int PDC_set_bold(bool boldon)
+{
+    if (boldon)
+        SP->termattrs |= A_BOLD;
+    else
+        SP->termattrs &= ~A_BOLD;
+
+    return OK;
 }

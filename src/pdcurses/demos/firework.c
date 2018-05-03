@@ -1,11 +1,5 @@
-/* $Id: firework.c,v 1.25 2008/07/13 16:08:17 wmcbrine Exp $ */
-
-#include <stdio.h>
-#include <signal.h>
 #include <curses.h>
-#include <ctype.h>
 #include <stdlib.h>
-#include <sys/types.h>
 #include <time.h>
 
 #define DELAYSIZE 200
@@ -22,13 +16,16 @@ short color_table[] =
 
 int main(int argc, char **argv)
 {
-    int i, start, end, row, diff, flag, direction, seed;
+    time_t seed;
+    int start, end, row, diff, flag, direction;
+    short i;
 
 #ifdef XCURSES
     Xinitscr(argc, argv);
 #else
     initscr();
 #endif
+    keypad(stdscr, TRUE);
     nodelay(stdscr, TRUE);
     noecho();
 
@@ -41,7 +38,7 @@ int main(int argc, char **argv)
     seed = time((time_t *)0);
     srand(seed);
     flag = 0;
-       
+
     while (getch() == ERR)      /* loop until a key is hit */
     {
         do {

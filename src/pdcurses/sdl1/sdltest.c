@@ -1,16 +1,14 @@
 /* Here's a simple example of combining SDL and PDCurses functionality.
    The top portion of the window is devoted to SDL, with a four-line
    (assuming the default 8x16 font) stdscr at the bottom.
-
-   $Id: sdltest.c,v 1.2 2008/07/14 04:24:52 wmcbrine Exp $
 */
 
-#include <SDL/SDL.h>
+#include <SDL.h>
 #include <curses.h>
 #include <stdlib.h>
 #include <time.h>
 
-/* You could #include pdcsdl.h, or just add the relevant declarations 
+/* You could #include pdcsdl.h, or just add the relevant declarations
    here: */
 
 PDCEX SDL_Surface *pdc_screen;
@@ -54,7 +52,7 @@ int main(int argc, char **argv)
         dest.w = i;
         dest.h = j;
 
-        SDL_FillRect(pdc_screen, &dest, 
+        SDL_FillRect(pdc_screen, &dest,
                      SDL_MapRGB(pdc_screen->format, rand() % 256,
                                 rand() % 256, rand() % 256));
     }

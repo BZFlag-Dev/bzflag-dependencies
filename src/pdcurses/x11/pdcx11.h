@@ -1,6 +1,8 @@
 /* Public Domain Curses */
 
-/* $Id: pdcx11.h,v 1.64 2008/07/14 04:24:52 wmcbrine Exp $ */
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
 
 #include <curspriv.h>
 
@@ -97,6 +99,7 @@ typedef struct
     Pixel pointerBackColor;
     XFontStruct *normalFont;
     XFontStruct *italicFont;
+    XFontStruct *boldFont;
     char *bitmap;
 #ifdef HAVE_XPM_H
     char *pixmap;
@@ -111,6 +114,7 @@ typedef struct
     int scrollbarWidth;
     int cursorBlinkRate;
     char *textCursor;
+    int textBlinkRate;
 } XCursesAppData;
 
 extern XCursesAppData xc_app_data;
@@ -134,7 +138,7 @@ int XC_read_socket(int, void *, int);
 int XC_write_display_socket_int(int);
 
 int XCursesSetupX(int argc, char *argv[]);
-RETSIGTYPE XCursesSigwinchHandler(int signo);
+void XCursesSigwinchHandler(int signo);
 
 #ifdef _HPUX_SOURCE
 # define FD_SET_CAST int *
@@ -159,7 +163,7 @@ extern int xc_display_sockets[2];
 extern int xc_key_sockets[2];
 extern int xc_exit_sock;
 
-typedef RETSIGTYPE (*signal_handler)();
+typedef void (*signal_handler)();
 
 signal_handler XCursesSetSignal(int, signal_handler);
 
@@ -178,11 +182,11 @@ void XC_say(const char *msg);
 
 enum
 {
-    CURSES_CLEAR_SELECTION, CURSES_DISPLAY_CURSOR, CURSES_SET_SELECTION, 
-    CURSES_GET_SELECTION, CURSES_TITLE, CURSES_REFRESH_SCROLLBAR, 
-    CURSES_RESIZE, CURSES_BELL, CURSES_CONTINUE, CURSES_CURSOR, 
-    CURSES_CHILD, CURSES_REFRESH, CURSES_GET_COLOR, CURSES_SET_COLOR, 
-    CURSES_EXIT
+    CURSES_CLEAR_SELECTION, CURSES_DISPLAY_CURSOR, CURSES_SET_SELECTION,
+    CURSES_GET_SELECTION, CURSES_TITLE, CURSES_REFRESH_SCROLLBAR,
+    CURSES_RESIZE, CURSES_BELL, CURSES_CONTINUE, CURSES_CURSOR,
+    CURSES_CHILD, CURSES_REFRESH, CURSES_GET_COLOR, CURSES_SET_COLOR,
+    CURSES_BLINK_ON, CURSES_BLINK_OFF, CURSES_EXIT
 };
 
 extern short *xc_atrtab;

@@ -1,21 +1,7 @@
 /* Public Domain Curses */
 
-/* $Id: pdcdos.h,v 1.30 2008/07/13 16:08:17 wmcbrine Exp $ */
-
 #include <curspriv.h>
 #include <string.h>
-
-#if defined(_MSC_VER) || defined(_QC)
-# define MSC 1
-#endif
-
-#if defined(__PACIFIC__) && !defined(__SMALL__)
-# define __SMALL__
-#endif
-
-#if defined(__HIGHC__) || MSC
-# include <bios.h>
-#endif
 
 /*----------------------------------------------------------------------
  *  MEMORY MODEL SUPPORT:
@@ -50,7 +36,7 @@
 
 #include <dos.h>
 
-extern unsigned char *pdc_atrtab;
+extern short pdc_curstoreal[16];
 extern int pdc_adapter;
 extern int pdc_scrnmode;
 extern int pdc_font;
@@ -88,7 +74,7 @@ unsigned long getdosmemdword(int offs);
 void setdosmembyte(int offs, unsigned char b);
 void setdosmemword(int offs, unsigned short w);
 #else
-# if SMALL || MEDIUM || MSC
+# if SMALL || MEDIUM
 #  define PDC_FAR far
 # else
 #  define PDC_FAR
@@ -117,7 +103,7 @@ typedef union
     struct
     {
         unsigned short di, di_hi, si, si_hi, bp, bp_hi, res, res_hi,
-                       bx, bx_hi, dx, dx_hi, cx, cx_hi, ax, ax_hi, 
+                       bx, bx_hi, dx, dx_hi, cx, cx_hi, ax, ax_hi,
                        flags, es, ds, fs, gs, ip, cs, sp, ss;
     } w;
 
@@ -180,7 +166,3 @@ enum
     _FONT15,    /* GENIUS */
     _FONT16
 };
-
-#ifdef __PACIFIC__
-void movedata(unsigned, unsigned, unsigned, unsigned, unsigned);
-#endif

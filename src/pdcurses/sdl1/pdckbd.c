@@ -2,21 +2,23 @@
 
 #include "pdcsdl.h"
 
-RCSID("$Id: pdckbd.c,v 1.20 2008/07/14 04:24:52 wmcbrine Exp $")
-
 /*man-start**************************************************************
 
-  Name:                                                         pdckbd
+pdckbd
+------
 
-  Synopsis:
-        unsigned long PDC_get_input_fd(void);
+### Synopsis
 
-  Description:
-        PDC_get_input_fd() returns the file descriptor that PDCurses 
-        reads its input from. It can be used for select().
+    unsigned long PDC_get_input_fd(void);
 
-  Portability                                X/Open    BSD    SYS V
-        PDC_get_input_fd                        -       -       -
+### Description
+
+   PDC_get_input_fd() returns the file descriptor that PDCurses
+   reads its input from. It can be used for select().
+
+### Portability
+                             X/Open    BSD    SYS V
+    PDC_get_input_fd            -       -       -
 
 **man-end****************************************************************/
 
@@ -111,7 +113,7 @@ bool PDC_check_key(void)
     Uint32 current = SDL_GetTicks();
     int haveevent = SDL_PollEvent(&event);
 
-    /* if we have an event, or 30 ms have passed without a screen 
+    /* if we have an event, or 30 ms have passed without a screen
        update, or the timer has wrapped, update now */
 
     if (haveevent ||
@@ -132,6 +134,8 @@ static int _process_key_event(void)
     {
         if (SP->return_key_modifiers && event.key.keysym.sym == oldkey)
         {
+            SP->key_code = TRUE;
+
             switch (oldkey)
             {
             case SDLK_RSHIFT:
@@ -149,6 +153,8 @@ static int _process_key_event(void)
             default:
                 break;
             }
+
+            SP->key_code = FALSE;
         }
 
         return -1;
@@ -282,13 +288,26 @@ static int _process_mouse_event(void)
 
         /* handle scroll wheel */
 
-        if ((btn == 4 || btn == 5) && action == BUTTON_RELEASED)
+        if ((btn >= 4 && btn <= 7) && action == BUTTON_RELEASED)
         {
             pdc_mouse_status.x = pdc_mouse_status.y = -1;
 
-            pdc_mouse_status.changes = (btn == 5) ?
-                PDC_MOUSE_WHEEL_DOWN : PDC_MOUSE_WHEEL_UP;
+            switch (btn)
+            {
+            case 4:
+                pdc_mouse_status.changes = PDC_MOUSE_WHEEL_UP;
+                break;
+            case 5:
+                pdc_mouse_status.changes = PDC_MOUSE_WHEEL_DOWN;
+                break;
+            case 6:
+                pdc_mouse_status.changes = PDC_MOUSE_WHEEL_LEFT;
+                break;
+            case 7:
+                pdc_mouse_status.changes = PDC_MOUSE_WHEEL_RIGHT;
+            }
 
+            SP->key_code = TRUE;
             return KEY_MOUSE;
         }
 
@@ -323,6 +342,7 @@ static int _process_mouse_event(void)
 
     old_mouse_status = pdc_mouse_status;
 
+    SP->key_code = TRUE;
     return KEY_MOUSE;
 }
 
@@ -345,6 +365,7 @@ int PDC_get_key(void)
             if (!SP->resized)
             {
                 SP->resized = TRUE;
+                SP->key_code = TRUE;
                 return KEY_RESIZE;
             }
         }
@@ -361,6 +382,8 @@ int PDC_get_key(void)
     case SDL_KEYDOWN:
         PDC_mouse_set();
         return _process_key_event();
+    case SDL_USEREVENT:
+        PDC_blink_text();
     }
 
     return -1;

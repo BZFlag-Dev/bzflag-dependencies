@@ -2,8 +2,6 @@
 
 #include "pdcx11.h"
 
-RCSID("$Id: pdcscrn.c,v 1.55 2008/07/14 04:24:52 wmcbrine Exp $")
-
 /* COLOR_PAIR to attribute encoding table. */
 
 short *xc_atrtab = (short *)NULL;
@@ -71,7 +69,7 @@ int PDC_resize_screen(int nlines, int ncols)
     XCursesCOLS = SP->cols;
 
     PDC_LOG(("%s:shmid_Xcurscr %d shmkey_Xcurscr %d SP->lines %d "
-             "SP->cols %d\n", XCLOGMSG, shmid_Xcurscr, 
+             "SP->cols %d\n", XCLOGMSG, shmid_Xcurscr,
              shmkey_Xcurscr, SP->lines, SP->cols));
 
     Xcurscr = (unsigned char*)shmat(shmid_Xcurscr, 0, 0);
