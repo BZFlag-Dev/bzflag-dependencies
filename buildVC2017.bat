@@ -57,24 +57,24 @@ echo ==============================
 echo Building PDCurses
 echo ==============================
 
-cd "%srcroot%\pdcurses\win32"
+cd "%srcroot%\pdcurses\wincon"
 :: Not sure if we need to clean between builds
-::nmake -f vcwin32.mak clean
+::nmake -f Makefile.vc clean
 ::del none pdcurses.ilk
 
 if "%CONF%" == "debug" (
-	nmake -f vcwin32.mak DEBUG= UTF8= pdcurses.lib
+	nmake -f Makefile.vc DEBUG=Y UTF8=Y pdcurses.lib
 ) else (
-	nmake -f vcwin32.mak UTF8= pdcurses.lib
+	nmake -f Makefile.vc UTF8=Y pdcurses.lib
 )
 
 set PDCURSES_RESULT=%ERRORLEVEL%
 
 if %PDCURSES_RESULT% == 0 (
 	cd "%srcroot%\pdcurses"
-	copy win32\*.lib "%outputroot%\lib\"
+	copy wincon\*.lib "%outputroot%\lib\"
 	copy *.h "%outputroot%\include\"
-	copy README "%origroot%\licenses\pdcurses.txt"
+	copy README.md "%origroot%\licenses\pdcurses.txt"
 )
 
 echo(
