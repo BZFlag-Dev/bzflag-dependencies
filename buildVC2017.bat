@@ -118,6 +118,7 @@ if %LIBPNG_RESULT% == 0 (
 	cd "%srcroot%\libpng"
 	copy libpng.lib "%outputroot%\lib\"
 	copy *.h "%outputroot%\include\"
+	copy LICENSE "%origroot%\licenses\libpng.txt"
 )
 
 echo(
