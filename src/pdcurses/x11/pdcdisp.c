@@ -2,8 +2,6 @@
 
 #include "pdcx11.h"
 
-RCSID("$Id: pdcdisp.c,v 1.46 2008/07/14 04:24:52 wmcbrine Exp $")
-
 #include <string.h>
 
 #ifdef CHTYPE_LONG
@@ -51,8 +49,8 @@ chtype acs_map[128] =
     0x2534, 0x252c, 0x2502, 0x2264, 0x2265, 0x03c0, 0x2260, 0x00a3,
     0x00b7,
 # else
-    A(7), A(8), '#', 0xa4, A(11), A(12), A(13), A(14), A(15), A(16), 
-    A(17), A(18), A(19), A(20), A(21), A(22), A(23), A(24), A(25), 
+    A(7), A(8), '#', 0xa4, A(11), A(12), A(13), A(14), A(15), A(16),
+    A(17), A(18), A(19), A(20), A(21), A(22), A(23), A(24), A(25),
     A(26), A(27), A(28), A(29), A(30), 0xb7,
 # endif
 
@@ -82,6 +80,13 @@ int PDC_display_cursor(int oldrow, int oldcol, int newrow, int newcol,
     }
     else
     {
+        if ((oldrow == newrow) && (oldcol == newcol))
+        {
+            /* Do not send a message because it will cause the blink state
+               to reset. */
+            return OK;
+        }
+
         idx = CURSES_CURSOR;
         memcpy(buf, &idx, sizeof(int));
 

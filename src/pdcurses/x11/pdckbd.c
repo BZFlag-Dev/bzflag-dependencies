@@ -2,21 +2,23 @@
 
 #include "pdcx11.h"
 
-RCSID("$Id: pdckbd.c,v 1.62 2008/07/14 04:24:52 wmcbrine Exp $")
-
 /*man-start**************************************************************
 
-  Name:                                                         pdckbd
+pdckbd
+------
 
-  Synopsis:
-        unsigned long PDC_get_input_fd(void);
+### Synopsis
 
-  Description:
-        PDC_get_input_fd() returns the file descriptor that PDCurses 
-        reads its input from. It can be used for select().
+    unsigned long PDC_get_input_fd(void);
 
-  Portability                                X/Open    BSD    SYS V
-        PDC_get_input_fd                        -       -       -
+### Description
+
+   PDC_get_input_fd() returns the file descriptor that PDCurses
+   reads its input from. It can be used for select().
+
+### Portability
+                             X/Open    BSD    SYS V
+    PDC_get_input_fd            -       -       -
 
 **man-end****************************************************************/
 
@@ -32,8 +34,9 @@ bool PDC_check_key(void)
     FD_ZERO(&xc_readfds);
     FD_SET(xc_key_sock, &xc_readfds);
 
-    if ((s = select(FD_SETSIZE, (FD_SET_CAST)&xc_readfds, NULL, 
-        NULL, &socket_timeout)) < 0)
+    s = select(FD_SETSIZE, (FD_SET_CAST)&xc_readfds, NULL, NULL,
+               &socket_timeout);
+    if (s < 0)
         XCursesExitCursesProcess(3, "child - exiting from "
                                     "PDC_check_key select failed");
 

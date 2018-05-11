@@ -19,9 +19,18 @@ SLIBS		= $(shell sdl-config --libs)
 SFLAGS		+= -DHAVE_VSNPRINTF -DHAVE_VSSCANF
 
 ifeq ($(DEBUG),Y)
-	CFLAGS  = -g -Wall -DPDCDEBUG
+	CFLAGS  = -g -Wall -DPDCDEBUG -fPIC
 else
-	CFLAGS  = -O2 -Wall
+	CFLAGS  = -O2 -Wall -fPIC
+endif
+
+ifeq ($(WIDE),Y)
+	CFLAGS	+= -DPDC_WIDE
+	SLIBS	+= -lSDL_ttf
+endif
+
+ifeq ($(UTF8),Y)
+	CFLAGS	+= -DPDC_FORCE_UTF8
 endif
 
 BUILD		= $(CC) $(CFLAGS) -I$(PDCURSES_SRCDIR)
@@ -35,8 +44,7 @@ LDFLAGS		= $(LIBCURSES) $(SLIBS)
 RANLIB		= ranlib
 LIBCURSES	= libpdcurses.a
 
-DEMOS		= firework newdemo ptest rain testcurs tuidemo worm xmas \
-sdltest
+DEMOS		+= sdltest
 
 .PHONY: all libs clean demos
 
@@ -48,7 +56,9 @@ clean:
 	-rm -rf *.o trace $(LIBCURSES) $(DEMOS)
 
 demos:	$(DEMOS)
+ifneq ($(DEBUG),Y)
 	strip $(DEMOS)
+endif
 
 $(LIBCURSES) : $(LIBOBJS) $(PDCOBJS)
 	ar rv $@ $?
@@ -70,7 +80,7 @@ $(PDCOBJS) : %.o: $(osdir)/%.c
 firework: $(demodir)/firework.c
 	$(BUILD) $(DEMOFLAGS) -o $@ $< $(LDFLAGS)
 
-newdemo: $(demodir)/newdemo.c
+ozdemo: $(demodir)/ozdemo.c
 	$(BUILD) $(DEMOFLAGS) -o $@ $< $(LDFLAGS)
 
 ptest: $(demodir)/ptest.c
@@ -92,10 +102,13 @@ xmas: $(demodir)/xmas.c
 	$(BUILD) $(DEMOFLAGS) -o $@ $< $(LDFLAGS)
 
 sdltest: $(osdir)/sdltest.c
-	$(BUILD) $(DEMOFLAGS) -o $@ $< $(LDFLAGS)
+	$(BUILD) $(DEMOFLAGS) $(SFLAGS) -o $@ $< $(LDFLAGS)
 
 tui.o: $(demodir)/tui.c $(demodir)/tui.h
 	$(BUILD) -c $(DEMOFLAGS) $(demodir)/tui.c
 
 tuidemo.o: $(demodir)/tuidemo.c
 	$(BUILD) -c $(DEMOFLAGS) $(demodir)/tuidemo.c
+
+ncurses_testdir = $(HOME)/ncurses-5.9/test
+include $(demodir)/nctests.mif

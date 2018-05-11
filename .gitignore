@@ -1,5 +1,6 @@
 # Output directories
-output-*/
+/output-*/
+/licenses/
 
 # PDCurses build files
 src/pdcurses/win32/*.def

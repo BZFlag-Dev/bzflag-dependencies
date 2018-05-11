@@ -44,10 +44,7 @@
 /*                                                                            */
 /******************************************************************************/
 
-/* $Id: xmas.c,v 1.29 2008/07/13 16:08:17 wmcbrine Exp $ */
-
 #include <curses.h>
-#include <signal.h>
 
 void lil(WINDOW *);
 void midtop(WINDOW *);

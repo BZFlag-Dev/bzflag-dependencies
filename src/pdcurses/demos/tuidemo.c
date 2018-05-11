@@ -1,6 +1,4 @@
 /*
- * $Id: tuidemo.c,v 1.22 2008/07/14 12:35:23 wmcbrine Exp $
- *
  * Author : P.J. Kunst <kunst@prl.philips.nl>
  * Date   : 25-02-93
  *
@@ -31,7 +29,7 @@
 
 void address(void)
 {
-    char *fieldname[6] = 
+    char *fieldname[6] =
     {
         "Name", "Street", "City", "State", "Country", (char *)0
     };
@@ -89,10 +87,7 @@ void showfile(char *fname)
 
             for (i = 0; i < bh - 1 && !ateof; i++)
             {
-                buf[0] = '\0';
-                fgets(buf, MAXSTRLEN, fp);
-
-                if (strlen(buf))
+                if (fgets(buf, MAXSTRLEN, fp))
                     bodymsg(buf);
                 else
                     ateof = TRUE;

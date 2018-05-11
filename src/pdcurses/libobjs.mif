@@ -1,5 +1,5 @@
-# Common elements for most of the DOS, OS/2 and Win32
-# makefiles (not Watcom or LCC)
+# Common elements for most of the DOS, OS/2 and Windows
+# makefiles (not Watcom)
 
 PDCURSES_CURSES_H	= $(PDCURSES_SRCDIR)/curses.h
 PDCURSES_CURSPRIV_H	= $(PDCURSES_SRCDIR)/curspriv.h
@@ -22,5 +22,5 @@ debug.$(O)
 PDCOBJS = pdcclip.$(O) pdcdisp.$(O) pdcgetsc.$(O) pdckbd.$(O) pdcscrn.$(O) \
 pdcsetsc.$(O) pdcutil.$(O)
 
-DEMOS = testcurs.exe newdemo.exe xmas.exe tuidemo.exe firework.exe \
-ptest.exe rain.exe worm.exe
+DEMOS = testcurs$(E) ozdemo$(E) xmas$(E) tuidemo$(E) firework$(E) \
+ptest$(E) rain$(E) worm$(E)

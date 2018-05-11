@@ -4,8 +4,6 @@
  *
  *  wrs(5/28/93) -- modified to be consistent (perform identically)
  *                  with either PDCurses or under Unix System V, R4
- *
- *  $Id: testcurs.c,v 1.85 2008/07/14 12:35:23 wmcbrine Exp $
  */
 
 #ifndef _XOPEN_SOURCE_EXTENDED
@@ -52,6 +50,7 @@ int initTest(WINDOW **, int, char **);
 void outputTest(WINDOW *);
 void padTest(WINDOW *);
 void acsTest(WINDOW *);
+void attrTest(WINDOW *);
 
 #if HAVE_COLOR
 void colorTest(WINDOW *);
@@ -79,7 +78,7 @@ struct commands
 
 typedef struct commands COMMAND;
 
-#define MAX_OPTIONS (6 + HAVE_COLOR + HAVE_RESIZE + HAVE_CLIPBOARD + HAVE_WIDE)
+#define MAX_OPTIONS (7 + HAVE_COLOR + HAVE_RESIZE + HAVE_CLIPBOARD + HAVE_WIDE)
 
 COMMAND command[MAX_OPTIONS] =
 {
@@ -92,6 +91,7 @@ COMMAND command[MAX_OPTIONS] =
     {"Input Test", inputTest},
     {"Output Test", outputTest},
     {"ACS Test", acsTest},
+    {"Attrib Test", attrTest},
 #if HAVE_COLOR
     {"Color Test", colorTest},
 #endif
@@ -343,7 +343,7 @@ void inputTest(WINDOW *win)
     sw = w / 3;
     sh = h / 3;
 
-    if ((subWin = subwin(win, sh, sw, by + h - sh - 2, bx + w - sw - 2)) 
+    if ((subWin = subwin(win, sh, sw, by + h - sh - 2, bx + w - sw - 2))
         == NULL)
         return;
 
@@ -424,11 +424,11 @@ void inputTest(WINDOW *win)
             else if (BUTTON_CHANGED(3))
                 button = 3;
 
-            if (button && (BUTTON_STATUS(button) & 
+            if (button && (BUTTON_STATUS(button) &
                 BUTTON_MODIFIER_MASK))
             {
                 waddstr(win, " Modifier(s):");
-             
+
                 if (BUTTON_STATUS(button) & BUTTON_SHIFT)
                     waddstr(win, " SHIFT");
 
@@ -449,6 +449,10 @@ void inputTest(WINDOW *win)
                 waddstr(win, "wheel up: ");
             else if (MOUSE_WHEEL_DOWN)
                 waddstr(win, "wheel dn: ");
+            else if (MOUSE_WHEEL_LEFT)
+                waddstr(win, "wheel lt: ");
+            else if (MOUSE_WHEEL_RIGHT)
+                waddstr(win, "wheel rt: ");
             else if ((BUTTON_STATUS(button) &
                 BUTTON_ACTION_MASK) == BUTTON_PRESSED)
                 waddstr(win, "pressed: ");
@@ -561,6 +565,9 @@ void outputTest(WINDOW *win)
     chtype ch;
     int by, bx;
 
+#ifdef PDCURSES
+    PDC_set_blink(TRUE);
+#endif
     nl();
     wclear(win);
     mvwaddstr(win, 1, 1, "You should now have a screen in the upper "
@@ -611,7 +618,7 @@ void outputTest(WINDOW *win)
         wmove(win1, 8, 26);
         wrefresh(win1);
         wgetch(win1);
-       
+
         wclear(win1);
 
         wattron(win1, A_BLINK);
@@ -717,6 +724,9 @@ void outputTest(WINDOW *win)
     mvaddstr(LINES - 2, 10, Buffer);
     refresh();
     Continue(win);
+#ifdef PDCURSES
+    PDC_set_blink(FALSE);
+#endif
 }
 
 #if HAVE_RESIZE
@@ -892,7 +902,7 @@ void acsTest(WINDOW *win)
         "ACS_LARROW", "ACS_RARROW", "ACS_UARROW", "ACS_DARROW",
         "ACS_BOARD", "ACS_LANTERN", "ACS_BLOCK"
 #ifdef ACS_S3
-        , "ACS_S3", "ACS_S7", "ACS_LEQUAL", "ACS_GEQUAL", 
+        , "ACS_S3", "ACS_S7", "ACS_LEQUAL", "ACS_GEQUAL",
         "ACS_PI", "ACS_NEQUAL", "ACS_STERLING"
 #endif
     };
@@ -902,17 +912,17 @@ void acsTest(WINDOW *win)
 #if HAVE_WIDE
     cchar_t *wacs_values[] =
     {
-        WACS_ULCORNER, WACS_URCORNER, WACS_LLCORNER, WACS_LRCORNER, 
-        WACS_LTEE, WACS_RTEE, WACS_TTEE, WACS_BTEE, WACS_HLINE, 
+        WACS_ULCORNER, WACS_URCORNER, WACS_LLCORNER, WACS_LRCORNER,
+        WACS_LTEE, WACS_RTEE, WACS_TTEE, WACS_BTEE, WACS_HLINE,
         WACS_VLINE, WACS_PLUS,
 
-        WACS_S1, WACS_S9, WACS_DIAMOND, WACS_CKBOARD, WACS_DEGREE, 
+        WACS_S1, WACS_S9, WACS_DIAMOND, WACS_CKBOARD, WACS_DEGREE,
         WACS_PLMINUS, WACS_BULLET,
 
-        WACS_LARROW, WACS_RARROW, WACS_UARROW, WACS_DARROW, WACS_BOARD, 
+        WACS_LARROW, WACS_RARROW, WACS_UARROW, WACS_DARROW, WACS_BOARD,
         WACS_LANTERN, WACS_BLOCK
 # ifdef WACS_S3
-        , WACS_S3, WACS_S7, WACS_LEQUAL, WACS_GEQUAL, WACS_PI, 
+        , WACS_S3, WACS_S7, WACS_LEQUAL, WACS_GEQUAL, WACS_PI,
         WACS_NEQUAL, WACS_STERLING
 # endif
     };
@@ -923,7 +933,7 @@ void acsTest(WINDOW *win)
     static const wchar_t greek[] = {0x0395, 0x03bb, 0x03bb, 0x03b7,
         0x03bd, 0x03b9, 0x03ba, 0x03ac, 0};
 
-    static const wchar_t georgian[] = {0x10e5, 0x10d0, 0x10e0, 0x10d7, 
+    static const wchar_t georgian[] = {0x10e5, 0x10d0, 0x10e0, 0x10d7,
         0x10e3, 0x10da, 0x10d8, L' ', 0x10d4, 0x10dc, 0x10d0, 0};
 #endif
 
@@ -988,22 +998,105 @@ void acsTest(WINDOW *win)
 #endif
 }
 
+void attrTest(WINDOW *win)
+{
+    int tmarg = (LINES - 16) / 2;
+    int col1 = (COLS - 36) / 2, col2 = col1 + 20;
+
+    attrset(A_BOLD);
+    mvaddstr(tmarg, (COLS - 20) / 2, "Character Attributes");
+    attrset(A_NORMAL);
+
+    refresh();
+
+#ifdef PDCURSES
+    PDC_set_blink(TRUE);
+    PDC_set_bold(TRUE);
+#endif
+
+#ifdef A_ITALIC
+    attrset(A_ITALIC);
+    mvaddstr(tmarg + 3, col1, "A_ITALIC");
+    attrset(A_NORMAL);
+#endif
+
+    attrset(A_BOLD);
+    mvaddstr(tmarg + 5, col1, "A_BOLD");
+    attrset(A_NORMAL);
+
+    attrset(A_BLINK);
+    mvaddstr(tmarg + 7, col1, "A_BLINK");
+    attrset(A_NORMAL);
+
+    attrset(A_REVERSE);
+    mvaddstr(tmarg + 9, col1, "A_REVERSE");
+    attrset(A_NORMAL);
+
+    attrset(A_STANDOUT);
+    mvaddstr(tmarg + 11, col1, "A_STANDOUT");
+    attrset(A_NORMAL);
+
+    attrset(A_UNDERLINE);
+    mvaddstr(tmarg + 13, col1, "A_UNDERLINE");
+    attrset(A_NORMAL);
+
+#ifdef A_ITALIC
+    attrset(A_ITALIC|A_UNDERLINE);
+    mvaddstr(tmarg + 3, col2, "Underlined Italic");
+    attrset(A_NORMAL);
+#endif
+
+    attrset(A_BOLD|A_UNDERLINE);
+    mvaddstr(tmarg + 5, col2, "Underlined Bold");
+    attrset(A_NORMAL);
+
+    attrset(A_BLINK|A_UNDERLINE);
+    mvaddstr(tmarg + 7, col2, "Underlined Blink");
+    attrset(A_NORMAL);
+
+#ifdef A_LEFT
+    attrset(A_LEFT);
+    mvaddstr(tmarg + 9, col2, "A_LEFT");
+    attrset(A_NORMAL);
+#endif
+
+#ifdef A_RIGHT
+    attrset(A_RIGHT);
+    mvaddstr(tmarg + 11, col2, "A_RIGHT");
+    attrset(A_NORMAL);
+#endif
+
+    attrset(A_BLINK|A_REVERSE);
+    mvaddstr(tmarg + 13, col2, "Reverse Blink");
+    attrset(A_NORMAL);
+
+    mvaddstr(tmarg + 16, 3, "Press any key to continue");
+    getch();
+
+#ifdef PDCURSES
+    PDC_set_bold(FALSE);
+    PDC_set_blink(FALSE);
+#endif
+}
+
 #if HAVE_COLOR
 void colorTest(WINDOW *win)
 {
     static const short colors[] =
     {
-        COLOR_BLACK, COLOR_RED, COLOR_GREEN, COLOR_BLUE, 
+        COLOR_BLACK, COLOR_RED, COLOR_GREEN, COLOR_BLUE,
         COLOR_CYAN, COLOR_MAGENTA, COLOR_YELLOW, COLOR_WHITE
     };
 
     static const char *colornames[] =
     {
-        "COLOR_BLACK", "COLOR_RED", "COLOR_GREEN", "COLOR_BLUE", 
+        "COLOR_BLACK", "COLOR_RED", "COLOR_GREEN", "COLOR_BLUE",
         "COLOR_CYAN", "COLOR_MAGENTA", "COLOR_YELLOW", "COLOR_WHITE"
     };
 
     chtype fill = ACS_BLOCK;
+    int maxcol = (COLORS >= 16) ? 16 : 8;
+    bool widecol = (maxcol == 16);
 
     int i, j, tmarg, col1, col2, col3;
 
@@ -1019,19 +1112,30 @@ void colorTest(WINDOW *win)
     mvaddstr(tmarg, (COLS - 22) / 2, "Color Attribute Macros");
     attrset(A_NORMAL);
 
-    mvaddstr(tmarg + 3, col2 + 4, "A_NORMAL");
-    mvaddstr(tmarg + 3, col3 + 5, "A_BOLD");
+    if (widecol)
+    {
+        mvaddstr(tmarg + 3, col2 + 3, "Colors 0-7");
+        mvaddstr(tmarg + 3, col3 + 2, "Colors 8-15");
+    }
+    else
+    {
+        mvaddstr(tmarg + 3, col2 + 4, "A_NORMAL");
+        mvaddstr(tmarg + 3, col3 + 5, "A_BOLD");
+    }
 
     for (i = 0; i < 8; i++)
     {
         init_pair(i + 4, colors[i], COLOR_BLACK);
+        if (widecol)
+            init_pair(i + 12, colors[i] + 8, COLOR_BLACK);
 
         mvaddstr(tmarg + i + 5, col1, colornames[i]);
 
         for (j = 0; j < 16; j++)
         {
             mvaddch(tmarg + i + 5, col2 + j, fill | COLOR_PAIR(i + 4));
-            mvaddch(tmarg + i + 5, col3 + j, fill | COLOR_PAIR(i + 4) | A_BOLD);
+            mvaddch(tmarg + i + 5, col3 + j, fill | (widecol ?
+                    COLOR_PAIR(i + 12) : (COLOR_PAIR(i + 4) | A_BOLD) ));
         }
     }
 
@@ -1048,12 +1152,7 @@ void colorTest(WINDOW *win)
             short red, green, blue;
         } orgcolors[16];
 
-        int MAXCOL = (COLORS >= 16) ? 16 : 8;
-
-        if (MAXCOL < 8)
-            return;
-
-        for (i = 0; i < MAXCOL; i++)
+        for (i = 0; i < maxcol; i++)
             color_content(i, &(orgcolors[i].red),
                              &(orgcolors[i].green),
                              &(orgcolors[i].blue));
@@ -1068,17 +1167,56 @@ void colorTest(WINDOW *win)
         {
             init_color(colors[i], i * 125, 0, i * 125);
 
-            if (MAXCOL == 16)
+            if (widecol)
                 init_color(colors[i] + 8, 0, i * 125, 0);
         }
 
         mvaddstr(tmarg + 19, 3, "Press any key to continue");
         getch();
 
-        for (i = 0; i < MAXCOL; i++)
+        for (i = 0; i < maxcol; i++)
             init_color(i, orgcolors[i].red,
                           orgcolors[i].green,
                           orgcolors[i].blue);
+    }
+
+    if (COLORS >= 256)
+    {
+        int x, y, z, lmarg = (COLS - 77) / 2;
+
+        erase();
+
+        attrset(A_BOLD);
+        mvaddstr(tmarg, (COLS - 15) / 2, "Extended Colors");
+        attrset(A_NORMAL);
+
+        mvaddstr(tmarg + 3, lmarg, "6x6x6 Color Cube (16-231):");
+
+        for (i = 16; i < 256; i++)
+            init_pair(i, COLOR_BLACK, i);
+
+        for (i = 16, x = 0; x < 6; x++)
+            for (z = 0; z < 6; z++)
+                for (y = 0; y < 6; y++)
+                {
+                    chtype ch = ' ' | COLOR_PAIR(i++);
+
+                    mvaddch(tmarg + 5 + y, z * 13 + x * 2 + lmarg, ch);
+                    addch(ch);
+                }
+
+        mvaddstr(tmarg + 13, lmarg, "Greyscale (232-255):");
+
+        for (x = 0; x < 24; x++)
+        {
+            chtype ch = ' ' | COLOR_PAIR(232 + x);
+
+            mvaddch(tmarg + 15, x * 2 + lmarg, ch);
+            addch(ch);
+        }
+
+        mvaddstr(tmarg + 19, 3, "Press any key to continue");
+        getch();
     }
 }
 #endif

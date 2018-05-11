@@ -50,8 +50,6 @@ Options:
         -l <n>                  set worm length
         -n <n>                  set number of worms
         -t                      make worms leave droppings
-
-  $Id: worm.c,v 1.16 2008/07/13 16:08:17 wmcbrine Exp $
 */
 
 #include <curses.h>
@@ -156,7 +154,8 @@ int main(int argc, char *argv[])
     const struct options *op;
     struct worm *w;
     short **ref, *ip;
-    int x, y, n, h, last, bottom, seed;
+    time_t seed;
+    int x, y, n, h, last, bottom;
 
     for (x = 1; x < argc; x++)
     {
@@ -224,7 +223,7 @@ int main(int argc, char *argv[])
 #ifdef A_COLOR
     if (has_colors())
     {
-        int bg = COLOR_BLACK;
+        short bg = COLOR_BLACK;
         start_color();
 
 # if defined(NCURSES_VERSION) || (defined(PDC_BUILD) && PDC_BUILD > 3000)
