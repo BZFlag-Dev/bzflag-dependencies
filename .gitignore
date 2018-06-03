@@ -32,6 +32,11 @@ src/curl/winbuild/*.idb
 src/regex/regex*/
 src/regex/regex.vcxproj.user
 
+# GLEW build files
+src/glew/bin/
+src/glew/lib/
+src/glew/build/vc12/tmp/
+
 # SDL2 build files
 src/SDL2/VisualC/Win32/
 src/SDL2/VisualC/x64/

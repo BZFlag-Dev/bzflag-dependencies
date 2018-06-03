@@ -13,6 +13,7 @@ Here is a list of the upstream source locations:
 * [PDCurses](http://sourceforge.net/projects/pdcurses/files/pdcurses/)
 * regex - Looks like it was some version from NetBSD. Haven't yet found the ideal location to pull a
   new version from, so I'm using what we had.
+* [GLEW](http://glew.sourceforge.net/)
 * [SDL2](https://libsdl.org/)
 * [zlib](https://github.com/madler/zlib)
 

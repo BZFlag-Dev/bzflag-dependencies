@@ -184,6 +184,36 @@ if %REGEX_RESULT% == 0 (
 
 echo(
 echo ==============================
+echo Building GLEW
+echo ==============================
+
+cd "%srcroot%\glew\build\vc12"
+if "%ARCH%" == "x86" (
+	msbuild glew.sln /property:Configuration=%CONF% /property:Platform=Win32 /p:PlatformToolset=v141 /p:WindowsTargetPlatformVersion=10.0.16299.0
+) else (
+	msbuild glew.sln /property:Configuration=%CONF% /property:Platform=x64 /p:PlatformToolset=v141 /p:WindowsTargetPlatformVersion=10.0.16299.0
+)
+
+set GLEW_RESULT=%ERRORLEVEL%
+
+if %GLEW_RESULT% == 0 (
+	cd "%srcroot%\glew"
+	if "%ARCH%" == "x86" (
+		copy lib\%CONF%\Win32\*.exp "%outputroot%\lib"
+		copy lib\%CONF%\Win32\glew*s*.lib "%outputroot%\lib"
+		copy bin\%CONF%\Win32\*.pdb "%outputroot%\lib"
+	) else (
+		copy lib\%CONF%\x64\*.exp "%outputroot%\lib"
+		copy lib\%CONF%\x64\glew*s*.lib "%outputroot%\lib"
+		copy bin\%CONF%\x64\*.pdb "%outputroot%\lib"
+	)
+	if not exist "%outputroot%\include\GL" mkdir "%outputroot%\include\GL"
+	copy "include\GL\*.h" "%outputroot%\include\GL"
+	copy LICENSE.txt "%origroot%\licenses\GLEW.txt"
+)
+
+echo(
+echo ==============================
 echo Building SDL2
 echo ==============================
 
@@ -209,7 +239,7 @@ if %SDL2_RESULT% == 0 (
 		copy "VisualC\x64\%CONF%\SDL2.pdb" "%outputroot%\lib"
 		copy "VisualC\x64\%CONF%\SDL2main.lib" "%outputroot%\lib"
 	)
-	mkdir "%outputroot%\include\SDL2"
+	if not exist "%outputroot%\include\SDL2" mkdir "%outputroot%\include\SDL2"
 	copy "include\*.h" "%outputroot%\include\SDL2\"
 	copy COPYING.txt "%origroot%\licenses\SDL2.txt"
 )
@@ -244,6 +274,11 @@ if %REGEX_RESULT% == 0 (
 	echo regex .................. SUCCESS!
 ) else (
 	echo regex .................. FAILED!
+)
+if %GLEW_RESULT% == 0 (
+	echo GLEW ................... SUCCESS!
+) else (
+	echo GLEW ................... FAILED!
 )
 if %SDL2_RESULT% == 0 (
 	echo SDL2 ................... SUCCESS!
