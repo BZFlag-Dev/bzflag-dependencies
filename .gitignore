@@ -3,14 +3,8 @@
 /licenses/
 
 # PDCurses build files
-src/pdcurses/win32/*.def
-src/pdcurses/win32/*.dll
-src/pdcurses/win32/*.exp
-src/pdcurses/win32/*.lib
-src/pdcurses/win32/*.obj
-src/pdcurses/win32/*.res
-src/pdcurses/win32/none
-src/pdcurses/win32/pdcurses.ilk
+src/pdcurses/wincon/*.obj
+src/pdcurses/wincon/*.lib
 
 # zlib build files
 src/zlib/*.obj
@@ -36,6 +30,11 @@ src/curl/winbuild/*.idb
 # regex build files
 src/regex/regex*/
 src/regex/regex.vcxproj.user
+
+# GLEW build files
+src/glew/bin/
+src/glew/lib/
+src/glew/build/vc12/tmp/
 
 # SDL2 build files
 src/SDL2/VisualC/Win32/

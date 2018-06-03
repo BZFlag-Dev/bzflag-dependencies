@@ -14,6 +14,7 @@ Here is a list of the upstream source locations:
 * regex - Looks like it was some version from NetBSD. Haven't yet found the ideal location to pull a
   new version from, so I'm using what we had.
 * [libpng](https://git.code.sf.net/p/libpng/)
+* [GLEW](http://glew.sourceforge.net/)
 * [SDL2](https://libsdl.org/)
 * [zlib](https://github.com/madler/zlib)
 
