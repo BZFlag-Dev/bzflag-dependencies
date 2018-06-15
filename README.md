@@ -16,6 +16,8 @@ Here is a list of the upstream source locations:
 * [libpng](https://git.code.sf.net/p/libpng/)
 * [GLEW](http://glew.sourceforge.net/)
 * [SDL2](https://libsdl.org/)
+* [OpenAL Soft](http://kcat.strangesoft.net/openal.html)
+* [ALURE](http://kcat.strangesoft.net/alure.html)
 * [zlib](https://github.com/madler/zlib)
 
 ## Building the libraries
