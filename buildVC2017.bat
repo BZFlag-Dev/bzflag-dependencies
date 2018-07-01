@@ -255,7 +255,7 @@ if %PDCURSES_RESULT% == 0 (
 ) else (
 	echo PDCurses ............... FAILED!
 )
-if %PDCURSES_RESULT% == 0 (
+if %ZLIB_RESULT% == 0 (
 	echo zlib ................... SUCCESS!
 ) else (
 	echo zlib ................... FAILED!
