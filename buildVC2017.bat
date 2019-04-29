@@ -45,7 +45,7 @@ set CONF=%~2
 %~d0
 set origroot=%~dp0
 set srcroot=%origroot%src
-set outputroot=%origroot%output-%CONF%-%ARCH%
+set outputroot=%origroot%output-windows-%CONF%-%ARCH%
 
 if not exist "%outputroot%" mkdir "%outputroot%"
 if not exist "%outputroot%\bin" mkdir "%outputroot%\bin"
