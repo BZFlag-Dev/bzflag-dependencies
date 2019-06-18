@@ -14,7 +14,7 @@ function buildDeps {
 	mkdir -p $OUTPUTROOT/include
 	mkdir -p $ORIGROOT/dependencies/licenses
 
-	export MACOSX_DEPLOYMENT_TARGET=10.7
+	export MACOSX_DEPLOYMENT_TARGET=10.9
 	export CPPFLAGS="-I$OUTPUTROOT/include"
 	export CFLAGS="-arch $ARCH"
 	export CXXFLAGS="-arch $ARCH"
