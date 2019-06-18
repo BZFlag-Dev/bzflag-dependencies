@@ -34,7 +34,9 @@ function buildDeps {
 	cp LICENSE $ORIGROOT/dependencies/licenses/libpng.txt &&
 	make distclean
 
-	if [[ $LIBPNG_RESULT != 1 ]] ; then LIBPNG_RESULT=$? ; fi
+	THIS_RESULT=$?
+	if [[ -z $LIBPNG_RESULT || $LIBPNG_RESULT == 0 ]] ; then LIBPNG_RESULT=$THIS_RESULT ; fi
+	unset THIS_RESULT
 
 	echo
 
@@ -54,9 +56,9 @@ function buildDeps {
 	cp LICENSE.md $ORIGROOT/dependencies/licenses/c-ares.txt &&
 	make distclean
 
-	if [[ $CARES_RESULT != 1 ]] ; then CARES_RESULT=$? ; fi
-
-	cd $ORIGROOT
+	THIS_RESULT=$?
+	if [[ -z $CARES_RESULT || $CARES_RESULT == 0 ]] ; then CARES_RESULT=$THIS_RESULT ; fi
+	unset THIS_RESULT
 
 	echo
 
@@ -77,9 +79,9 @@ function buildDeps {
 	cp LICENSE.txt $ORIGROOT/dependencies/licenses/GLEW.txt &&
 	make clean
 
-	if [[ $GLEW_RESULT != 1 ]] ; then GLEW_RESULT=$? ; fi
-
-	cd $ORIGROOT
+	THIS_RESULT=$?
+	if [[ -z $GLEW_RESULT || $GLEW_RESULT == 0 ]] ; then GLEW_RESULT=$THIS_RESULT ; fi
+	unset THIS_RESULT
 
 	echo
 
@@ -96,11 +98,13 @@ function buildDeps {
 	cp COPYING.txt $ORIGROOT/dependencies/licenses/SDL2.txt &&
 	make distclean
 
-	if [[ $SD2L_RESULT != 1 ]] ; then SDL2_RESULT=$? ; fi
-
-	cd $ORIGROOT
+	THIS_RESULT=$?
+	if [[ -z $SDL2_RESULT || $SDL2_RESULT == 0 ]] ; then SDL2_RESULT=$THIS_RESULT ; fi
+	unset THIS_RESULT
 
 	echo
+
+	cd $ORIGROOT
 }
 
 # build 64-bit dependencies for macOS (no reason to support 32-bit anymore)
