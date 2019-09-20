@@ -104,6 +104,22 @@ function buildDeps {
 
 	echo
 
+	echo "=============================="
+	echo "Copying glm ($CONF)"
+	echo "=============================="
+
+	cd $SRCROOT/glm
+
+	# glm is a header-only library, so just copy the files
+	cp -R glm $OUTPUTROOT/include/ &&
+	cp copying.txt $ORIGROOT/dependencies/licenses/glm.txt
+
+	THIS_RESULT=$?
+	if [[ -z $GLM_RESULT || $GLM_RESULT == 0 ]] ; then GLM_RESULT=$THIS_RESULT ; fi
+	unset THIS_RESULT
+
+	echo
+
 	cd $ORIGROOT
 }
 
@@ -134,6 +150,11 @@ if [[ $SDL2_RESULT == 0 ]] ; then
 	echo SDL2 ................... SUCCESS!
 else
 	echo SDL2 ................... FAILED!
+fi
+if [[ $GLM_RESULT == 0 ]] ; then
+	echo glm .................... SUCCESS!
+else
+	echo glm .................... FAILED!
 fi
 
 exit
