@@ -47,6 +47,14 @@ src/SDL2/VisualC/tests/*/*.bmp
 src/SDL2/VisualC/tests/*/*.wav
 src/SDL2/VisualC/tests/*/*.dat
 
+# OpenAL Soft build files
+src/openal-soft/build/*
+!src/openal-soft/build/.empty
+
+# ALURE Soft build files
+src/alure/build/*
+!src/alure/build/.empty
+
 # Other Visual C++ files
 *.VC.db
 *.suo

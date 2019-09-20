@@ -264,6 +264,64 @@ if %SDL2_RESULT% == 0 (
 )
 
 echo(
+echo ==============================
+echo Building OpenAL Soft
+echo ==============================
+
+cd "%srcroot%\openal-soft\build"
+cmake ..
+if "%ARCH%" == "x86" (
+	msbuild OpenAL.sln /property:Configuration=%CONF% /property:Platform=Win32 /p:PlatformToolset=v141 /p:WindowsTargetPlatformVersion=10.0.16299.0
+) else (
+	msbuild OpenAL.sln /property:Configuration=%CONF% /property:Platform=x64 /p:PlatformToolset=v141 /p:WindowsTargetPlatformVersion=10.0.16299.0
+)
+
+set OPENAL_SOFT_RESULT=%ERRORLEVEL%
+
+if %OPENAL_SOFT_RESULT% == 0 (
+	
+	if "%ARCH%" == "x86" (
+		copy "%CONF%\OpenAL32.dll" "%outputroot%\bin"
+		copy "%CONF%\OpenAL32.lib" "%outputroot%\lib"
+		copy "%CONF%\OpenAL32.exp" "%outputroot%\lib"
+		if exist "%CONF%\OpenAL32.pdb" copy "%CONF%\OpenAL32.pdb" "%outputroot%\lib"
+	)
+	cd "%srcroot%\openal-soft"
+	if not exist "%outputroot%\include\AL" mkdir "%outputroot%\include\AL"
+	copy "include\AL\*.h" "%outputroot%\include\AL\"
+	copy COPYING "%origroot%\licenses\OpenAL-Soft.txt"
+)
+
+echo(
+echo ==============================
+echo Building Alure
+echo ==============================
+
+cd "%srcroot%\alure\build"
+set OPENALDIR="%outputroot%"
+cmake ..
+if "%ARCH%" == "x86" (
+	msbuild ALURE.sln /property:Configuration=%CONF% /property:Platform=Win32 /p:PlatformToolset=v141 /p:WindowsTargetPlatformVersion=10.0.16299.0
+) else (
+	msbuild ALURE.sln /property:Configuration=%CONF% /property:Platform=x64 /p:PlatformToolset=v141 /p:WindowsTargetPlatformVersion=10.0.16299.0
+)
+
+set ALURE_RESULT=%ERRORLEVEL%
+
+if %ALURE_RESULT% == 0 (
+	if "%ARCH%" == "x86" (
+		copy "%CONF%\ALURE32.dll" "%outputroot%\bin"
+		copy "%CONF%\ALURE32.lib" "%outputroot%\lib"
+		copy "%CONF%\ALURE32.exp" "%outputroot%\lib"
+		if exist "%CONF%\ALURE32.pdb" copy "%CONF%\ALURE32.pdb" "%outputroot%\lib"
+	)
+	cd "%srcroot%\alure"
+	if not exist "%outputroot%\include\AL" mkdir "%outputroot%\include\AL"
+	copy "include\AL\*.h" "%outputroot%\include\AL\"
+	copy COPYING "%origroot%\licenses\ALURE.txt"
+)
+
+echo(
 echo(
 echo #######################
 echo # Final build results #
@@ -308,6 +366,18 @@ if %SDL2_RESULT% == 0 (
 	echo SDL2 ................... SUCCESS!
 ) else (
 	echo SDL2 ................... FAILED!
+)
+
+if %OPENAL_SOFT_RESULT% == 0 (
+	echo OpenAL Soft ............ SUCCESS!
+) else (
+	echo OpenAL Soft ............ FAILED!
+)
+
+if %ALURE_RESULT% == 0 (
+	echo ALURE .................. SUCCESS!
+) else (
+	echo ALURE .................. FAILED!
 )
 
 cd %origroot%
