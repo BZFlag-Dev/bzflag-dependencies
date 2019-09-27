@@ -264,6 +264,16 @@ if %SDL2_RESULT% == 0 (
 )
 
 echo(
+echo ==============================
+echo Copying glm
+echo ==============================
+
+cd "%srcroot%\glm"
+xcopy /E glm "%outputroot%\include\glm\"
+copy copying.txt "%origroot%\licenses\glm.txt"
+
+
+echo(
 echo(
 echo #######################
 echo # Final build results #
