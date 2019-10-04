@@ -269,7 +269,8 @@ echo Copying glm
 echo ==============================
 
 cd "%srcroot%\glm"
-xcopy /E glm "%outputroot%\include\glm\"
+robocopy /E /NP /NJH /NJS glm "%outputroot%\include\glm"
+set GLM_RESULT=%ERRORLEVEL%
 copy copying.txt "%origroot%\licenses\glm.txt"
 
 
@@ -318,6 +319,11 @@ if %SDL2_RESULT% == 0 (
 	echo SDL2 ................... SUCCESS!
 ) else (
 	echo SDL2 ................... FAILED!
+)
+if /I %GLM_RESULT% LEQ 7 (
+	echo GLM .................... SUCCESS!
+) else (
+	echo GLM .................... FAILED!
 )
 
 cd %origroot%
