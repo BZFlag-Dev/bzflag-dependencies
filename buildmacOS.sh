@@ -27,7 +27,6 @@ function buildDeps {
 	cd $SRCROOT/libpng
 
 	# libpng appears to have no debug configuration
-	./autogen.sh > /dev/null 2>&1
 	./configure --prefix=$OUTPUTROOT --disable-shared &&
 	make -j`sysctl -n hw.ncpu` &&
 	make install &&
