@@ -24,13 +24,15 @@ else()
   add_header_include(HAVE_SYS_SOCKET_H "sys/socket.h")
 endif()
 
+set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
+
 check_c_source_compiles("${_source_epilogue}
 int main(void) {
     recv(0, 0, 0, 0);
     return 0;
 }" curl_cv_recv)
 if(curl_cv_recv)
-  if(NOT DEFINED curl_cv_func_recv_args OR "${curl_cv_func_recv_args}" STREQUAL "unknown")
+  if(NOT DEFINED curl_cv_func_recv_args OR curl_cv_func_recv_args STREQUAL "unknown")
     foreach(recv_retv "int" "ssize_t" )
       foreach(recv_arg1 "SOCKET" "int" )
         foreach(recv_arg2 "char *" "void *" )
@@ -79,7 +81,7 @@ if(curl_cv_recv)
     string(REGEX REPLACE "^[^,]*,[^,]*,[^,]*,[^,]*,([^,]*)$" "\\1" RECV_TYPE_RETV "${curl_cv_func_recv_args}")
   endif()
 
-  if("${curl_cv_func_recv_args}" STREQUAL "unknown")
+  if(curl_cv_func_recv_args STREQUAL "unknown")
     message(FATAL_ERROR "Cannot find proper types to use for recv args")
   endif()
 else()
@@ -177,23 +179,6 @@ int main(void) {
   return 0;
 }" HAVE_STRUCT_TIMEVAL)
 
-
-include(CheckCSourceRuns)
-# See HAVE_POLL in CMakeLists.txt for why poll is disabled on macOS
-if(NOT APPLE)
-  set(CMAKE_REQUIRED_FLAGS)
-  if(HAVE_SYS_POLL_H)
-    set(CMAKE_REQUIRED_FLAGS "-DHAVE_SYS_POLL_H")
-  endif()
-  check_c_source_runs("
-    #ifdef HAVE_SYS_POLL_H
-    #  include <sys/poll.h>
-    #endif
-    int main(void) {
-      return poll((void *)0, 0, 10 /*ms*/);
-    }" HAVE_POLL_FINE)
-endif()
-
 set(HAVE_SIG_ATOMIC_T 1)
 set(CMAKE_REQUIRED_FLAGS)
 if(HAVE_SIGNAL_H)
@@ -229,3 +214,51 @@ check_type_size("struct sockaddr_storage" SIZEOF_STRUCT_SOCKADDR_STORAGE)
 if(HAVE_SIZEOF_STRUCT_SOCKADDR_STORAGE)
   set(HAVE_STRUCT_SOCKADDR_STORAGE 1)
 endif()
+
+unset(CMAKE_TRY_COMPILE_TARGET_TYPE)
+
+if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
+  # if not cross-compilation...
+  include(CheckCSourceRuns)
+  set(CMAKE_REQUIRED_FLAGS "")
+  if(HAVE_SYS_POLL_H)
+    set(CMAKE_REQUIRED_FLAGS "-DHAVE_SYS_POLL_H")
+  elseif(HAVE_POLL_H)
+    set(CMAKE_REQUIRED_FLAGS "-DHAVE_POLL_H")
+  endif()
+  check_c_source_runs("
+    #include <stdlib.h>
+    #include <sys/time.h>
+
+    #ifdef HAVE_SYS_POLL_H
+    #  include <sys/poll.h>
+    #elif  HAVE_POLL_H
+    #  include <poll.h>
+    #endif
+
+    int main(void)
+    {
+        if(0 != poll(0, 0, 10)) {
+          return 1; /* fail */
+        }
+        else {
+          /* detect the 10.12 poll() breakage */
+          struct timeval before, after;
+          int rc;
+          size_t us;
+
+          gettimeofday(&before, NULL);
+          rc = poll(NULL, 0, 500);
+          gettimeofday(&after, NULL);
+
+          us = (after.tv_sec - before.tv_sec) * 1000000 +
+            (after.tv_usec - before.tv_usec);
+
+          if(us < 400000) {
+            return 1;
+          }
+        }
+        return 0;
+    }" HAVE_POLL_FINE)
+endif()
+

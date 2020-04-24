@@ -1,5 +1,703 @@
    Changelog for the c-ares project. Generated with git2changes.pl
 
+Version 1.16.0 (12 Mar 2020)
+
+Brad House (12 Mar 2020)
+- 1.16.0 release notes draft
+
+- attempt to fix double-free introduced in e0517f9
+
+GitHub (12 Mar 2020)
+- [David Drysdale brought this change]
+
+  test: fuzzer input triggering double free (#315)
+  
+  OSS-Fuzz has reported a double-free with the fuzzer input file
+  included here; run with:
+    ./test/aresfuzz test/fuzzinput/clusterfuzz-5637790584012800
+  
+  Bisecting the failure points to commit e0517f97d988 ("Parse SOA records
+  from ns_t_any response (#103)")
+
+- [Brad House brought this change]
+
+  CMake: Install Manpages (#314)
+  
+  CMake wasn't installing manpages.
+  
+  Fixes #297
+  Fix By: Brad House (@bradh352)
+
+- [Brad House brought this change]
+
+  Enable cmake tests for AppVeyor (#313)
+  
+  Tests require linking against the static library on Windows otherwise the symbols are not exported for internals being tested.
+  
+  Fix By: Brad House (@bradh352)
+
+Brad House (11 Mar 2020)
+- Add AppVeyor badge
+
+- bump c-ares version to 1.16.0. test AppVeyor integration.
+
+GitHub (11 Mar 2020)
+- [Brad House brought this change]
+
+  replace all usages of inet_addr() with ares_inet_pton() which is more proper (#312)
+  
+  Replace usage of inet_addr() with ares_inet_pton() which is more appropriate and fixes issues with legitimate addresses like 255.255.255.0. IPv6 already used this.
+  
+  Fixes #309
+  Fix By: Brad House (@bradh352)
+
+- [Brad House brought this change]
+
+  CMake: Generate WinPDB files during build (#311)
+  
+  Build and Install PDB (Windows Debug Symbol) files if supported by underlying system.
+  
+  Also update AppVeyor to test cmake builds.
+  
+  Fixes #245
+  Fix By: Piotr Pietraszkiewicz (@ppietrasa) and Brad House (@bradh352)
+
+- [Brad House brought this change]
+
+  CMake: Rework library function checking (#310)
+  
+  CHECK_LIBRARY_EXISTS(), while it takes a function name, does not actually verify the function exists in the library being evaluated. Instead, if the function is found in any dependent library, and the referenced library also exists, it returns true. This is not desirable.
+  
+  Wrap with a Macro to change the behavior.
+  
+  Fixes: #307
+  Fix By: Brad House (@bradh352)
+
+- [Dron Rathore brought this change]
+
+  Parse SOA records from ns_t_any response (#103)
+  
+  Added the capability of parsing SOA record from a response buffer of ns_t_any type query, this implementation doesn't interfere with existing T_SOA query's response as that too is treated as a list of records. The function returns ARES_EBADRESP if no SOA record is found(as per RFC).
+  
+  The basic idea of sticking to RFC that a ns_t_any too should return an SOA record is something open for discussion but I have kept the functionality intact as it was previously i.e the function returns ARES_EBADRESP if it doesn't find a SOA record regardless of which response it is parsing i.e. T_SOA or T_ANY.
+  
+  Note that asking for T_ANY is generally a bad idea:
+  - https://blog.cloudflare.com/what-happened-next-the-deprecation-of-any/
+  - https://tools.ietf.org/html/draft-ietf-dnsop-refuse-any
+  
+  Bug: #102
+  Fix By: Dron Rathore (@DronRathore)
+
+- [Stephen Bryant brought this change]
+
+  Added CPack functionality for generating RPM or DEB packages (#283)
+  
+  Added CPack functionality for generating RPM or DEB packages
+  
+  ie: run `cpack -G RPM` (or "DEB") after building with CMake.
+  
+  The current configuration creates 3 separate packages for the shared library,
+  the development files and the tools.
+  
+  Fix By: Stephen Bryant (@bf-bryants)
+
+- [tjwalton brought this change]
+
+  ares_gethostbyname: Return ENODATA if no valid A or AAAA record found (#304)
+  
+  ares_gethostbyname() was returning ESUCCESS when no A or AAAA record was found but a CNAME pointing nowhere was present.  ENODATA should be returned instead, however the hosts pointer will still be present to provide the alias list.
+  
+  * Return ENODATA if no valid A or AAAA record found
+  * Fix and update test ParseAReplyNoData.
+  * Add test for new ENODATA behaviour in ares_gethostbyname.
+  
+  Fixes Bug #303
+  Fix By: @tjwalton
+
+- [Michal Rostecki brought this change]
+
+  test: Separate live tests from SetServers* tests (#299)
+  
+  Before this change, SetServers, SetServersPorts and SetServersCSV
+  contained test cases trying to make DNS queries with the google.com
+  hostname, which requires Internet connectivity. Tests with that
+  requirement should be defined in the ares-test-live.cc file and contain
+  "Live" prefix to filter them out with `--gtest_filter=-*.Live*` on
+  machines without Internet connectivity.
+  
+  Fix By: Michal Rostecki (@mrostecki)
+
+- [Adam Majer brought this change]
+
+  Only count valid addresses when response parsing (#302)
+  
+  When ares_parse_a_reply or ares_parse_aaaa_reply is called in case
+  where another AAAA and A responses exist, the resulting ares_addrttl
+  count is invalid and the structure points to gibberish.
+  
+  This is a regression since 1.15.
+  
+  Issue: https://github.com/c-ares/c-ares/issues/300
+  Fix By: Adam Majer (@AdamMajer)
+
+Brad House (24 Dec 2019)
+- [Kyle Edwards brought this change]
+
+  CMake: Provide c-ares version in package export file (#296)
+  
+  The CMake package export file should provide version information.
+  
+  Fix By: Kyle Edwards (@KyleFromKitware)
+
+- [Ben Noordhuis brought this change]
+
+  Accept invalid /etc/resolv.conf lookup values, ability to build container tests (#274)
+  
+  * Add CARES_BUILD_CONTAINER_TESTS CMake option to add ability to build the Linux-only containerized tests.
+  * Accept invalid /etc/resolv.conf lookup values
+  
+  Before this commit invalid `lookup` values resulted in c-ares not using
+  any lookups without any clear indication why. After this commit it uses
+  the default "fb".
+  
+  Fix By: Ben Noordhuis (@bnoordhuis)
+
+- [Christian Ammer brought this change]
+
+  Parallel A and AAAA lookups in `ares_getaddrinfo` (#290)
+  
+  A and AAAA lookups for ares_getaddrinfo() are now performed in parallel.
+  
+  For this change `ares_search` was removed from `ares_getaddrinfo`.
+  Instead `ares_query` in combination with `next_dns_lookup` are
+  doing the suffix search.
+  
+  Adding support for `.onion` addresses which are tested by
+  `TEST_F(DefaultChannelTest, GetAddrinfoOnionDomain)`
+  
+  Fix By: Christian Ammer (@ChristianAmmer)
+
+- [Vy Nguyen brought this change]
+
+  Move variables into the block where it is used to avoid unused-vars (#281)
+  
+  Warning uncovered with [-Werror, -Wunused-variables]
+  
+  Fix By: Vy Nguyen (@oontvoo)
+
+- [Vy Nguyen brought this change]
+
+  Rename local macros to avoid conflicting with system ones and remove unsed variables. (Otherwise code will break once compiled with [-Werror,-Wmacro-redefined,-Wunused-variable] ) (#280)
+  
+  Fix new getaddrinfo code to not redefine macros on some systems.
+  
+  Fix By: Vy Nguyen (@oontvoo)
+
+- [Egor Pugin brought this change]
+
+  [ares_getenv] Return NULL in all cases. (#279)
+  
+  if ares_getenv is defined, it must return a value on all platforms.
+  
+  Fix By: Egor Pugin (@egorpugin)
+
+- [Abhishek Arya brought this change]
+
+  Add OSS-Fuzz fuzzing badge (#278)
+  
+  Adds based on instructions at
+  https://google.github.io/oss-fuzz/getting-started/new-project-guide/#status-badge
+  
+  Patch By: Abhishek Arya (@inferno-chromium)
+
+- [Peter Eisentraut brought this change]
+
+  ares_init_options.3: Fix layout (#275)
+  
+  7e6af8e inserted the documentation of resolvconf_path in the middle of
+  the item for ednspsz, leading to broken layout.  Fix that.
+  
+  Fix By: Peter Eisentraut (@petere)
+
+- [Gregor Jasny brought this change]
+
+  manpages: Fix typos detected by lintian (#269)
+  
+  
+  Fix By: Gregor Jasny (@gjasny)
+
+- [lifenjoiner brought this change]
+
+  keep command line usage up to date (#256)
+  
+  adig and ahost built-in help did not match args taken.
+  
+  Fix-By: @lifenjoiner
+
+- [Dan Noé brought this change]
+
+  ares-test.cc: Handle nullptr in AddrInfo ostream. (#268)
+  
+  The const AddrInfo& argument to operator<< overload for AddrInfo can be
+  a nullptr unique_ptr. Handle this explicitly by printing {nullptr} if
+  the rest of the function cannot be safely executed.
+  
+  Fix-by: Dan Noé <dpn@google.com>
+
+- [Dan Noé brought this change]
+
+  Add missing limits.h include from ares_getaddrinfo.c (#267)
+  
+  This files references INT_MAX, but does not include limits.h. This can
+  cause a build failure on some platforms. Include limits.h if we have it.
+  
+  Fix-by: Dan Noé <dpn@google.com>
+
+- [Andrew Selivanov brought this change]
+
+  fix fuzzer docs and add missing getaddrinfo docs (#265)
+  
+  There is a fix for a bit outdated clang fuzzer docs and ares_getaddrinfo docs.
+  
+  Fix By: Andrew Selivanov (@ki11roy)
+
+- [Andrew Selivanov brought this change]
+
+  Fix leak and crash in ares_parse_a/aaaa_reply (#264)
+  
+  * fix leak if naddress of particular type found
+  * fix segfault when wanted ttls count lesser than count of result records
+  * add fuzzer input files that trigger problems (from #263)
+  
+  Reported-By: David Drysdale (@daviddrysdale)
+  Fix-By: Andrew Selivanov (@ki11roy)
+
+- [Andrew Selivanov brought this change]
+
+  fix segfault when parsing wrong type of record (#262)
+  
+  Fixes segfault when trying to ares_parse_aaaa with AF_INET and vise versa.
+  
+  Fix By: Andrew Selivanov (@ki11roy)
+
+- work around mingw compile failure
+
+- c++ requires explicit casts
+
+- support EnvValue on Windows by implementing setenv/unsetenv
+
+- [Andrew Selivanov brought this change]
+
+  getaddrinfo enhancements (#257)
+  
+  * Service support has been added to getaddrinfo.
+  * ares_parse_a/aaaa_record now share code with the addrinfo parser.
+  * Private ares_addrinfo structure with useful extensions such as ttls (including cname ttls),
+    as well as the ability to list multiple cnames in chain of lookups
+  
+  Work By: Andrew Selivanov @ki11roy
+
+- [Andrew Selivanov brought this change]
+
+  fix ares__sortaddrinfo, use wrappers for sock_funcs (#258)
+  
+  Some socket functions weren't exposed for use by other areas of the library.  Expose
+  those and make use of them in ares__sortaddrinfo().
+  
+  Fix By: Andrew Selivanov (@ki11roy)
+
+- Fix c89 compilation support broken by .onion rejection changes
+  
+  Move .onion check lower after all variables have been declared.
+  
+  Bug: #246
+
+- [kedixa brought this change]
+
+  getaddrinfo: callback must be called on bad domain (#249)
+  
+  Due to an order of incrementing the remaining queries and calling ares_query, on a bad domain
+  the registered callback wouldn't be called.
+  
+  Bug: #248
+  Fixed-By: @kedixa
+
+- [Darrin W. Cullop brought this change]
+
+  Windows ARM/ARM64 requires AdvApi32 (#252)
+  
+  Fix link issues caused by missing library that appears to only be required on ARM (though
+  docs don't list this restriction). Doesn't hurt to require it everywhere.
+  
+  Bug: #251
+  Fixed-By: Darrin Cullop (@dwcullop)
+
+- [kedixa brought this change]
+
+  getaddrinfo: avoid infinite loop in case of NXDOMAIN(#240) (#242)
+  
+  There are two possible causes for infinite loops fo NXDOMAIN, based on how many dots are in the domain name (one for < ARES_OPT_NDOTS and one for >= ARES_OPT_NDOTS), where it will repeat the same query over and over as the hquery->next_domain doesn't increment.
+  
+  Fix By: @kedixa
+
+- Portability fix for ares__sortaddrinfo()
+  
+  replace uint32_t with unsigned int and socklen_t with ares_socklen_t
+  
+  By: Brad House
+
+- [Khaidi Chu brought this change]
+
+  fix: init bufp before reject .onion to make it can be free correctly (#241)
+  
+  When querying a .onion domain, it returns directly without setting bufp to NULL. A subsequent free() that occurs can cause a segmentation fault.
+  
+  Fix By: Khaidi Chu (@XadillaX)
+
+- [Andrew Selivanov brought this change]
+
+  Add ares__sortaddrinfo() to support getaddrinfo() sorted results (#239)
+  
+  This is a port of RFC 6724 compliant sorting function from Android Bionic project:
+  https://android.googlesource.com/platform/bionic/+/e919b116d35aa7deb24ddece69c491e24c3b0d6f/libc/netbsd/net/getaddrinfo.c
+  
+  The latest version is essentially the same, except two additional parameters to test connection with (mark/uid):
+  https://android.googlesource.com/platform/bionic/+/master/libc/dns/net/getaddrinfo.c
+  
+  Please note that even that version has some restrictions. It doesn't support some rules from RFC 6724:
+  
+  Rule 3 (Avoid deprecated addresses)
+  Rule 4 (Prefer home addresses)
+  Rule 7 (Prefer native transport)
+  
+  Submitted By: Andrew Selivanov (@ki11roy)
+
+- [Christian Ammer brought this change]
+
+  Increase portability of `ares-test-mock-ai.cc` (#235)
+  
+  * using portable ares_inet_pton and updated includes in ares-test-mock-ai
+  * forgot to remove deleted ares-test-ai.cc in Makefile.inc
+  
+  Fix By: Christian Ammer (@ChristianAmmer)
+
+- [Fabrice Fontaine brought this change]
+
+  m4/xc-cc-check.m4: use XC_CHECK_BUILD_FLAGS (#236)
+  
+  Use XC_CHECK_BUILD_FLAGS instead of XC_CHECK_USER_FLAGS.
+  Otherwise it complains of CPPFLAGS in CFLAGS.
+  [Retrieved from:
+  https://git.buildroot.net/buildroot/tree/package/c-ares/0001-use_check_build_instead_of_check_user.patch]
+  
+  Signed-off-by: Gustavo Zacarias <gustavo@zacarias.com.ar>
+  Signed-off-by: Fabrice Fontaine <fontaine.fabrice@gmail.com>
+  Submitted by: Fabrice Fontaine
+
+- [Christian Ammer brought this change]
+
+  Bugfix for `ares_getaddrinfo` and additional unit tests (#234)
+  
+  This PullRequest fixes a bug in the function add_to_addrinfo which task is to add new addrinfo items to the ai_next linked list. Also additional unit tests for testing ares_getaddrinfo will be added:
+  
+  Additional mock server test classes (ares-test-mock-ai.cc):
+  MockTCPChannelTestAI
+  MockExtraOptsTestAI
+  MockNoCheckRespChannelTestAI
+  MockEDNSChannelTestAI
+  RotateMultiMockTestAI
+  NoRotateMultiMockTestAI
+  
+  Additional live tests (ares-test-live-ai.cc):
+  LiveGetHostByNameV4
+  LiveGetHostByNameV6
+  LiveGetHostByNameV4AndV6
+  
+  Fix By: Christian Ammer (@ChristianAmmer)
+
+- [Christian Ammer brought this change]
+
+  Remaining queries counter fix, additional unit tests for `ares_getaddrinfo` (#233)
+  
+  Remaining queries counter fix, added tests (ParallelLookups,
+  SearchDomains, SearchDomainsServFailOnAAAA).  Removed unnecessary
+  if and commented code in test.
+  
+  Fix By: Christian Ammer (@ChristianAmmer)
+
+- [Christian Ammer brought this change]
+
+  Add initial implementation for ares_getaddrinfo (#112)
+  
+  Initial implementation for ares_getaddrinfo().  It is NOT compliant with RFC6724, though
+  it is expected to come closer to conformance prior to the next release.
+  
+  Features not supported include sorted addresses and honoring of service and hints
+  parameters.
+  
+  Implementation by: Christian Ammer (@ChristianAmmer)
+
+- [Ben Noordhuis brought this change]
+
+  test: fix bad expectation in ipv6 localhost test (#227)
+  
+  The LiveGetLocalhostByAddrV6 test expected to see "localhost" in the
+  result when doing an address-to-name lookup for ::1 but on my system
+  that resolves to "ip6-loopback" because of this stanza in /etc/hosts:
+  
+      $ grep ^::1 /etc/hosts
+      ::1     ip6-localhost ip6-loopback
+  
+  Fix By: Ben Noordhuis (@bnoordhuis)
+  Bug: #85
+
+- [Ben Noordhuis brought this change]
+
+  ares_version.h: bump version (#230)
+  
+  Version change not committed from maketgz.sh
+  
+  Bug: #229
+
+Daniel Stenberg (24 Oct 2018)
+- ares_library_init_android.3: minor syntax edits, fixed AVAILABILITY
+
+Version 1.15.0 (23 Oct 2018)
+
+Brad House (23 Oct 2018)
+- last minute 1.15.0 addition
+
+- [Ben Noordhuis brought this change]
+
+  Report ARES_ENOTFOUND for .onion domain names as per RFC7686. (#228)
+  
+  Quoting RFC 7686:
+  
+      Name Resolution APIs and Libraries (...) MUST either respond
+      to requests for .onion names by resolving them according to
+      [tor-rendezvous] or by responding with NXDOMAIN.
+  
+      A legacy client may inadvertently attempt to resolve a .onion
+      name through the DNS. This causes a disclosure that the client
+      is attempting to use Tor to reach a specific service. Malicious
+      resolvers could be engineered to capture and record such leaks,
+      which might have very adverse consequences for the well-being
+      of the user.
+  
+  Bug: #196
+  Fix By: Ben Noordhuis @bnoordhuis
+
+- prepare for c-ares 1.15.0 release
+
+- AIX Build Fix
+  
+  AIX attempts to include both nameser_compat.h and onameser_compat.h.  It appears
+  the proper fix is to define _USE_IRS so that only nameser_compat.h is used.
+  
+  Bug: #224
+  Fix By: Brad House (@bradh352)
+
+- Fix crash in ares_dup() due to new ARES_OPT_RESOLVCONF
+  
+  ares_dup() calls ares_init_options() by making its own fake option
+  mask since the original mask isn't stored but ARES_OPT_RESOLVCONF
+  was always set, instead of conditionally set.  This caused a crash
+  because ares_strdup() isn't NULL-safe if no custom path was set.
+  
+  Made ares_dup() set ARES_OPT_RESOLVCONF conditionally.
+  
+  Fix By: Brad House (@bradh352)
+
+- [Sarat Addepalli brought this change]
+
+  Add ares_init_options() configurability for path to resolv.conf file
+  
+  Add resolvconf_path to end of struct ares_options with ARES_OPT_RESOLVCONF option
+  so on Unix-like systems a custom path can be specified.  If no path is specified,
+  /etc/resolv.conf is used like normal.
+  
+  Fix By: Sarat Addepalli @SirR4T
+  Fixes Bug: #220
+  Review By: Brad House @bradh352
+
+- remove stale variables
+
+- fix prototype name for ares_strsplit_free()
+
+- add missing prototype
+
+- simplify ares_strsplit() and create ares_strsplit_free() helper function
+
+- missing ares_strsplit.h from HHEADERS for inclusion in distribution
+
+- [Ruslan Baratov brought this change]
+
+  Add CARES_BUILD_TOOLS CMake option (#214)
+  
+  Add ability to exclude building of tools (adig, ahost, acountry) in CMake.  This should also close #200.
+  
+  Fix By: Ruslan Baratov (@ruslo)
+  Bug: #200
+
+- [flyingdutchman23 brought this change]
+
+  Style. Whitespace cleanup. (#213)
+  
+  Small whitespace cleanups.
+  
+  Fix By: @flyingdutchman23
+
+- [John Schember brought this change]
+
+  Android: Support for domain search suffix (#211)
+  
+  Fixes issue #207. Uses LinkProperties.getDomains() to get a list of search domains and adds them to the suffix list.  This also adds a new helper function to split strings into an array based on multiple delimiters replacing multiple other functions for dealing with string splitting.
+  
+  Submitter: John Schember (@user-none)
+  Fixes: #207
+  Approved-by: Brad House (@bradh352)
+
+- [afalin brought this change]
+
+  Improve DNS suffixes extracting from WinNT registry (#202)
+  
+  Join all global and connection specific suffix lists. Use 'HKLM\Software\Policies\Microsoft\Windows NT\DNSClient\SearchList', 'HKLM\System\CurrentControlSet\Services\Tcpip\Parameters\Domain' as global suffix lists.
+  
+  Fix By: @afalin
+
+- Be consistent with indention in CMakeLists.txt
+  
+  The imported TRANSFORM_MAKEFILE_INC function from curl used space indention
+  but the rest of the file used tabs.  Go ahead and make it tabs for
+  consistency as well.
+  
+  Committed By: Brad House
+
+- [flyingdutchman23 brought this change]
+
+  Fix modern gcc warning: argument to 'sizeof' in 'strncpy' call is the same expression as the source
+  
+  Silence warning about using src to determine number of bytes to copy.
+  In this case it doesn't matter whether it is `src` or `dest`. So there
+  is no functionality change.
+  
+  Bug: #210
+  Fix By: @flyingdutchman23
+
+- [Andi Schnebinger brought this change]
+
+  fix stringop-overflow warning of GCC (#201)
+  
+  When using a modern GCC to compile c-ares, there is a stringop-overflow warning.
+  This patch simply silences the false-positive warning, there is no actual code flaw.
+  
+  Bug: https://github.com/c-ares/c-ares/pull/201
+  Fixed By: Andi Schnebinger @Iniesta8
+
+GitHub (18 May 2018)
+- [David Drysdale brought this change]
+
+  travis: do coverage in "coverage" build (#195)
+  
+  Fixes #194, a mistake from commit a255081f2c3c ("travis: Only do
+  coverage/distcheck on normal build")
+
+Brad House (17 May 2018)
+- [Brad Spencer brought this change]
+
+  Apply the IPv6 server blacklist to all nameserver sources, not just Windows (#193)
+  
+  For #164, I mentioned that it seemed like the IPv6 nameserver blacklist should apply to all OSes. In a mailing list post, @bradh352 agreed and suggested that I file a PR to make it so.
+  
+  This moves the blacklist check from being Windows-specific to being a general feature of config_nameservers(), no matter the nameserver source. It also simplifies the ares_ipv6_server_blacklisted() implementation to not parse and re-parse the blacklisted IPv6 addresses from strings on every check. I think they're almost as easy to read as a sequence of hex bytes in an array initializer, and it's definitely less work on each trip through the code.
+  
+  Fix By: Brad Spencer @b-spencer
+  PR: https://github.com/c-ares/c-ares/pull/193
+
+- [Brad Spencer brought this change]
+
+  Fix warnings emitted by MSVC when using -W4 (#192)
+  
+  These changes fix a few warnings emitted by recent versions of MSVC when compiling with -W4. Half of the changes are in Windows-specific code, and the other half should be safe no matter the compiler or OS.
+  
+  The allocation function change is probably the only one that needs explanation. MSVC gives warnings about the function pointers not being stable across DLL boundaries or something to that effect, so for Windows, I've made them be called indirectly, which at least made the compiler happy. I can't say I've tested every linking combination on Windows with them before or after the change, but it seems harmless.
+  
+  Fix By: Brad Spencer @b-spencer
+  PR: https://github.com/c-ares/c-ares/pull/192
+
+- [David Hotham brought this change]
+
+  Prevent changing name servers while queries are outstanding (#191)
+  
+  Changing name servers doesn't work, per #41.  Better to return an error code than to crash.
+  
+  Fix-by: David Hotham @dimbleby
+
+David Drysdale (15 May 2018)
+- [Tobias Nießen brought this change]
+
+  Fix comment in ares_rules.h (#189)
+
+Brad House (6 May 2018)
+- [Brad Spencer brought this change]
+
+  Harden and rationalize c-ares timeout computation (#187)
+  
+  * Harden and rationalize c-ares timeout computation
+  * Remove the rand() part of the timeout calculation completely.
+  
+  When c-ares sends a DNS query, it computes the timeout for that request as follows:
+  
+  timeplus = channel->timeout << (query->try_count / channel->nservers);
+  timeplus = (timeplus * (9 + (rand () & 7))) / 16;
+  I see two issues with this code. Firstly, when either try_count or channel->timeout are large enough, this can end up as an illegal shift.
+  
+  Secondly, the algorithm for adding the random timeout (added in 2009) is surprising. The original commit that introduced this algorithm says it was done to avoid a "packet storm". But, the algorithm appears to only reduce the timeout by an amount proportional to the scaled timeout's magnitude. It isn't clear to me that, for example, cutting a 30 second timeout almost in half to roughly 17 seconds is appropriate. Even with the default timeout of 5000 ms, this algorithm computes values between 2812 ms and 5000 ms, which is enough to cause a slightly latent DNS response to get spuriously dropped.
+  
+  If preventing the timers from all expiring at the same time really is desirable, then it seems better to extend the timeout by a small factor so that the application gets at least the timeout it asked for, and maybe a little more. In my experience, this is common practice for timeouts: applications expect that a timeout will happen at or after the designated time (but not before), allowing for delay in detecting and reporting the timeout. Furthermore, it seems like the timeout shouldn't be extended by very much (we don't want a 30 second timeout changing into a 45 second timeout, either).
+  
+  Consider also the documentation of channel->timeout in ares_init_options():
+  
+  The number of milliseconds each name server is given to respond to a query on the first try. (After the first try, the timeout algorithm becomes more complicated, but scales linearly with the value of timeout.) The default is five seconds.
+  
+  In the current implementation, even the first try does not use the value that the user supplies; it will use anywhere between 56% and 100% of that value.
+  
+  The attached patch attempts to address all of these concerns without trying to make the algorithm much more sophisticated. After performing a safe shift, this patch simply adds a small random timeout to the computed value of between 0 ms and 511 ms. I could see limiting the random amount to be no greater than a proportion of the configured magnitude, but I can't see scaling the random with the overall computed timeout. As far as I understand, the goal is just to schedule retries "not at the same exact time", so a small difference seems sufficient.
+  
+  UPDATE: randomization removed.
+  
+  Closes PR #187
+  Fix by: Brad Spencer
+
+- distribute ares_android.h
+  
+  Distribute ares_android.h when a release distribution package is
+  created.
+  
+  Reported By: Andrey Khranovsky
+  Bug: https://c-ares.haxx.se/mail/c-ares-archive-2018-04/0000.shtml
+
+- ares_set_servers_csv() on failure should not leave channel in a bad state
+  
+  If bad data is passed to ares_set_servers_csv() or
+  ares_set_servers_ports_csv() it will clear the existing channel
+  configured DNS servers, then a call to ares_send() will fail due
+  to a bad malloc which may have undefined behavior.
+  
+  The fix now only clears existing servers on success.  An additional
+  sanity check was added in ares_send() to ensure nservers >= 1 or
+  will result in ARES_ESERVFAIL.
+  
+  Bug: https://c-ares.haxx.se/mail/c-ares-archive-2018-03/0000.shtml
+  Reported-by: Francisco Sedano Crippa
+
+- docs: Not all manpages are listed
+  
+  Some docs aren't installed or not showing up on
+  https://c-ares.haxx.se/docs.html
+  due to not being listed in Makefile.inc.  Add missing docs and
+  ensure docs are alphabetized.
+
 Version 1.14.0 (16 Feb 2018)
 
 Daniel Stenberg (16 Feb 2018)
@@ -3973,238 +4671,3 @@ Yang Tse (1 May 2009)
 - Initial step towards a configure time curl_socklen_t definition
 
 - avoid use of alloca()
-
-- Moved potential inclusion of system's malloc.h and memory.h header files to
-  setup_once.h.  Inclusion of each header file is based on the definition of
-  NEED_MALLOC_H and NEED_MEMORY_H respectively.
-
-- ignore
-
-Gisle Vanem (18 Apr 2009)
-- Added '-DHAVE_LIMITS_H'.
-
-Yang Tse (17 Apr 2009)
-- remove compiler options used while debugging the icc 9.1 optimizer issue
-
-- moved HAVE_LIMITS_H to common defines
-
-- Set HP-UX compiler warning level back to the one that exposes
-  the socklen_t issue on this platform.
-
-- HAVE_LIMITS_H definition for NetWare CLIB
-
-- use HAVE_LIMITS_H symbol to protect limits.h inclusion
-
-- fix compiler warning: implicit conversion shortens 64-bit value into a 32-bit value
-
-- s/u_long/unsigned long/
-
-- Do not halt compilation when using VS2008 to build a Windows 2000 target
-
-- ignore
-
-Phil Blundell (3 Feb 2009)
-- * February 3 2009 (Phil Blundell)
-  - If the server returns garbage or nothing at all in response to an AAAA query,
-    go on and ask for A records anyway.
-
-Daniel Stenberg (31 Jan 2009)
-- - ares_gethostbyname() now accepts 'AF_UNSPEC' as a family for resolving
-    either AF_INET6 or AF_INET. It works by accepting any of the looksups in the
-    hosts file, and it resolves the AAAA field with a fallback to A.
-
-Gisle Vanem (18 Jan 2009)
-- fopen() returns error in 'errno' even on Windows.
-  So don't use ERRNO (GetLastError()). Trimmed trailing
-  blanks.
-
-- Constified some arguments in local functions.
-
-Daniel Stenberg (14 Jan 2009)
-- - ares.h no longer uses the HAVE_STRUCT_IN6_ADDR define check, but instead it
-    now declares the private struct ares_in6_addr for all systems instead of
-    relying on one possibly not present in the system.
-
-Phil Blundell (13 Jan 2009)
-- - ares__send_query() now varies the retry timeout pseudo-randomly to avoid
-    packet storms when several queries were started at the same time.
-
-Daniel Stenberg (11 Jan 2009)
-- - Phil Blundell added the internal function ares__expand_name_for_response()
-    that is now used by the ares_parse_*_reply() functions instead of the
-    ares_expand_name() simply to easier return ARES_EBADRESP for the cases where
-    the name expansion fails as in responses that really isn't expected.
-
-Gunter Knauf (30 Dec 2008)
-- added HAVE_SOCKADDR_IN6_SIN6_SCOPE_ID to ares Makefile.netware and sync'd with other Makefile.netware.
-
-Daniel Stenberg (9 Dec 2008)
-- use the new URL
-
-- start over on the 1.6.1 release...
-
-Version 1.6.0 (9 Dec 2008)
-
-Daniel Stenberg (9 Dec 2008)
-- add space
-
-Gisle Vanem (9 Dec 2008)
-- Fix for Win32 targets using Watt-32.
-
-Dan Fandrich (9 Dec 2008)
-- C89 compilers (like Minix' ACK) only need to handle 31 functions arguments
-  so split a long sprintf into two calls to get below that number.
-
-Gisle Vanem (8 Dec 2008)
-- Added needed defines for Watt-32 on Windows.
-
-- Undefine 'optarg', 'optind' and 'opterr' when using Watt-32
-  (to get correct linkage on Windows).
-
-- ares_writev() shall not be exported when using Watt-32 (has writev).
-  Added _USE_32BIT_TIME_T to avoid runtime warning. Applies to
-  VC-2008+ only.
-
-- Removed unneeded defines HAVE_SIGNAL_H, HAVE_SIG_ATOMIC_T,
-  RETSIGTYPE and HAVE_PROCESS_H.
-
-Daniel Stenberg (4 Dec 2008)
-- the initial version of the ares_set_socket_callback man page
-
-- Gregor Jasny provided the patch that introduces ares_set_socket_callback(),
-  and I edited it to also get duped by ares_dup().
-
-Dan Fandrich (4 Dec 2008)
-- Bring the sys/include.h include test in line with curl's.
-
-Daniel Stenberg (3 Dec 2008)
-- Let's not call ares_save_options() deprecated just yet
-
-- Introduce ares_dup(3) and new thoughts about API/ABI and how to move forwards.
-  Also discussed on the ml.
-
-Dan Fandrich (2 Dec 2008)
-- Make sure sys/socket.h is included before netinet/in.h (required by
-  OpenWatcom C, and condoned by SUS)
-
-Daniel Stenberg (1 Dec 2008)
-- minor indent fix
-
-- Convert the public config struct to the same binary size/construct as in the
-  latest releases to remain ABI compatible.
-
-Gisle Vanem (29 Nov 2008)
-- Added '-DHAVE_GETHOSTNAME'.
-
-Dan Fandrich (29 Nov 2008)
-- Make sure sys/socket.h is included before netinet/in.h (required by
-  OpenWatcom C)
-
-- Netware has gethostname()
-
-- Fixed a couple of typos
-
-- Don't tweak the HAVE_* macros when using autoconf
-
-- Make use of gethostname() conditional on it being available
-
-- Only set TCP_NODELAY when it exists
-
-Daniel Stenberg (28 Nov 2008)
-- updated with changes, preparing for a release soon
-
-Yang Tse (26 Nov 2008)
-- Gerald Combs fixed a bug in ares_parse_ptr_reply() which would cause a
-  buffer to shrink instead of expand if a reply contained 8 or more records.
-
-- Brad Spencer provided changes to allow buildconf to work on OS X.
-
-- In preparation for the upcomming IPv6 nameservers patch, the internal
-  ares_addr union is now changed into an internal struct which also holds
-  the address family.
-
-Dan Fandrich (20 Nov 2008)
-- Make checking for struct ifreq a prerequisite for setting
-  HAVE_IOCTL_SIOCGIFADDR since it's needed to use SIOCGIFADDR and Watcom C
-  doesn't currently define it.
-
-Daniel Stenberg (20 Nov 2008)
-- use unsigned short better intead of mixing with ints to prevent compiler
-  warnings
-
-- please the picky compilers by staying with short as the data we get is short
-  only
-
-- - Brad Spencer brought the new function ares_gethostbyname_file() which simply
-    resolves a host name from the given file, using the regular hosts syntax.
-
-Yang Tse (19 Nov 2008)
-- user provided PATH_SEPARATOR always overrides auto-detected one
-
-- attempting to keep lines below 80 chars
-
-- provide a common PATH_SEPARATOR check method which is required by
-  upcomming work to support the broadest range of Autoconf versions
-
-- check for gethostbyaddr and gethostbyname as it is done for other functions
-
-- Make configure script check if ioctl with the SIOCGIFADDR command can be
-  used, and define HAVE_IOCTL_SIOCGIFADDR if appropriate.
-
-- fix leftover from previous commit
-
-- fix inet_pton() runtime configure check
-
-- trim down configure script size
-
-Daniel Stenberg (15 Nov 2008)
-- Fixed an OOM condition reported by Jim Meyering
-
-Yang Tse (14 Nov 2008)
-- fix typo affecting inclusion of <arpa/inet.h> in configure
-  checks for inet_ntoa_r() inet_ntop() and inet_pton()
-
-- #include <string.h> in the getaddrinfo() runtime check for the memset() prototype
-
-- fix symbol definition check for fcntl.h inclusion
-
-- Refactor configure script detection of functions used to set sockets into
-  non-blocking mode, and decouple function detection from function capability.
-
-Daniel Stenberg (1 Nov 2008)
-- Added a TODO file to list things we want changed, added or fixed.
-
-- - Carlo Contavalli added support for the glibc "rotate" option, as documented
-    in man resolv.conf:
-  
-    causes round robin selection of nameservers from among those listed.  This
-    has the effect of spreading the query load among all listed servers, rather
-    than having all clients try the first listed server first every time.
-  
-    You can enable it with ARES_OPT_ROTATE
-
-Yang Tse (1 Nov 2008)
-- Adjust WIN32 freeaddrinfo, getaddrinfo and getnameinfo availability
-
-- WIN32 availability of freeaddrinfo, getaddrinfo and getnameinfo functions is quite
-  convoluted, compiler dependant and in some cases even build target dependat.
-
-- check for freeaddrinfo() at configuration phase
-
-- update aclocal file serial number
-
-- remove verification of the freeability of the addrinfo struct pointer members
-
-- fix comment
-
-- make CHECK_FUNC_GETADDRINFO_UNFREEABLE_AI_ADDR
-   and CHECK_FUNC_GETADDRINFO_UNFREEABLE_AI_CANONNAME
-  internal to CHECK_FUNC_GETADDRINFO
-
-- fix leftover
-
-- Initial attempt to detect at configuration time if the getaddrinfo()
-  function returns an addrinfo with an unfreeable ai_canonname member ptr.
-
-- Initial attempt to detect at configuration time if the getaddrinfo()
-  function returns an addrinfo with an unfreeable ai_addr member ptr.

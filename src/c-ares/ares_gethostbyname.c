@@ -95,6 +95,13 @@ void ares_gethostbyname(ares_channel channel, const char *name, int family,
     return;
   }
 
+  /* Per RFC 7686, reject queries for ".onion" domain names with NXDOMAIN. */
+  if (ares__is_onion_domain(name))
+    {
+      callback(arg, ARES_ENOTFOUND, 0, NULL);
+      return;
+    }
+
   if (fake_hostent(name, family, callback, arg))
     return;
 
@@ -204,6 +211,13 @@ static void host_callback(void *arg, int status, int timeouts,
           if (host && channel->nsort)
             sort6_addresses(host, channel->sortlist, channel->nsort);
         }
+      if (status == ARES_SUCCESS && host && host->h_addr_list[0] == NULL)
+      {
+        /* The query returned something but had no A/AAAA record
+           (even after potentially retrying AAAA with A)
+           so we should treat this as an error */
+        status = ARES_ENODATA;
+      }
       end_hquery(hquery, status, host);
     }
   else if ((status == ARES_ENODATA || status == ARES_EBADRESP ||
@@ -260,12 +274,12 @@ static int fake_hostent(const char *name, int family,
         }
 
       /* if we don't have 3 dots, it is illegal
-       * (although inet_addr doesn't think so).
+       * (although inet_pton doesn't think so).
        */
       if (numdots != 3 || !valid)
         result = 0;
       else
-        result = ((in.s_addr = inet_addr(name)) == INADDR_NONE ? 0 : 1);
+        result = (ares_inet_pton(AF_INET, name, &in) < 1 ? 0 : 1);
 
       if (result)
         family = AF_INET;
@@ -375,6 +389,11 @@ static int file_lookup(const char *name, int family, struct hostent **host)
   if (!PATH_HOSTS)
     return ARES_ENOTFOUND;
 #endif
+
+  /* Per RFC 7686, reject queries for ".onion" domain names with NXDOMAIN. */
+  if (ares__is_onion_domain(name))
+    return ARES_ENOTFOUND;
+
 
   fp = fopen(PATH_HOSTS, "r");
   if (!fp)

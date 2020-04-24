@@ -29,7 +29,7 @@ HTTP RFC1867-type formposting with filename/data contains ',', ';', '"'
 http://%HOSTIP:%HTTPPORT/we/want/1133 -F "file=@\"log/test1133,and;.txt\";type=mo/foo;filename=\"faker,and;.txt\"" -F 'file2=@"log/test1133,and;.txt"' -F 'file3=@"log/test1133,and;.txt";type=m/f,"log/test1133,and;.txt"' -F a="{\"field1\":\"value1\",\"field2\":\"value2\"}" -F 'b=" \\value1;type=\"whatever\" "; type=text/foo; charset=utf-8 ; filename=param_b'
 </command>
 # We create this file before the command is invoked!
-<file name=log/test1133,and;.txt>
+<file name="log/test1133,and;.txt">
 foo bar
 This is a bar foo
 bar
@@ -48,7 +48,6 @@ User-Agent: curl/7.10.4 (i686-pc-linux-gnu) libcurl/7.10.4 OpenSSL/0.9.7a ipv6 z
 Host: %HOSTIP:%HTTPPORT
 Accept: */*
 Content-Length: 1264
-Expect: 100-continue
 Content-Type: multipart/form-data; boundary=----------------------------24e78000bd32
 
 ------------------------------24e78000bd32

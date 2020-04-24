@@ -1,25 +1,30 @@
-/* Public Domain Curses */
+/* PDCurses */
 
 #include "pdcsdl.h"
 
 #include <stdlib.h>
 #ifndef PDC_WIDE
-# include "deffont.h"
+# include "../common/font437.h"
 #endif
-#include "deficon.h"
+#include "../common/iconbmp.h"
 
 #ifdef PDC_WIDE
 # ifndef PDC_FONT_PATH
 #  ifdef _WIN32
 #   define PDC_FONT_PATH "C:/Windows/Fonts/consola.ttf"
 #  elif defined(__APPLE__)
-#   define PDC_FONT_PATH "/Library/Fonts/Courier New.ttf"
+#   define PDC_FONT_PATH "/System/Library/Fonts/Menlo.ttc"
 #  else
-#   define PDC_FONT_PATH "/usr/share/fonts/truetype/freefont/FreeMono.ttf"
+#   define PDC_FONT_PATH "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"
 #  endif
 # endif
 TTF_Font *pdc_ttffont = NULL;
-int pdc_font_size = 18;
+int pdc_font_size =
+# ifdef _WIN32
+ 16;
+# else
+ 17;
+# endif
 #endif
 
 SDL_Window *pdc_window = NULL;
@@ -27,9 +32,9 @@ SDL_Surface *pdc_screen = NULL, *pdc_font = NULL, *pdc_icon = NULL,
             *pdc_back = NULL, *pdc_tileback = NULL;
 int pdc_sheight = 0, pdc_swidth = 0, pdc_yoffset = 0, pdc_xoffset = 0;
 
-SDL_Color pdc_color[256];
-Uint32 pdc_mapped[256];
-int pdc_fheight, pdc_fwidth, pdc_flastc;
+SDL_Color pdc_color[PDC_MAXCOL];
+Uint32 pdc_mapped[PDC_MAXCOL];
+int pdc_fheight, pdc_fwidth, pdc_fthick, pdc_flastc;
 bool pdc_own_window;
 
 /* COLOR_PAIR to attribute encoding table. */
@@ -195,7 +200,7 @@ int PDC_scr_open(int argc, char **argv)
     }
 
     if (!pdc_font)
-        pdc_font = SDL_LoadBMP_RW(SDL_RWFromMem(deffont, sizeof(deffont)), 0);
+        pdc_font = SDL_LoadBMP_RW(SDL_RWFromMem(font437, sizeof(font437)), 0);
 
     if (!pdc_font)
     {
@@ -223,9 +228,11 @@ int PDC_scr_open(int argc, char **argv)
 
 #ifdef PDC_WIDE
     TTF_SizeText(pdc_ttffont, "W", &pdc_fwidth, &pdc_fheight);
+    pdc_fthick = pdc_font_size / 20 + 1;
 #else
     pdc_fheight = pdc_font->h / 8;
     pdc_fwidth = pdc_font->w / 32;
+    pdc_fthick = 1;
 
     if (!SP->mono)
         pdc_flastc = pdc_font->format->palette->ncolors - 1;
@@ -237,8 +244,8 @@ int PDC_scr_open(int argc, char **argv)
         pdc_icon = SDL_LoadBMP(iname ? iname : "pdcicon.bmp");
 
         if (!pdc_icon)
-            pdc_icon = SDL_LoadBMP_RW(SDL_RWFromMem(deficon,
-                                                    sizeof(deficon)), 0);
+            pdc_icon = SDL_LoadBMP_RW(SDL_RWFromMem(iconbmp,
+                                                    sizeof(iconbmp)), 0);
     }
 
     if (pdc_own_window)
@@ -270,6 +277,9 @@ int PDC_scr_open(int argc, char **argv)
                     SDL_GetError());
             return ERR;
         }
+
+        pdc_sheight = pdc_screen->h;
+        pdc_swidth  = pdc_screen->w;
     }
     else
     {
@@ -321,24 +331,20 @@ int PDC_scr_open(int argc, char **argv)
 
 int PDC_resize_screen(int nlines, int ncols)
 {
-#if SDL_VERSION_ATLEAST(2, 0, 5)
-    SDL_Rect max;
-    int top, left, bottom, right;
-#endif
-
     if (!pdc_own_window)
         return ERR;
-
-#if SDL_VERSION_ATLEAST(2, 0, 5)
-    SDL_GetDisplayUsableBounds(0, &max);
-    SDL_GetWindowBordersSize(pdc_window, &top, &left, &bottom, &right);
-    max.h -= top + bottom;
-    max.w -= left + right;
-#endif
 
     if (nlines && ncols)
     {
 #if SDL_VERSION_ATLEAST(2, 0, 5)
+        SDL_Rect max;
+        int top, left, bottom, right;
+
+        SDL_GetDisplayUsableBounds(0, &max);
+        SDL_GetWindowBordersSize(pdc_window, &top, &left, &bottom, &right);
+        max.h -= top + bottom;
+        max.w -= left + right;
+
         while (nlines * pdc_fheight > max.h)
             nlines--;
         while (ncols * pdc_fwidth > max.w)
@@ -346,10 +352,10 @@ int PDC_resize_screen(int nlines, int ncols)
 #endif
         pdc_sheight = nlines * pdc_fheight;
         pdc_swidth = ncols * pdc_fwidth;
-    }
 
-    SDL_SetWindowSize(pdc_window, pdc_swidth, pdc_sheight);
-    pdc_screen = SDL_GetWindowSurface(pdc_window);
+        SDL_SetWindowSize(pdc_window, pdc_swidth, pdc_sheight);
+        pdc_screen = SDL_GetWindowSurface(pdc_window);
+    }
 
     if (pdc_tileback)
         PDC_retile();
@@ -418,8 +424,6 @@ int PDC_init_color(short color, short red, short green, short blue)
 
     pdc_mapped[color] = SDL_MapRGB(pdc_screen->format, pdc_color[color].r,
                                    pdc_color[color].g, pdc_color[color].b);
-
-    wrefresh(curscr);
 
     return OK;
 }

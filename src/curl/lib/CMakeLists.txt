@@ -20,7 +20,6 @@ list(APPEND HHEADERS
 
 if(MSVC)
   list(APPEND CSOURCES libcurl.rc)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4127")
 endif()
 
 # SET(CSOURCES
@@ -97,6 +96,12 @@ endif()
 set_target_properties(${LIB_NAME} PROPERTIES PREFIX "")
 set_target_properties(${LIB_NAME} PROPERTIES IMPORT_PREFIX "")
 
+if(CURL_HAS_LTO)
+  set_target_properties(${LIB_NAME} PROPERTIES
+    INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE
+    INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO TRUE)
+endif()
+
 if(WIN32)
   if(BUILD_SHARED_LIBS)
     # Add "_imp" as a suffix before the extension to avoid conflicting with the statically linked "libcurl.lib"
@@ -105,23 +110,17 @@ if(WIN32)
 endif()
 
 target_include_directories(${LIB_NAME} INTERFACE
-  $<INSTALL_INTERFACE:include>)
+  $<INSTALL_INTERFACE:include>
+  $<BUILD_INTERFACE:${CURL_SOURCE_DIR}/include>)
 
 install(TARGETS ${LIB_NAME}
-  EXPORT libcurl-target
-  ARCHIVE DESTINATION lib
-  LIBRARY DESTINATION lib
-  RUNTIME DESTINATION bin
+  EXPORT ${TARGETS_EXPORT_NAME}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
 export(TARGETS ${LIB_NAME}
        APPEND FILE ${PROJECT_BINARY_DIR}/libcurl-target.cmake
        NAMESPACE CURL::
 )
-
-install(EXPORT libcurl-target
-        FILE libcurl-target.cmake
-        NAMESPACE CURL::
-        DESTINATION ${CURL_INSTALL_CMAKE_DIR}
-)
-
