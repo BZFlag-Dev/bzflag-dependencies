@@ -63,9 +63,9 @@ cd "%srcroot%\pdcurses\wincon"
 ::del none pdcurses.ilk
 
 if "%CONF%" == "debug" (
-	nmake -f Makefile.vc DEBUG=Y UTF8=Y pdcurses.lib
+	nmake -f Makefile.vc DEBUG=Y WIDE=Y UTF8=Y pdcurses.lib
 ) else (
-	nmake -f Makefile.vc UTF8=Y pdcurses.lib
+	nmake -f Makefile.vc WIDE=Y UTF8=Y pdcurses.lib
 )
 
 set PDCURSES_RESULT=%ERRORLEVEL%
