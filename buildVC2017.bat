@@ -164,9 +164,9 @@ echo ==============================
 
 cd "%srcroot%\regex"
 if "%ARCH%" == "x86" (
-	msbuild regex.sln /property:Configuration=%CONF% /property:Platform=Win32 /p:PlatformToolset=v141 /p:WindowsTargetPlatformVersion=10.0.16299.0
+	msbuild regex.sln /property:Configuration=%CONF% /property:Platform=Win32 /p:PlatformToolset=v141 /p:WindowsTargetPlatformVersion=10.0.17763.0
 ) else (
-	msbuild regex.sln /property:Configuration=%CONF% /property:Platform=x64 /p:PlatformToolset=v141 /p:WindowsTargetPlatformVersion=10.0.16299.0
+	msbuild regex.sln /property:Configuration=%CONF% /property:Platform=x64 /p:PlatformToolset=v141 /p:WindowsTargetPlatformVersion=10.0.17763.0
 )
 
 set REGEX_RESULT=%ERRORLEVEL%
@@ -189,9 +189,9 @@ echo ==============================
 
 cd "%srcroot%\glew\build\vc12"
 if "%ARCH%" == "x86" (
-	msbuild glew.sln /property:Configuration=%CONF% /property:Platform=Win32 /p:PlatformToolset=v141 /p:WindowsTargetPlatformVersion=10.0.16299.0
+	msbuild glew.sln /property:Configuration=%CONF% /property:Platform=Win32 /p:PlatformToolset=v141 /p:WindowsTargetPlatformVersion=10.0.17763.0
 ) else (
-	msbuild glew.sln /property:Configuration=%CONF% /property:Platform=x64 /p:PlatformToolset=v141 /p:WindowsTargetPlatformVersion=10.0.16299.0
+	msbuild glew.sln /property:Configuration=%CONF% /property:Platform=x64 /p:PlatformToolset=v141 /p:WindowsTargetPlatformVersion=10.0.17763.0
 )
 
 set GLEW_RESULT=%ERRORLEVEL%
@@ -219,9 +219,9 @@ echo ==============================
 
 cd "%srcroot%\SDL2\VisualC"
 if "%ARCH%" == "x86" (
-	msbuild SDL.sln /property:Configuration=%CONF% /property:Platform=Win32 /p:PlatformToolset=v141 /p:WindowsTargetPlatformVersion=10.0.16299.0
+	msbuild SDL.sln /property:Configuration=%CONF% /property:Platform=Win32 /p:PlatformToolset=v141 /p:WindowsTargetPlatformVersion=10.0.17763.0
 ) else (
-	msbuild SDL.sln /property:Configuration=%CONF% /property:Platform=x64 /p:PlatformToolset=v141 /p:WindowsTargetPlatformVersion=10.0.16299.0
+	msbuild SDL.sln /property:Configuration=%CONF% /property:Platform=x64 /p:PlatformToolset=v141 /p:WindowsTargetPlatformVersion=10.0.17763.0
 )
 
 set SDL2_RESULT=%ERRORLEVEL%
