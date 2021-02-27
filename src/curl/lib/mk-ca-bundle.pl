@@ -6,11 +6,11 @@
 # *                            | (__| |_| |  _ <| |___
 # *                             \___|\___/|_| \_\_____|
 # *
-# * Copyright (C) 1998 - 2020, Daniel Stenberg, <daniel@haxx.se>, et al.
+# * Copyright (C) 1998 - 2021, Daniel Stenberg, <daniel@haxx.se>, et al.
 # *
 # * This software is licensed as described in the file COPYING, which
 # * you should have received as part of this distribution. The terms
-# * are also available at https://curl.haxx.se/docs/copyright.html.
+# * are also available at https://curl.se/docs/copyright.html.
 # *
 # * You may opt to use, copy, modify, merge, publish, distribute and/or sell
 # * copies of the Software, and permit persons to whom the Software is
@@ -63,7 +63,7 @@ $opt_d = 'release';
 # If the OpenSSL commandline is not in search path you can configure it here!
 my $openssl = 'openssl';
 
-my $version = '1.27';
+my $version = '1.28';
 
 $opt_w = 76; # default base64 encoded lines length
 
@@ -531,6 +531,11 @@ while (<TXT>) {
     } else {
       my $data = $cka_value;
       $cka_value = "";
+
+      if(!length($data)) {
+          # if empty, skip
+          next;
+      }
       my $encoded = MIME::Base64::encode_base64($data, '');
       $encoded =~ s/(.{1,${opt_w}})/$1\n/g;
       my $pem = "-----BEGIN CERTIFICATE-----\n"
@@ -540,7 +545,7 @@ while (<TXT>) {
       print CRT @precert if($opt_m);
       my $maxStringLength = length(decode('UTF-8', $caname, Encode::FB_CROAK | Encode::LEAVE_SRC));
       if ($opt_t) {
-        foreach my $key (keys %trust_purposes_by_level) {
+        foreach my $key (sort keys %trust_purposes_by_level) {
            my $string = $key . ": " . join(", ", @{$trust_purposes_by_level{$key}});
            $maxStringLength = List::Util::max( length($string), $maxStringLength );
            print CRT $string . "\n";

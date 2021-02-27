@@ -117,10 +117,7 @@ cd "%srcroot%\c-ares"
 
 :: Copy the necessary files to the output directory
 if %CARES_RESULT% == 0 (
-	copy ares.h "%outputroot%\include\"
-	copy ares_build.h "%outputroot%\include\"
-	copy ares_rules.h "%outputroot%\include\"
-	copy ares_version.h "%outputroot%\include\"
+	copy include\*.h "%outputroot%\include\"
 	
 	copy "msvc\cares\dll-%CONF%\*.dll" "%outputroot%\bin\"
 	copy "msvc\cares\dll-%CONF%\*.lib" "%outputroot%\lib\"
@@ -138,15 +135,15 @@ cd "%srcroot%\curl"
 cd "%srcroot%\curl\winbuild"
 
 if "%CONF%" == "debug" (
-	nmake -f Makefile.vc mode=dll VC=15 WITH_DEVEL="%outputroot%" WITH_ZLIB=dll WITH_CARES=dll ENABLE_IDN=no ENABLE_WINSSL=yes GEN_PDB=no DEBUG=yes MACHINE=%ARCH%
+	nmake -f Makefile.vc mode=dll VC=15 WITH_DEVEL="%outputroot%" WITH_ZLIB=dll WITH_CARES=dll ENABLE_IDN=no ENABLE_SCHANNEL=yes GEN_PDB=no DEBUG=yes MACHINE=%ARCH%
 ) else (
-	nmake -f Makefile.vc mode=dll VC=15 WITH_DEVEL="%outputroot%" WITH_ZLIB=dll WITH_CARES=dll ENABLE_IDN=no ENABLE_WINSSL=yes GEN_PDB=no DEBUG=no MACHINE=%ARCH%
+	nmake -f Makefile.vc mode=dll VC=15 WITH_DEVEL="%outputroot%" WITH_ZLIB=dll WITH_CARES=dll ENABLE_IDN=no ENABLE_SCHANNEL=yes GEN_PDB=no DEBUG=no MACHINE=%ARCH%
 )
 
 set CURL_RESULT=%ERRORLEVEL%
 
 if %CURL_RESULT% == 0 (
-	cd "%srcroot%\curl\builds\libcurl-vc15-%ARCH%-%CONF%-dll-cares-dll-zlib-dll-ipv6-sspi-winssl"
+	cd "%srcroot%\curl\builds\libcurl-vc15-%ARCH%-%CONF%-dll-cares-dll-zlib-dll-ipv6-sspi-schannel"
 	copy bin\*.dll "%outputroot%\bin\"
 	copy lib\*.lib "%outputroot%\lib\"
 	copy lib\*.exp "%outputroot%\lib\"
