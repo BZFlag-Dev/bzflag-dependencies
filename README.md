@@ -31,8 +31,5 @@ directories are contained within. For instance, if output-release-x86 is at
 
 ## Updating the libraries
 
-When new versions of these dependencies are released, we should update our copies. There are two ways this is accomplished in this repository. For libpng and zlib, which have properly tagged git repositories, this is done with the `git subtree` command. Replace TAG with the tag you wish to pull. 
+When new versions of these dependencies are released, we should update our copies. Just delete the contents and replace with the new contents of the source tars (not zips). This should be done on a Linux or macOS system so that the execute permission on scripts is preserved.
 
-git subtree pull --prefix src/zlib https://github.com/madler/zlib TAG --squash
-
-For the others, just delete the contents and replace with the new contents of the source tars.
