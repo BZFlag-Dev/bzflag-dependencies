@@ -5,11 +5,11 @@
 #                            | (__| |_| |  _ <| |___
 #                             \___|\___/|_| \_\_____|
 #
-# Copyright (C) 1998 - 2017, Daniel Stenberg, <daniel@haxx.se>, et al.
+# Copyright (C) 1998 - 2020, Daniel Stenberg, <daniel@haxx.se>, et al.
 #
 # This software is licensed as described in the file COPYING, which
 # you should have received as part of this distribution. The terms
-# are also available at https://curl.haxx.se/docs/copyright.html.
+# are also available at https://curl.se/docs/copyright.html.
 #
 # You may opt to use, copy, modify, merge, publish, distribute and/or sell
 # copies of the Software, and permit persons to whom the Software is
@@ -27,42 +27,6 @@ all:
 ssl:
 	./configure --with-ssl
 	make
-
-borland:
-	cd lib
-	$(MAKE) -f Makefile.b32
-	cd ..\src
-	$(MAKE) -f Makefile.b32
-
-borland-ssl:
-	cd lib
-	$(MAKE) -f Makefile.b32 WITH_SSL=1
-	cd ..\src
-	$(MAKE) -f Makefile.b32 WITH_SSL=1
-
-borland-ssl-zlib:
-	cd lib
-	$(MAKE) -f Makefile.b32 WITH_SSL=1 WITH_ZLIB=1
-	cd ..\src
-	$(MAKE) -f Makefile.b32 WITH_SSL=1 WITH_ZLIB=1
-
-borland-clean:
-	cd lib
-	$(MAKE) -f Makefile.b32 clean
-	cd ..\src
-	$(MAKE) -f Makefile.b32 clean
-
-watcom: .SYMBOLIC
-	cd lib && $(MAKE) -u -f Makefile.Watcom
-	cd src && $(MAKE) -u -f Makefile.Watcom
-
-watcom-clean: .SYMBOLIC
-	cd lib && $(MAKE) -u -f Makefile.Watcom clean
-	cd src && $(MAKE) -u -f Makefile.Watcom clean
-
-watcom-vclean: .SYMBOLIC
-	cd lib && $(MAKE) -u -f Makefile.Watcom vclean
-	cd src && $(MAKE) -u -f Makefile.Watcom vclean
 
 mingw32:
 	$(MAKE) -C lib -f Makefile.m32

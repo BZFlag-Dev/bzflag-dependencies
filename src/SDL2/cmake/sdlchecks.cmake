@@ -30,7 +30,7 @@ macro(FindLibraryAndSONAME _LIB)
 endmacro()
 
 macro(CheckDLOPEN)
-  check_function_exists(dlopen HAVE_DLOPEN)
+  check_symbol_exists(dlopen "dlfcn.h" HAVE_DLOPEN)
   if(NOT HAVE_DLOPEN)
     foreach(_LIBNAME dl tdl)
       check_library_exists("${_LIBNAME}" "dlopen" "" DLOPEN_LIB)
@@ -381,9 +381,21 @@ macro(CheckX11)
         FindLibraryAndSONAME("${_LIB}")
     endforeach()
 
-    find_path(X_INCLUDEDIR X11/Xlib.h)
+    find_path(X_INCLUDEDIR X11/Xlib.h
+        /usr/pkg/xorg/include
+        /usr/X11R6/include
+        /usr/X11R7/include
+        /usr/local/include/X11
+        /usr/include/X11
+        /usr/openwin/include
+        /usr/openwin/share/include
+        /opt/graphics/OpenGL/include
+        /opt/X11/include
+    )
+
     if(X_INCLUDEDIR)
-      set(X_CFLAGS "-I${X_INCLUDEDIR}")
+      list(APPEND EXTRA_CFLAGS "-I${X_INCLUDEDIR}")
+      list(APPEND CMAKE_REQUIRED_INCLUDES "${X_INCLUDEDIR}")
     endif()
 
     check_include_file(X11/Xcursor/Xcursor.h HAVE_XCURSOR_H)
@@ -412,7 +424,7 @@ macro(CheckX11)
         set(X11_SHARED OFF)
       endif()
 
-      check_function_exists("shmat" HAVE_SHMAT)
+      check_symbol_exists(shmat "sys/shm.h" HAVE_SHMAT)
       if(NOT HAVE_SHMAT)
         check_library_exists(ipc shmat "" HAVE_SHMAT)
         if(HAVE_SHMAT)
@@ -420,7 +432,7 @@ macro(CheckX11)
         endif()
         if(NOT HAVE_SHMAT)
           add_definitions(-DNO_SHARED_MEMORY)
-          set(X_CFLAGS "${X_CFLAGS} -DNO_SHARED_MEMORY")
+          list(APPEND EXTRA_CFLAGS "-DNO_SHARED_MEMORY")
         endif()
       endif()
 
@@ -438,8 +450,6 @@ macro(CheckX11)
           list(APPEND EXTRA_LIBS ${X11_LIB} ${XEXT_LIB})
         endif()
       endif()
-
-      set(SDL_CFLAGS "${SDL_CFLAGS} ${X_CFLAGS}")
 
       set(CMAKE_REQUIRED_LIBRARIES ${X11_LIB} ${X11_LIB})
       check_c_source_compiles("
@@ -466,7 +476,7 @@ macro(CheckX11)
         set(SDL_VIDEO_DRIVER_X11_SUPPORTS_GENERIC_EVENTS 1)
       endif()
 
-      check_function_exists(XkbKeycodeToKeysym SDL_VIDEO_DRIVER_X11_HAS_XKBKEYCODETOKEYSYM)
+      check_symbol_exists(XkbKeycodeToKeysym "X11/Xlib.h;X11/XKBlib.h" SDL_VIDEO_DRIVER_X11_HAS_XKBKEYCODETOKEYSYM)
 
       if(VIDEO_X11_XCURSOR AND HAVE_XCURSOR_H)
         set(HAVE_VIDEO_X11_XCURSOR TRUE)
@@ -554,46 +564,6 @@ macro(CheckX11)
   endif()
 endmacro()
 
-# Requires:
-# - EGL
-# - PkgCheckModules
-# Optional:
-# - MIR_SHARED opt
-# - HAVE_DLOPEN opt
-macro(CheckMir)
-    if(VIDEO_MIR)
-        find_library(MIR_LIB mirclient mircommon egl)
-        pkg_check_modules(MIR_TOOLKIT mirclient>=0.26 mircommon)
-        pkg_check_modules(EGL egl)
-        pkg_check_modules(XKB xkbcommon)
-
-        if (MIR_LIB AND MIR_TOOLKIT_FOUND AND EGL_FOUND AND XKB_FOUND)
-            set(HAVE_VIDEO_MIR TRUE)
-            set(HAVE_SDL_VIDEO TRUE)
-
-            file(GLOB MIR_SOURCES ${SDL2_SOURCE_DIR}/src/video/mir/*.c)
-            set(SOURCE_FILES ${SOURCE_FILES} ${MIR_SOURCES})
-            set(SDL_VIDEO_DRIVER_MIR 1)
-
-            list(APPEND EXTRA_CFLAGS ${MIR_TOOLKIT_CFLAGS} ${EGL_CFLAGS} ${XKB_CFLAGS})
-
-            if(MIR_SHARED)
-                if(NOT HAVE_DLOPEN)
-                    message_warn("You must have SDL_LoadObject() support for dynamic Mir loading")
-                else()
-                    FindLibraryAndSONAME(mirclient)
-                    FindLibraryAndSONAME(xkbcommon)
-                    set(SDL_VIDEO_DRIVER_MIR_DYNAMIC "\"${MIRCLIENT_LIB_SONAME}\"")
-                    set(SDL_VIDEO_DRIVER_MIR_DYNAMIC_XKBCOMMON "\"${XKBCOMMON_LIB_SONAME}\"")
-                    set(HAVE_MIR_SHARED TRUE)
-                endif()
-            else()
-                set(EXTRA_LIBS ${MIR_TOOLKIT_LIBRARIES} ${EXTRA_LIBS})
-            endif()
-        endif()
-    endif()
-endmacro()
-
 macro(WaylandProtocolGen _SCANNER _XML _PROTL)
     set(_WAYLAND_PROT_C_CODE "${CMAKE_CURRENT_BINARY_DIR}/wayland-generated-protocols/${_PROTL}-protocol.c")
     set(_WAYLAND_PROT_H_CODE "${CMAKE_CURRENT_BINARY_DIR}/wayland-generated-protocols/${_PROTL}-client-protocol.h")
@@ -623,36 +593,7 @@ endmacro()
 # - HAVE_DLOPEN opt
 macro(CheckWayland)
   if(VIDEO_WAYLAND)
-    pkg_check_modules(WAYLAND wayland-client wayland-scanner wayland-protocols wayland-egl wayland-cursor egl xkbcommon)
-
-    # We have to generate some protocol interface code for some various Wayland features.
-    if(WAYLAND_FOUND)
-      execute_process(
-        COMMAND ${PKG_CONFIG_EXECUTABLE} --variable=pkgdatadir wayland-client
-        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
-        RESULT_VARIABLE WAYLAND_CORE_PROTOCOL_DIR_RC
-        OUTPUT_VARIABLE WAYLAND_CORE_PROTOCOL_DIR
-        ERROR_QUIET
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-      )
-      if(NOT WAYLAND_CORE_PROTOCOL_DIR_RC EQUAL 0)
-        set(WAYLAND_FOUND FALSE)
-      endif()
-    endif()
-
-    if(WAYLAND_FOUND)
-      execute_process(
-        COMMAND ${PKG_CONFIG_EXECUTABLE} --variable=pkgdatadir wayland-protocols
-        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
-        RESULT_VARIABLE WAYLAND_PROTOCOLS_DIR_RC
-        OUTPUT_VARIABLE WAYLAND_PROTOCOLS_DIR
-        ERROR_QUIET
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-      )
-      if(NOT WAYLAND_PROTOCOLS_DIR_RC EQUAL 0)
-        set(WAYLAND_FOUND FALSE)
-      endif()
-    endif()
+    pkg_check_modules(WAYLAND wayland-client wayland-scanner wayland-egl wayland-cursor egl xkbcommon)
 
     if(WAYLAND_FOUND)
       execute_process(
@@ -685,14 +626,14 @@ macro(CheckWayland)
       file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/wayland-generated-protocols")
       include_directories("${CMAKE_CURRENT_BINARY_DIR}/wayland-generated-protocols")
 
-      WaylandProtocolGen("${WAYLAND_SCANNER}" "${WAYLAND_CORE_PROTOCOL_DIR}/wayland.xml" "wayland")
-
-      foreach(_PROTL relative-pointer-unstable-v1 pointer-constraints-unstable-v1 xdg-shell-unstable-v6)
-        string(REGEX REPLACE "\\-unstable\\-.*$" "" PROTSUBDIR ${_PROTL})
-        WaylandProtocolGen("${WAYLAND_SCANNER}" "${WAYLAND_PROTOCOLS_DIR}/unstable/${PROTSUBDIR}/${_PROTL}.xml" "${_PROTL}")
+      file(GLOB WAYLAND_PROTOCOLS_XML RELATIVE "${SDL2_SOURCE_DIR}/wayland-protocols/" "${SDL2_SOURCE_DIR}/wayland-protocols/*.xml")
+      foreach(_XML ${WAYLAND_PROTOCOLS_XML})
+        string(REGEX REPLACE "\\.xml$" "" _PROTL "${_XML}")
+        WaylandProtocolGen("${WAYLAND_SCANNER}" "${SDL2_SOURCE_DIR}/wayland-protocols/${_XML}" "${_PROTL}")
       endforeach()
 
       if(VIDEO_WAYLAND_QT_TOUCH)
+          set(HAVE_VIDEO_WAYLAND_QT_TOUCH TRUE)
           set(SDL_VIDEO_DRIVER_WAYLAND_QT_TOUCH 1)
       endif()
 
@@ -817,8 +758,10 @@ macro(CheckOpenGLX11)
 endmacro()
 
 # Requires:
-# - nada
+# - PkgCheckModules
 macro(CheckOpenGLESX11)
+  pkg_check_modules(EGL egl)
+  set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} ${EGL_CFLAGS}")
   if(VIDEO_OPENGLES)
     check_c_source_compiles("
         #define EGL_API_FB
@@ -959,12 +902,14 @@ macro(CheckPTHREAD)
         endif()
       endif()
 
-      check_c_source_compiles("
-          #include <pthread.h>
-          #include <pthread_np.h>
-          int main(int argc, char** argv) { return 0; }" HAVE_PTHREAD_NP_H)
-      check_function_exists(pthread_setname_np HAVE_PTHREAD_SETNAME_NP)
-      check_function_exists(pthread_set_name_np HAVE_PTHREAD_SET_NAME_NP)
+      check_include_files("pthread.h" HAVE_PTHREAD_H)
+      check_include_files("pthread_np.h" HAVE_PTHREAD_NP_H)
+      if (HAVE_PTHREAD_H)
+        check_symbol_exists(pthread_setname_np "pthread.h" HAVE_PTHREAD_SETNAME_NP)
+        if (HAVE_PTHREAD_NP_H)
+          check_symbol_exists(pthread_set_name_np "pthread.h;pthread_np.h" HAVE_PTHREAD_SET_NAME_NP)
+        endif()
+      endif()
 
       set(SOURCE_FILES ${SOURCE_FILES}
           ${SDL2_SOURCE_DIR}/src/thread/pthread/SDL_systhread.c
@@ -1028,8 +973,8 @@ macro(CheckUSBHID)
         #include <usb.h>
         #endif
         #ifdef __DragonFly__
-        # include <bus/usb/usb.h>
-        # include <bus/usb/usbhid.h>
+        # include <bus/u4b/usb.h>
+        # include <bus/u4b/usbhid.h>
         #else
         # include <dev/usb/usb.h>
         # include <dev/usb/usbhid.h>
@@ -1054,8 +999,8 @@ macro(CheckUSBHID)
           #include <usb.h>
           #endif
           #ifdef __DragonFly__
-          # include <bus/usb/usb.h>
-          # include <bus/usb/usbhid.h>
+          # include <bus/u4b/usb.h>
+          # include <bus/u4b/usbhid.h>
           #else
           # include <dev/usb/usb.h>
           # include <dev/usb/usbhid.h>
@@ -1082,8 +1027,8 @@ macro(CheckUSBHID)
           #include <usb.h>
           #endif
           #ifdef __DragonFly__
-          #include <bus/usb/usb.h>
-          #include <bus/usb/usbhid.h>
+          #include <bus/u4b/usb.h>
+          #include <bus/u4b/usbhid.h>
           #else
           #include <dev/usb/usb.h>
           #include <dev/usb/usbhid.h>
@@ -1124,6 +1069,44 @@ macro(CheckUSBHID)
     set(CMAKE_REQUIRED_FLAGS "${ORIG_CMAKE_REQUIRED_FLAGS}")
   endif()
 endmacro()
+
+# Check for HIDAPI joystick drivers. This is currently a Unix thing, not Windows or macOS!
+macro(CheckHIDAPI)
+  if(HIDAPI)
+    if(HIDAPI_SKIP_LIBUSB)
+      set(HAVE_HIDAPI TRUE)
+    else()
+      set(HAVE_HIDAPI FALSE)
+      pkg_check_modules(LIBUSB libusb-1.0)
+      if (LIBUSB_FOUND)
+        check_include_file(libusb.h HAVE_LIBUSB_H ${LIBUSB_CFLAGS})
+        if (HAVE_LIBUSB_H)
+          set(HAVE_HIDAPI TRUE)
+        endif()
+      endif()
+    endif()
+
+    if(HAVE_HIDAPI)
+      set(SDL_JOYSTICK_HIDAPI 1)
+      set(HAVE_SDL_JOYSTICK TRUE)
+      file(GLOB HIDAPI_SOURCES ${SDL2_SOURCE_DIR}/src/joystick/hidapi/*.c)
+      set(SOURCE_FILES ${SOURCE_FILES} ${HIDAPI_SOURCES})
+      set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${LIBUSB_CFLAGS} \"-I${SDL2_SOURCE_DIR}/src/hidapi/hidapi\"")
+      if(NOT HIDAPI_SKIP_LIBUSB)
+        if(HIDAPI_ONLY_LIBUSB)
+          set(SOURCE_FILES ${SOURCE_FILES} ${SDL2_SOURCE_DIR}/src/hidapi/libusb/hid.c)
+          list(APPEND EXTRA_LIBS ${LIBUSB_LIBS})
+        else()
+          set(SOURCE_FILES ${SOURCE_FILES} ${SDL2_SOURCE_DIR}/src/hidapi/SDL_hidapi.c)
+          # libusb is loaded dynamically, so don't add it to EXTRA_LIBS
+          FindLibraryAndSONAME("usb-1.0")
+          set(SDL_LIBUSB_DYNAMIC "\"${USB_LIB_SONAME}\"")
+        endif()
+      endif()
+    endif()
+  endif()
+endmacro()
+
 
 # Requires:
 # - n/a
@@ -1180,7 +1163,8 @@ macro(CheckKMSDRM)
       set(HAVE_SDL_VIDEO TRUE)
 
       file(GLOB KMSDRM_SOURCES ${SDL2_SOURCE_DIR}/src/video/kmsdrm/*.c)
-      set(SOURCE_FILES ${SOURCE_FILES} ${KMSDRM_SOURCES})
+      file(GLOB KMSDRM_LEGACY_SOURCES ${SDL2_SOURCE_DIR}/src/video/kmsdrm_legacy/*.c)
+      set(SOURCE_FILES ${SOURCE_FILES} ${KMSDRM_SOURCES} ${KMSDRM_LEGACY_SOURCES})
 
       list(APPEND EXTRA_CFLAGS ${KMSDRM_CFLAGS})
 

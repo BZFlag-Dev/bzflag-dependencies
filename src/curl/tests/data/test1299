@@ -34,19 +34,17 @@ http
 Send "OPTIONS *" with --request-target
  </name>
  <command>
---request-target "*" -X OPTIONS http://%HOSTIP:%HTTPPORT/ -H "Testno: 1299"
+--request-target '*' -X OPTIONS http://%HOSTIP:%HTTPPORT/ -H "Testno: 1299"
 </command>
 </client>
 
 #
 # Verify data after the test has been "shot"
 <verify>
-<strip>
-^User-Agent:.*
-</strip>
 <protocol>
 OPTIONS * HTTP/1.1
 Host: %HOSTIP:%HTTPPORT
+User-Agent: curl/%VERSION
 Accept: */*
 Testno: 1299
 

@@ -5,11 +5,11 @@
  *                            | (__| |_| |  _ <| |___
  *                             \___|\___/|_| \_\_____|
  *
- * Copyright (C) 1998 - 2017, Daniel Stenberg, <daniel@haxx.se>, et al.
+ * Copyright (C) 1998 - 2020, Daniel Stenberg, <daniel@haxx.se>, et al.
  *
  * This software is licensed as described in the file COPYING, which
  * you should have received as part of this distribution. The terms
- * are also available at https://curl.haxx.se/docs/copyright.html.
+ * are also available at https://curl.se/docs/copyright.html.
  *
  * You may opt to use, copy, modify, merge, publish, distribute and/or sell
  * copies of the Software, and permit persons to whom the Software is
@@ -46,11 +46,11 @@ void dump(const char *text,
     /* without the hex output, we can fit more on screen */
     width = 0x40;
 
-  fprintf(stream, "%s, %d bytes (0x%x)\n", text, (int)size, (int)size);
+  fprintf(stream, "%s, %zu bytes (0x%zx)\n", text, size, size);
 
   for(i = 0; i<size; i += width) {
 
-    fprintf(stream, "%04x: ", (int)i);
+    fprintf(stream, "%04zx: ", i);
 
     if(!nohex) {
       /* hex not disabled, show it */
@@ -127,7 +127,7 @@ static size_t current_offset = 0;
 static char databuf[70000]; /* MUST be more than 64k OR
                                MAX_INITIAL_POST_SIZE */
 
-static size_t read_callback(void *ptr, size_t size, size_t nmemb, void *stream)
+static size_t read_callback(char *ptr, size_t size, size_t nmemb, void *stream)
 {
   size_t  amount = nmemb * size; /* Total bytes curl wants */
   size_t  available = sizeof(databuf) - current_offset; /* What we have to
@@ -185,7 +185,7 @@ int test(char *URL)
 
   /* setup repeated data string */
   for(i = 0; i < sizeof(databuf); ++i)
-      databuf[i] = fill[i % sizeof fill];
+    databuf[i] = fill[i % sizeof(fill)];
 
   /* Post */
   test_setopt(curl, CURLOPT_POST, 1L);

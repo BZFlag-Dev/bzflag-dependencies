@@ -5,11 +5,11 @@
  *                            | (__| |_| |  _ <| |___
  *                             \___|\___/|_| \_\_____|
  *
- * Copyright (C) 1998 - 2011, 2017, Daniel Stenberg, <daniel@haxx.se>, et al.
+ * Copyright (C) 1998 - 2020, Daniel Stenberg, <daniel@haxx.se>, et al.
  *
  * This software is licensed as described in the file COPYING, which
  * you should have received as part of this distribution. The terms
- * are also available at https://curl.haxx.se/docs/copyright.html.
+ * are also available at https://curl.se/docs/copyright.html.
  *
  * You may opt to use, copy, modify, merge, publish, distribute and/or sell
  * copies of the Software, and permit persons to whom the Software is
@@ -35,7 +35,7 @@ static void unit_stop(void)
 
 }
 
-static void splayprint(struct Curl_tree * t, int d, char output)
+static void splayprint(struct Curl_tree *t, int d, char output)
 {
   struct Curl_tree *node;
   int i;
@@ -73,6 +73,7 @@ UNITTEST_START
 
   struct Curl_tree *root, *removed;
   struct Curl_tree nodes[NUM_NODES*3];
+  size_t storage[NUM_NODES*3];
   int rc;
   int i, j;
   struct curltime tv_now = {0, 0};
@@ -81,14 +82,11 @@ UNITTEST_START
   /* add nodes */
   for(i = 0; i < NUM_NODES; i++) {
     struct curltime key;
-    size_t payload;
 
     key.tv_sec = 0;
     key.tv_usec = (541*i)%1023;
-    payload = (size_t) key.tv_usec;
-
-    /* for simplicity */
-    nodes[i].payload = CURLX_INTEGER_TO_POINTER_CAST(payload);
+    storage[i] = key.tv_usec;
+    nodes[i].payload = &storage[i];
     root = Curl_splayinsert(key, root, &nodes[i]);
   }
 
@@ -99,9 +97,9 @@ UNITTEST_START
     int rem = (i + 7)%NUM_NODES;
     printf("Tree look:\n");
     splayprint(root, 0, 1);
-    printf("remove pointer %d, payload %ld\n", rem,
-           CURLX_POINTER_TO_INTEGER_CAST(nodes[rem].payload));
-    rc = Curl_splayremovebyaddr(root, &nodes[rem], &root);
+    printf("remove pointer %d, payload %zu\n", rem,
+           *(size_t *)nodes[rem].payload);
+    rc = Curl_splayremove(root, &nodes[rem], &root);
     if(rc) {
       /* failed! */
       printf("remove %d failed!\n", rem);
@@ -120,9 +118,8 @@ UNITTEST_START
 
     /* add some nodes with the same key */
     for(j = 0; j <= i % 3; j++) {
-      size_t payload = key.tv_usec*10 + j;
-      /* for simplicity */
-      nodes[i * 3 + j].payload = CURLX_INTEGER_TO_POINTER_CAST(payload);
+      storage[i * 3 + j] = key.tv_usec*10 + j;
+      nodes[i * 3 + j].payload = &storage[i * 3 + j];
       root = Curl_splayinsert(key, root, &nodes[i * 3 + j]);
     }
   }
@@ -133,9 +130,9 @@ UNITTEST_START
     tv_now.tv_usec = i;
     root = Curl_splaygetbest(tv_now, root, &removed);
     while(removed != NULL) {
-      printf("removed payload %ld[%ld]\n",
-             CURLX_POINTER_TO_INTEGER_CAST(removed->payload) / 10,
-             CURLX_POINTER_TO_INTEGER_CAST(removed->payload) % 10);
+      printf("removed payload %zu[%zu]\n",
+             (*(size_t *)removed->payload) / 10,
+             (*(size_t *)removed->payload) % 10);
       root = Curl_splaygetbest(tv_now, root, &removed);
     }
   }
@@ -143,7 +140,3 @@ UNITTEST_START
   fail_unless(root == NULL, "tree not empty when it should be");
 
 UNITTEST_STOP
-
-
-
-

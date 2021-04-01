@@ -63,9 +63,9 @@ cd "%srcroot%\pdcurses\wincon"
 ::del none pdcurses.ilk
 
 if "%CONF%" == "debug" (
-	nmake -f Makefile.vc DEBUG=Y UTF8=Y pdcurses.lib
+	nmake -f Makefile.vc DEBUG=Y WIDE=Y UTF8=Y pdcurses.lib
 ) else (
-	nmake -f Makefile.vc UTF8=Y pdcurses.lib
+	nmake -f Makefile.vc WIDE=Y UTF8=Y pdcurses.lib
 )
 
 set PDCURSES_RESULT=%ERRORLEVEL%
@@ -136,10 +136,7 @@ cd "%srcroot%\c-ares"
 
 :: Copy the necessary files to the output directory
 if %CARES_RESULT% == 0 (
-	copy ares.h "%outputroot%\include\"
-	copy ares_build.h "%outputroot%\include\"
-	copy ares_rules.h "%outputroot%\include\"
-	copy ares_version.h "%outputroot%\include\"
+	copy include\*.h "%outputroot%\include\"
 	
 	copy "msvc\cares\dll-%CONF%\*.dll" "%outputroot%\bin\"
 	copy "msvc\cares\dll-%CONF%\*.lib" "%outputroot%\lib\"
@@ -157,15 +154,15 @@ cd "%srcroot%\curl"
 cd "%srcroot%\curl\winbuild"
 
 if "%CONF%" == "debug" (
-	nmake -f Makefile.vc mode=dll VC=15 WITH_DEVEL="%outputroot%" WITH_ZLIB=dll WITH_CARES=dll ENABLE_IDN=no ENABLE_WINSSL=yes GEN_PDB=no DEBUG=yes MACHINE=%ARCH%
+	nmake -f Makefile.vc mode=dll VC=15 WITH_DEVEL="%outputroot%" WITH_ZLIB=dll WITH_CARES=dll ENABLE_IDN=no ENABLE_SCHANNEL=yes GEN_PDB=no DEBUG=yes MACHINE=%ARCH%
 ) else (
-	nmake -f Makefile.vc mode=dll VC=15 WITH_DEVEL="%outputroot%" WITH_ZLIB=dll WITH_CARES=dll ENABLE_IDN=no ENABLE_WINSSL=yes GEN_PDB=no DEBUG=no MACHINE=%ARCH%
+	nmake -f Makefile.vc mode=dll VC=15 WITH_DEVEL="%outputroot%" WITH_ZLIB=dll WITH_CARES=dll ENABLE_IDN=no ENABLE_SCHANNEL=yes GEN_PDB=no DEBUG=no MACHINE=%ARCH%
 )
 
 set CURL_RESULT=%ERRORLEVEL%
 
 if %CURL_RESULT% == 0 (
-	cd "%srcroot%\curl\builds\libcurl-vc15-%ARCH%-%CONF%-dll-cares-dll-zlib-dll-ipv6-sspi-winssl"
+	cd "%srcroot%\curl\builds\libcurl-vc15-%ARCH%-%CONF%-dll-cares-dll-zlib-dll-ipv6-sspi-schannel"
 	copy bin\*.dll "%outputroot%\bin\"
 	copy lib\*.lib "%outputroot%\lib\"
 	copy lib\*.exp "%outputroot%\lib\"
@@ -183,9 +180,9 @@ echo ==============================
 
 cd "%srcroot%\regex"
 if "%ARCH%" == "x86" (
-	msbuild regex.sln /property:Configuration=%CONF% /property:Platform=Win32 /p:PlatformToolset=v141 /p:WindowsTargetPlatformVersion=10.0.16299.0
+	msbuild regex.sln /property:Configuration=%CONF% /property:Platform=Win32 /p:PlatformToolset=v141 /p:WindowsTargetPlatformVersion=10.0.17763.0
 ) else (
-	msbuild regex.sln /property:Configuration=%CONF% /property:Platform=x64 /p:PlatformToolset=v141 /p:WindowsTargetPlatformVersion=10.0.16299.0
+	msbuild regex.sln /property:Configuration=%CONF% /property:Platform=x64 /p:PlatformToolset=v141 /p:WindowsTargetPlatformVersion=10.0.17763.0
 )
 
 set REGEX_RESULT=%ERRORLEVEL%
@@ -208,9 +205,9 @@ echo ==============================
 
 cd "%srcroot%\glew\build\vc12"
 if "%ARCH%" == "x86" (
-	msbuild glew.sln /property:Configuration=%CONF% /property:Platform=Win32 /p:PlatformToolset=v141 /p:WindowsTargetPlatformVersion=10.0.16299.0
+	msbuild glew.sln /property:Configuration=%CONF% /property:Platform=Win32 /p:PlatformToolset=v141 /p:WindowsTargetPlatformVersion=10.0.17763.0
 ) else (
-	msbuild glew.sln /property:Configuration=%CONF% /property:Platform=x64 /p:PlatformToolset=v141 /p:WindowsTargetPlatformVersion=10.0.16299.0
+	msbuild glew.sln /property:Configuration=%CONF% /property:Platform=x64 /p:PlatformToolset=v141 /p:WindowsTargetPlatformVersion=10.0.17763.0
 )
 
 set GLEW_RESULT=%ERRORLEVEL%
@@ -238,9 +235,9 @@ echo ==============================
 
 cd "%srcroot%\SDL2\VisualC"
 if "%ARCH%" == "x86" (
-	msbuild SDL.sln /property:Configuration=%CONF% /property:Platform=Win32 /p:PlatformToolset=v141 /p:WindowsTargetPlatformVersion=10.0.16299.0
+	msbuild SDL.sln /property:Configuration=%CONF% /property:Platform=Win32 /p:PlatformToolset=v141 /p:WindowsTargetPlatformVersion=10.0.17763.0
 ) else (
-	msbuild SDL.sln /property:Configuration=%CONF% /property:Platform=x64 /p:PlatformToolset=v141 /p:WindowsTargetPlatformVersion=10.0.16299.0
+	msbuild SDL.sln /property:Configuration=%CONF% /property:Platform=x64 /p:PlatformToolset=v141 /p:WindowsTargetPlatformVersion=10.0.17763.0
 )
 
 set SDL2_RESULT=%ERRORLEVEL%

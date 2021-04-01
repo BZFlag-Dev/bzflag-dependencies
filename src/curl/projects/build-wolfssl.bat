@@ -6,12 +6,12 @@ rem *                             / __| | | | |_) | |
 rem *                            | (__| |_| |  _ <| |___
 rem *                             \___|\___/|_| \_\_____|
 rem *
-rem * Copyright (C) 2012 - 2018, Steve Holme, <steve_holme@hotmail.com>.
+rem * Copyright (C) 2012 - 2020, Steve Holme, <steve_holme@hotmail.com>.
 rem * Copyright (C) 2015, Jay Satiro, <raysatiro@yahoo.com>.
 rem *
 rem * This software is licensed as described in the file COPYING, which
 rem * you should have received as part of this distribution. The terms
-rem * are also available at https://curl.haxx.se/docs/copyright.html.
+rem * are also available at https://curl.se/docs/copyright.html.
 rem *
 rem * You may opt to use, copy, modify, merge, publish, distribute and/or sell
 rem * copies of the Software, and permit persons to whom the Software is
@@ -68,12 +68,12 @@ rem ***************************************************************************
     set VC_DESC=VC14
     set VC_TOOLSET=v140
     set "VC_PATH=Microsoft Visual Studio 14.0\VC"
-  ) else if /i "%~1" == "vc15" (
-    set VC_VER=15.0
-    set VC_DESC=VC15
+  ) else if /i "%~1" == "vc14.1" (
+    set VC_VER=14.1
+    set VC_DESC=VC14.1
     set VC_TOOLSET=v141
 
-    rem Determine the VC15 path based on the installed edition in decending
+    rem Determine the VC14.1 path based on the installed edition in descending
     rem order (Enterprise, then Professional and finally Community)
     if exist "%PF%\Microsoft Visual Studio\2017\Enterprise\VC" (
       set "VC_PATH=Microsoft Visual Studio\2017\Enterprise\VC"
@@ -81,7 +81,21 @@ rem ***************************************************************************
       set "VC_PATH=Microsoft Visual Studio\2017\Professional\VC"
     ) else (
       set "VC_PATH=Microsoft Visual Studio\2017\Community\VC"
-    )    
+    )
+  ) else if /i "%~1" == "vc14.2" (
+    set VC_VER=14.2
+    set VC_DESC=VC14.2
+    set VC_TOOLSET=v142
+
+    rem Determine the VC14.2 path based on the installed edition in descending
+    rem order (Enterprise, then Professional and finally Community)
+    if exist "%PF%\Microsoft Visual Studio\2019\Enterprise\VC" (
+      set "VC_PATH=Microsoft Visual Studio\2019\Enterprise\VC"
+    ) else if exist "%PF%\Microsoft Visual Studio\2019\Professional\VC" (
+      set "VC_PATH=Microsoft Visual Studio\2019\Professional\VC"
+    ) else (
+      set "VC_PATH=Microsoft Visual Studio\2019\Community\VC"
+    )
   ) else if /i "%~1" == "x86" (
     set BUILD_PLATFORM=x86
   ) else if /i "%~1" == "x64" (
@@ -132,22 +146,25 @@ rem ***************************************************************************
     if "%VC_VER%" == "11.0" set VCVARS_PLATFORM=amd64
     if "%VC_VER%" == "12.0" set VCVARS_PLATFORM=amd64
     if "%VC_VER%" == "14.0" set VCVARS_PLATFORM=amd64
-    if "%VC_VER%" == "15.0" set VCVARS_PLATFORM=amd64
+    if "%VC_VER%" == "14.1" set VCVARS_PLATFORM=amd64
+    if "%VC_VER%" == "14.2" set VCVARS_PLATFORM=amd64
   )
 
 :start
   echo.
   set SAVED_PATH=%CD%
 
-  if "%VC_VER%" == "15.0" (
+  if "%VC_VER%" == "14.1" (
+    call "%PF%\%VC_PATH%\Auxiliary\Build\vcvarsall" %VCVARS_PLATFORM%
+  ) else if "%VC_VER%" == "14.2" (
     call "%PF%\%VC_PATH%\Auxiliary\Build\vcvarsall" %VCVARS_PLATFORM%
   ) else (
     call "%PF%\%VC_PATH%\vcvarsall" %VCVARS_PLATFORM%
   )
 
   echo.
-  cd %SAVED_PATH%
-  cd %START_DIR%
+  cd /d %SAVED_PATH%
+  if defined START_DIR cd /d %START_DIR%
   goto %BUILD_PLATFORM%
 
 :x64
@@ -307,7 +324,8 @@ rem ***************************************************************************
   echo vc11      - Use Visual Studio 2012
   echo vc12      - Use Visual Studio 2013
   echo vc14      - Use Visual Studio 2015
-  echo vc15      - Use Visual Studio 2017
+  echo vc14.1    - Use Visual Studio 2017
+  echo vc14.2    - Use Visual Studio 2019
   echo.
   echo Platform:
   echo.
@@ -369,6 +387,6 @@ rem ***************************************************************************
     echo %SUCCESSFUL_BUILDS%
     echo.
   )
-  cd %SAVED_PATH%
+  cd /d %SAVED_PATH%
   endlocal
   exit /B 0

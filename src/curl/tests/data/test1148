@@ -37,21 +37,31 @@ progress-bar
  <command>
 http://%HOSTIP:%HTTPPORT/1148 -# --stderr log/stderrlog1148
 </command>
+<setenv>
+LC_ALL=
+LC_NUMERIC=en_US.UTF-8
+</setenv>
 </client>
 
 #
 <verify>
-<strip>
-^User-Agent:.*
-</strip>
 <protocol>
 GET /1148 HTTP/1.1
 Host: %HOSTIP:%HTTPPORT
+User-Agent: curl/%VERSION
 Accept: */*
 
 </protocol>
-<file name="log/stderrlog1148">
-######################################################################## 100.0%
+
+# Check that the progress finished at 100% and has the right bar width.
+# Note the dot in 100.0% is regex to match any character since different
+# locales use different separators.
+<file name="log/stderrlog1148" mode="text">
+correct
 </file>
+<stripfile>
+s/.*\r#{72} 100.0%/correct/
+</stripfile>
+
 </verify>
 </testcase>

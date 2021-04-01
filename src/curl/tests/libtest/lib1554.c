@@ -5,11 +5,11 @@
  *                            | (__| |_| |  _ <| |___
  *                             \___|\___/|_| \_\_____|
  *
- * Copyright (C) 1998 - 2017, Daniel Stenberg, <daniel@haxx.se>, et al.
+ * Copyright (C) 1998 - 2020, Daniel Stenberg, <daniel@haxx.se>, et al.
  *
  * This software is licensed as described in the file COPYING, which
  * you should have received as part of this distribution. The terms
- * are also available at https://curl.haxx.se/docs/copyright.html.
+ * are also available at https://curl.se/docs/copyright.html.
  *
  * You may opt to use, copy, modify, merge, publish, distribute and/or sell
  * copies of the Software, and permit persons to whom the Software is
@@ -43,7 +43,6 @@ static void my_unlock(CURL *handle, curl_lock_data data, void *useptr)
 /* test function */
 int test(char *URL)
 {
-  CURL *curl;
   CURLcode res = CURLE_OK;
   CURLSH *share;
   int i;
@@ -65,7 +64,7 @@ int test(char *URL)
      still reuse connections since the pool is in the shared object! */
 
   for(i = 0; i < 3; i++) {
-    curl = curl_easy_init();
+    CURL *curl = curl_easy_init();
     if(curl) {
       curl_easy_setopt(curl, CURLOPT_URL, URL);
 

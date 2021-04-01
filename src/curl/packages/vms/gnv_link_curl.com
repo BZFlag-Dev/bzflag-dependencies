@@ -4,7 +4,7 @@ $! $Id$
 $!
 $! File to build images using gnv$libcurl.exe
 $!
-$! Copyright 2009, John Malmberg
+$! Copyright 2009 - 2020, John Malmberg
 $!
 $! Permission to use, copy, modify, and/or distribute this software for any
 $! purpose with or without fee is hereby granted, provided that the above
@@ -740,7 +740,7 @@ gnv$libcurl/share
 $endif
 $!
 $!
-$target = "persistant"
+$target = "persistent"
 $if f$search("[.docs.examples]''target'.exe") .eqs. ""
 $then
 $   define/user gnv$libcurl 'gnv_libcurl_share'

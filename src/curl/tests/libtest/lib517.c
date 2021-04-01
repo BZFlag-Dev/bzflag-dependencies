@@ -5,11 +5,11 @@
  *                            | (__| |_| |  _ <| |___
  *                             \___|\___/|_| \_\_____|
  *
- * Copyright (C) 1998 - 2018, Daniel Stenberg, <daniel@haxx.se>, et al.
+ * Copyright (C) 1998 - 2020, Daniel Stenberg, <daniel@haxx.se>, et al.
  *
  * This software is licensed as described in the file COPYING, which
  * you should have received as part of this distribution. The terms
- * are also available at https://curl.haxx.se/docs/copyright.html.
+ * are also available at https://curl.se/docs/copyright.html.
  *
  * You may opt to use, copy, modify, merge, publish, distribute and/or sell
  * copies of the Software, and permit persons to whom the Software is
@@ -47,6 +47,7 @@ static struct dcheck dates[] = {
   {"Sun/Nov/6/94/GMT", 784080000 },
   {"Sun, 06 Nov 1994 08:49:37 CET", 784108177 },
   {"06 Nov 1994 08:49:37 EST", 784129777 },
+  {"Sun, 06 Nov 1994 08:49:37 UT", 784111777 },
   {"Sun, 12 Sep 2004 15:05:58 -0700", 1095026758 },
   {"Sat, 11 Sep 2004 21:32:11 +0200", 1094931131 },
   {"20040912 15:05:58 -0700", 1095026758 },

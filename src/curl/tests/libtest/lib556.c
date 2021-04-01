@@ -5,11 +5,11 @@
  *                            | (__| |_| |  _ <| |___
  *                             \___|\___/|_| \_\_____|
  *
- * Copyright (C) 1998 - 2016, Daniel Stenberg, <daniel@haxx.se>, et al.
+ * Copyright (C) 1998 - 2020, Daniel Stenberg, <daniel@haxx.se>, et al.
  *
  * This software is licensed as described in the file COPYING, which
  * you should have received as part of this distribution. The terms
- * are also available at https://curl.haxx.se/docs/copyright.html.
+ * are also available at https://curl.se/docs/copyright.html.
  *
  * You may opt to use, copy, modify, merge, publish, distribute and/or sell
  * copies of the Software, and permit persons to whom the Software is
@@ -70,8 +70,7 @@ int test(char *URL)
       "GET /556 HTTP/1.2\r\n"
       "Host: ninja\r\n\r\n";
 #endif
-    size_t iolen;
-    char buf[1024];
+    size_t iolen = 0;
 
     res = curl_easy_send(curl, request, strlen(request), &iolen);
 
@@ -79,6 +78,7 @@ int test(char *URL)
       /* we assume that sending always work */
 
       do {
+        char buf[1024];
         /* busy-read like crazy */
         res = curl_easy_recv(curl, buf, sizeof(buf), &iolen);
 
@@ -96,7 +96,7 @@ int test(char *URL)
     }
 
     if(iolen != 0)
-      res = TEST_ERR_FAILURE;
+      res = (CURLcode)TEST_ERR_FAILURE;
   }
 
 test_cleanup:
@@ -106,4 +106,3 @@ test_cleanup:
 
   return (int)res;
 }
-

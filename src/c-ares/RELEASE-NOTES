@@ -1,47 +1,69 @@
-c-ares version 1.14.0
+c-ares version 1.17.1
+
+Due to a packaging issue with 1.17.0, we have released 1.17.1 to address that
+issue.  See 1.17.0 release notes below..
+
+
+c-ares version 1.17.0
+
+Security:
+ o avoid read-heap-buffer-overflow in ares_parse_soa_reply found during
+   fuzzing [2] [3]
+ o Avoid theoretical buffer overflow in RC4 loop comparison [5]
+ o Empty hquery->name could lead to invalid memory access [15]
+ o ares_parse_{a,aaaa}_reply() could return a larger *naddrttls than was
+   passed in [17]
 
 Changes:
- o android: Introduce new ares_library_init_android() call for Oreo support. [5]
- 
-Bug fixes:
+ o Update help information for adig, acountry, and ahost [4]
+ o Test Suite now uses dynamic system-assigned ports rather than hardcoded
+   ports to prevent failures in containers [10]
+ o Detect remote DNS server does not support EDNS using rules from RFC 6891 [12]
+ o Source tree has been reorganized to use a more modern layout [13]
+ o Allow parsing of CAA Resource Record [14]
 
- o Fix patch for CVE-2017-1000381 to not be overly aggressive. [1]
- o win32: Preserve DNS server order returned by Windows when sorting and exclude
-   DNS servers in legacy subnets. [2] [4]
- o win32: Support most recent Visual Studio 2017
- o gethostbyaddr should fail with ECANCELLED not ENOTFOUND when ares_cancel
-   is called. [3]
- o win32: Exclude legacy ipv6 subnets [4]
- o android: Applications compiled for Oreo can no longer use
-   __system_property_get and must use Java calls to retrieve DNS servers.
-   [5] [7]
- o win32: Force use of ANSI functions [6]
- o CMake minimum version is now 3.1
- o ares_gethostbyname.3: fix callback status values [8]
- o docs: Document WSAStartup requirement [9]
- o Fix a typo in init_by_resolv_conf [10]
- o Android JNI code leaks local references in some cases [11]
- o Force using the ANSI versions of WinAPI functions [12]
+Bug fixes:
+ o readaddrinfo bad sizeof() [1]
+ o Test cases should honor HAVE_WRITEV flag, not depend on WIN32 [6]
+ o FQDN with trailing period should be queried first [7]
+ o ares_getaddrinfo() was returning members of the struct as garbage values if
+   unset, and was not honoring ai_socktype and ai_protocol hints. [8] [9]
+ o ares_gethostbyname() with AF_UNSPEC and an ip address would fail [11]
+ o Properly document ares_set_local_ip4() uses host byte order [16]
 
 Thanks go to these friendly people for their efforts and contributions:
-
-  AC Thompson, Anna Henningsen, Antonio Tajuelo, Brad House, Brad Spencer,
-  Christian Ammer, Daniel Stenberg, David Drysdale, David Hotham, Felix Yan,
-  Gergely Nagy, Gregor Jasny, Jakub Hrozek, John Schember,
-  Konstantinos Sofokleous, Roman Teterin, Sergey Kolomenkin, Sheel Bedi,
-  (18 contributors)
+  @anonymoushelpishere
+  Anthony Penniston (@apenn-msft)
+  Brad House (@bradh352)
+  Bulat Gaifullin (@bgaifullin)
+  Daniela Sonnenschein (@lxdicted)
+  Daniel Stenberg (@bagder)
+  David Hotham (@dimbleby)
+  Fionn Fitzmaurice (@fionn)
+  Gisle Vanem (@gavenm)
+  Ivan Baidakou (@basiliscos)
+  Jonathan Maye-Hobbs (@wheelpharoah)
+  Łukasz Marszał (@lmarszal)
+  lutianxiong (@ltx2018)
+  Seraphime Kirkovski (@Seraphime)
+(14 contributors)
 
 References to bug reports and discussions on issues:
+ [1] = https://github.com/c-ares/c-ares/pull/331
+ [2] = https://github.com/c-ares/c-ares/pull/332
+ [3] = https://github.com/c-ares/c-ares/issues/333
+ [4] = https://github.com/c-ares/c-ares/pull/334
+ [5] = https://github.com/c-ares/c-ares/pull/336
+ [6] = https://github.com/c-ares/c-ares/pull/344
+ [7] = https://github.com/c-ares/c-ares/pull/345
+ [8] = https://github.com/c-ares/c-ares/issues/343
+ [9] = https://github.com/c-ares/c-ares/issues/317
+ [10] = https://github.com/c-ares/c-ares/pull/346
+ [11] = https://github.com/c-ares/c-ares/pull/204
+ [12] = https://github.com/c-ares/c-ares/pull/244
+ [13] = https://github.com/c-ares/c-ares/pull/349
+ [14] = https://github.com/c-ares/c-ares/pull/360
+ [15] = https://github.com/c-ares/c-ares/pull/367
+ [16] = https://github.com/c-ares/c-ares/pull/368
+ [17] = https://github.com/c-ares/c-ares/issues/371
 
- [1] = https://github.com/c-ares/c-ares/commit/18ea99
- [2] = https://github.com/c-ares/c-ares/issues/150
- [3] = https://github.com/c-ares/c-ares/pull/138
- [4] = https://github.com/c-ares/c-ares/pull/144
- [5] = https://github.com/c-ares/c-ares/pull/148
- [6] = https://github.com/c-ares/c-ares/pull/142
- [7] = https://github.com/c-ares/c-ares/pull/175
- [8] = https://c-ares.haxx.se/mail/c-ares-archive-2011-06/0012.shtml
- [9] = https://github.com/c-ares/c-ares/pull/180
- [10] = https://github.com/c-ares/c-ares/pull/160
- [11] = https://github.com/c-ares/c-ares/pull/175
- [12] = https://github.com/c-ares/c-ares/pull/142

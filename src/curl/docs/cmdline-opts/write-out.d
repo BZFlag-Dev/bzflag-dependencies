@@ -2,6 +2,7 @@ Long: write-out
 Short: w
 Arg: <format>
 Help: Use output FORMAT after completion
+Category: verbose
 ---
 Make curl display information on stdout after a completed transfer. The format
 is a string that may contain plain text mixed with any number of
@@ -15,6 +16,9 @@ text that curl thinks fit, as described below. All variables are specified as
 output a newline by using \\n, a carriage return with \\r and a tab space with
 \\t.
 
+The output will be written to standard output, but this can be switched to
+standard error by using %{stderr}.
+
 .B NOTE:
 The %-symbol is a special symbol in the win32-environment, where all
 occurrences of % must be doubled when using this option.
@@ -24,6 +28,12 @@ The variables available are:
 .TP 15
 .B content_type
 The Content-Type of the requested document, if there was any.
+.TP
+.B errormsg
+The error message. (Added in 7.75.0)
+.TP
+.B exitcode
+The numerical exitcode. (Added in 7.75.0)
 .TP
 .B filename_effective
 The ultimate filename that curl writes out to. This is only meaningful if curl
@@ -47,6 +57,9 @@ curl CONNECT request. (Added in 7.12.4)
 .B http_version
 The http version that was effectively used. (Added in 7.50.0)
 .TP
+.B json
+A JSON object with all available keys.
+.TP
 .B local_ip
 The IP address of the local end of the most recently done connection - can be
 either IPv4 or IPv6 (Added in 7.29.0)
@@ -54,11 +67,22 @@ either IPv4 or IPv6 (Added in 7.29.0)
 .B local_port
 The local port number of the most recently done connection (Added in 7.29.0)
 .TP
+.B method
+The http method used in the most recent HTTP request (Added in 7.72.0)
+.TP
 .B num_connects
 Number of new connects made in the recent transfer. (Added in 7.12.3)
 .TP
+.B num_headers
+The number of response headers in the most recent request (restarted at each
+ redirect). Note that the status line IS NOT a header. (Added in 7.73.0)
+.TP
 .B num_redirects
 Number of redirects that were followed in the request. (Added in 7.12.3)
+.TP
+.B onerror
+The rest of the output is only shown if the transfer returned a non-zero error
+(Added in 7.75.0)
 .TP
 .B proxy_ssl_verify_result
 The result of the HTTPS proxy's SSL peer certificate verification that was
@@ -75,6 +99,10 @@ IPv4 or IPv6 (Added in 7.29.0)
 .TP
 .B remote_port
 The remote port number of the most recently done connection (Added in 7.29.0)
+.TP
+.B response_code
+The numerical response code that was found in the last transfer (formerly
+known as "http_code"). (Added in 7.18.2)
 .TP
 .B scheme
 The URL scheme (sometimes called protocol) that was effectively used (Added in 7.52.0)
@@ -102,6 +130,15 @@ second.
 .B ssl_verify_result
 The result of the SSL peer certificate verification that was requested. 0
 means the verification was successful. (Added in 7.19.0)
+.TP
+.B stderr
+From this point on, the --write-out output will be written to standard
+error. (Added in 7.63.0)
+.TP
+.B stdout
+From this point on, the --write-out output will be written to standard output.
+This is the default, but can be used to switch back after switching to stderr.
+(Added in 7.63.0)
 .TP
 .B time_appconnect
 The time, in seconds, it took from the start until the SSL/SSH/etc
@@ -133,6 +170,12 @@ server needed to calculate the result.
 .TP
 .B time_total
 The total time, in seconds, that the full operation lasted.
+.TP
+.B url
+The URL that was fetched. (Added in 7.75.0)
+.TP
+.B urlnum
+The URL index number of this transfer, 0-indexed. (Added in 7.75.0)
 .TP
 .B url_effective
 The URL that was fetched last. This is most meaningful if you've told curl

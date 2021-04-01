@@ -5,11 +5,11 @@
  *                            | (__| |_| |  _ <| |___
  *                             \___|\___/|_| \_\_____|
  *
- * Copyright (C) 1998 - 2017, Daniel Stenberg, <daniel@haxx.se>, et al.
+ * Copyright (C) 1998 - 2020, Daniel Stenberg, <daniel@haxx.se>, et al.
  *
  * This software is licensed as described in the file COPYING, which
  * you should have received as part of this distribution. The terms
- * are also available at https://curl.haxx.se/docs/copyright.html.
+ * are also available at https://curl.se/docs/copyright.html.
  *
  * You may opt to use, copy, modify, merge, publish, distribute and/or sell
  * copies of the Software, and permit persons to whom the Software is
@@ -99,7 +99,6 @@ static void *fire(void *ptr)
   CURLcode code;
   struct Tdata *tdata = (struct Tdata*)ptr;
   CURL *curl;
-  int i = 0;
 
   curl = curl_easy_init();
   if(!curl) {
@@ -116,6 +115,7 @@ static void *fire(void *ptr)
   printf("PERFORM\n");
   code = curl_easy_perform(curl);
   if(code != CURLE_OK) {
+    int i = 0;
     fprintf(stderr, "perform url '%s' repeat %d failed, curlcode %d\n",
             tdata->url, i, (int)code);
   }
@@ -244,4 +244,3 @@ test_cleanup:
 
   return res;
 }
-

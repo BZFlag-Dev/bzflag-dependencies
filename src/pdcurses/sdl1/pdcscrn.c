@@ -1,34 +1,28 @@
-/* Public Domain Curses */
+/* PDCurses */
 
 #include "pdcsdl.h"
 
 #include <stdlib.h>
 #ifndef PDC_WIDE
-#include "deffont.h"
+#include "../common/font437.h"
 #endif
-#include "deficon.h"
+#include "../common/iconbmp.h"
 
 #ifdef PDC_WIDE
 # ifndef PDC_FONT_PATH
-#  ifdef _WIN32
-#define PDC_FONT_PATH "C:/Windows/Fonts/lucon.ttf"
-#  elif defined(__APPLE__)
-#define PDC_FONT_PATH "/Library/Fonts/Courier New.ttf"
-#  else
-#define PDC_FONT_PATH "/usr/share/fonts/truetype/freefont/FreeMono.ttf"
-#  endif
+#  define PDC_FONT_PATH "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"
 # endif
 TTF_Font *pdc_ttffont = NULL;
-int pdc_font_size = 18;
+int pdc_font_size = 17;
 #endif
 
 SDL_Surface *pdc_screen = NULL, *pdc_font = NULL, *pdc_icon = NULL,
             *pdc_back = NULL, *pdc_tileback = NULL;
 int pdc_sheight = 0, pdc_swidth = 0, pdc_yoffset = 0, pdc_xoffset = 0;
 
-SDL_Color pdc_color[256];
-Uint32 pdc_mapped[256];
-int pdc_fheight, pdc_fwidth, pdc_flastc;
+SDL_Color pdc_color[PDC_MAXCOL];
+Uint32 pdc_mapped[PDC_MAXCOL];
+int pdc_fheight, pdc_fwidth, pdc_fthick, pdc_flastc;
 bool pdc_own_screen;
 
 static int max_height, max_width;
@@ -196,7 +190,7 @@ int PDC_scr_open(int argc, char **argv)
     }
 
     if (!pdc_font)
-        pdc_font = SDL_LoadBMP_RW(SDL_RWFromMem(deffont, sizeof(deffont)), 0);
+        pdc_font = SDL_LoadBMP_RW(SDL_RWFromMem(font437, sizeof(font437)), 0);
 
     if (!pdc_font)
     {
@@ -224,9 +218,11 @@ int PDC_scr_open(int argc, char **argv)
 
 #ifdef PDC_WIDE
     TTF_SizeText(pdc_ttffont, "W", &pdc_fwidth, &pdc_fheight);
+    pdc_fthick = pdc_font_size / 20 + 1;
 #else
     pdc_fheight = pdc_font->h / 8;
     pdc_fwidth = pdc_font->w / 32;
+    pdc_fthick = 1;
 
     if (!SP->mono)
         pdc_flastc = pdc_font->format->palette->ncolors - 1;
@@ -238,8 +234,8 @@ int PDC_scr_open(int argc, char **argv)
         pdc_icon = SDL_LoadBMP(iname ? iname : "pdcicon.bmp");
 
         if (!pdc_icon)
-            pdc_icon = SDL_LoadBMP_RW(SDL_RWFromMem(deficon,
-                                                    sizeof(deficon)), 0);
+            pdc_icon = SDL_LoadBMP_RW(SDL_RWFromMem(iconbmp,
+                                                    sizeof(iconbmp)), 0);
 
         if (pdc_icon)
             SDL_WM_SetIcon(pdc_icon, NULL);
@@ -394,8 +390,6 @@ int PDC_init_color(short color, short red, short green, short blue)
 
     pdc_mapped[color] = SDL_MapRGB(pdc_screen->format, pdc_color[color].r,
                                    pdc_color[color].g, pdc_color[color].b);
-
-    wrefresh(curscr);
 
     return OK;
 }

@@ -256,6 +256,47 @@ TEST_F(LibraryTest, CreateQueryFailures) {
   if (p) ares_free_string(p);
 }
 
+TEST_F(LibraryTest, CreateQueryOnionDomain) {
+  byte* p;
+  int len;
+  EXPECT_EQ(ARES_ENOTFOUND,
+            ares_create_query("dontleak.onion", ns_c_in, ns_t_a, 0x1234, 0,
+                              &p, &len, 0));
+}
+
+TEST_F(DefaultChannelTest, HostByNameOnionDomain) {
+  HostResult result;
+  ares_gethostbyname(channel_, "dontleak.onion", AF_INET, HostCallback, &result);
+  EXPECT_TRUE(result.done_);
+  EXPECT_EQ(ARES_ENOTFOUND, result.status_);
+}
+
+TEST_F(DefaultChannelTest, HostByNameFileOnionDomain) {
+  struct hostent *h;
+  EXPECT_EQ(ARES_ENOTFOUND,
+            ares_gethostbyname_file(channel_, "dontleak.onion", AF_INET, &h));
+}
+
+TEST_F(DefaultChannelTest, GetAddrinfoOnionDomain) {
+  AddrInfoResult result;
+  struct ares_addrinfo_hints hints = {};
+  hints.ai_family = AF_UNSPEC;
+  ares_getaddrinfo(channel_, "dontleak.onion", NULL, &hints, AddrInfoCallback, &result);
+  EXPECT_TRUE(result.done_);
+  EXPECT_EQ(ARES_ENOTFOUND, result.status_);
+}
+
+// Interesting question: should tacking on a search domain let the query
+// through? It seems safer to reject it because "supersecret.onion.search"
+// still leaks information about the query to malicious resolvers.
+TEST_F(DefaultChannelTest, SearchOnionDomain) {
+  SearchResult result;
+  ares_search(channel_, "dontleak.onion", ns_c_in, ns_t_a,
+              SearchCallback, &result);
+  EXPECT_TRUE(result.done_);
+  EXPECT_EQ(ARES_ENOTFOUND, result.status_);
+}
+
 TEST_F(DefaultChannelTest, SendFailure) {
   unsigned char buf[2];
   SearchResult result;
