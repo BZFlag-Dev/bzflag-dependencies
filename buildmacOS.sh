@@ -45,15 +45,17 @@ function buildDeps {
 
 	cd $SRCROOT/c-ares
 
+	cp include/ares_build.h include/ares_build.h.bak &&
 	if [[ $CONF == "debug" ]] ; then
-		./configure --prefix=$OUTPUTROOT --disable-shared
+		./configure --prefix=$OUTPUTROOT --disable-shared --disable-tests
 	else
-		./configure --prefix=$OUTPUTROOT --disable-shared --enable-debug
+		./configure --prefix=$OUTPUTROOT --disable-shared --disable-tests --enable-debug
 	fi &&
 	make -j`sysctl -n hw.ncpu` &&
 	make install &&
+	mv include/ares_build.h.bak include/ares_build.h &&
 	cp LICENSE.md $ORIGROOT/dependencies/licenses/c-ares.txt &&
-	make distclean
+	make clean
 
 	THIS_RESULT=$?
 	if [[ -z $CARES_RESULT || $CARES_RESULT == 0 ]] ; then CARES_RESULT=$THIS_RESULT ; fi
@@ -90,10 +92,12 @@ function buildDeps {
 
 	cd $SRCROOT/SDL2
 
+	cp include/SDL_config.h include/SDL_config.h.bak &&
 	# SDL2 appears to have no debug configuration
 	./configure --prefix=$OUTPUTROOT --disable-shared &&
 	make -j`sysctl -n hw.ncpu` &&
 	make install &&
+	mv include/SDL_config.h.bak include/SDL_config.h &&
 	cp COPYING.txt $ORIGROOT/dependencies/licenses/SDL2.txt &&
 	make distclean
 

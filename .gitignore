@@ -1,6 +1,7 @@
 # Output directories
 /output-*/
 /licenses/
+/dependencies/
 
 # PDCurses build files
 src/pdcurses/wincon/*.obj
@@ -21,6 +22,19 @@ src/libpng/pnglibconf.h
 
 # c-ares build files
 src/c-ares/msvc*/
+src/c-ares/Makefile
+src/c-ares/config.log
+src/c-ares/config.status
+src/c-ares/*/Makefile
+src/c-ares/*/*/Makefile
+src/c-ares/include/stamp-h2
+src/c-ares/libcares.pc
+src/c-ares/libtool
+src/c-ares/src/lib/.deps/
+src/c-ares/src/lib/.dirstamp
+src/c-ares/src/lib/ares_config.h
+src/c-ares/src/lib/stamp-h1
+src/c-ares/src/tools/.deps/
 
 # curl build files
 src/curl/builds/*
@@ -46,7 +60,11 @@ src/SDL2/VisualC/tests/*/x64/
 src/SDL2/VisualC/tests/*/*.bmp
 src/SDL2/VisualC/tests/*/*.wav
 src/SDL2/VisualC/tests/*/*.dat
+src/SDL2/sdl2-config-version.cmake
+src/SDL2/sdl2-config.cmake
+src/SDL2/sdl2.pc
 
 # Other Visual C++ files
 *.VC.db
 *.suo
+
