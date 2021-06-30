@@ -45,13 +45,14 @@ set CONF=%~2
 %~d0
 set origroot=%~dp0
 set srcroot=%origroot%src
-set outputroot=%origroot%output-windows-%CONF%-%ARCH%
+set outputroot=%origroot%dependencies\output-windows-%CONF%-%ARCH%
+set licenseroot=%origroot%dependencies\licenses
 
 if not exist "%outputroot%" mkdir "%outputroot%"
 if not exist "%outputroot%\bin" mkdir "%outputroot%\bin"
 if not exist "%outputroot%\lib" mkdir "%outputroot%\lib"
 if not exist "%outputroot%\include" mkdir "%outputroot%\include"
-if not exist "%origroot%\licenses" mkdir "%origroot%\licenses"
+if not exist "%licenseroot%" mkdir "%licenseroot%"
 
 echo ==============================
 echo Building PDCurses
@@ -74,7 +75,7 @@ if %PDCURSES_RESULT% == 0 (
 	cd "%srcroot%\pdcurses"
 	copy wincon\*.lib "%outputroot%\lib\"
 	copy *.h "%outputroot%\include\"
-	copy README.md "%origroot%\licenses\pdcurses.txt"
+	copy README.md "%licenseroot%\pdcurses.txt"
 )
 
 echo(
@@ -99,7 +100,7 @@ if %ZLIB_RESULT% == 0 (
 	)
 	copy zdll.exp "%outputroot%\lib\zlib.exp"
 	copy *.h "%outputroot%\include\"
-	copy README "%origroot%\licenses\zlib.txt"
+	copy README "%licenseroot%\zlib.txt"
 )
 
 echo(
@@ -118,7 +119,7 @@ if %LIBPNG_RESULT% == 0 (
 	cd "%srcroot%\libpng"
 	copy libpng.lib "%outputroot%\lib\"
 	copy *.h "%outputroot%\include\"
-	copy LICENSE "%origroot%\licenses\libpng.txt"
+	copy LICENSE "%licenseroot%\libpng.txt"
 )
 
 echo(
@@ -141,7 +142,7 @@ if %CARES_RESULT% == 0 (
 	copy "msvc\cares\dll-%CONF%\*.dll" "%outputroot%\bin\"
 	copy "msvc\cares\dll-%CONF%\*.lib" "%outputroot%\lib\"
 	copy "msvc\cares\dll-%CONF%\*.exp" "%outputroot%\lib\"
-	copy LICENSE.md "%origroot%\licenses\c-ares.txt"
+	copy LICENSE.md "%licenseroot%\c-ares.txt"
 )
 
 echo(
@@ -170,7 +171,7 @@ if %CURL_RESULT% == 0 (
 	if not exist %outputroot%\include\curl mkdir "%outputroot%\include\curl"
 	copy include\curl\*.h "%outputroot%\include\curl\"
 	cd "%srcroot%\curl"
-	copy COPYING "%origroot%\licenses\curl.txt"
+	copy COPYING "%licenseroot%\curl.txt"
 )
 
 echo(
@@ -195,7 +196,7 @@ if %REGEX_RESULT% == 0 (
 		copy regex_x64_%CONF%\regex.lib "%outputroot%\lib"
 	)
 	copy regex.h "%outputroot%\include"
-	copy license.txt "%origroot%\licenses\regex.txt"
+	copy license.txt "%licenseroot%\regex.txt"
 )
 
 echo(
@@ -225,7 +226,7 @@ if %GLEW_RESULT% == 0 (
 	)
 	if not exist "%outputroot%\include\GL" mkdir "%outputroot%\include\GL"
 	copy "include\GL\*.h" "%outputroot%\include\GL"
-	copy LICENSE.txt "%origroot%\licenses\GLEW.txt"
+	copy LICENSE.txt "%licenseroot%\GLEW.txt"
 )
 
 echo(
@@ -257,7 +258,7 @@ if %SDL2_RESULT% == 0 (
 	)
 	if not exist "%outputroot%\include\SDL2" mkdir "%outputroot%\include\SDL2"
 	copy "include\*.h" "%outputroot%\include\SDL2\"
-	copy COPYING.txt "%origroot%\licenses\SDL2.txt"
+	copy COPYING.txt "%licenseroot%\SDL2.txt"
 )
 
 echo(
@@ -268,7 +269,7 @@ echo ==============================
 cd "%srcroot%\glm"
 robocopy /E /NP /NJH /NJS glm "%outputroot%\include\glm"
 set GLM_RESULT=%ERRORLEVEL%
-copy copying.txt "%origroot%\licenses\glm.txt"
+copy copying.txt "%licenseroot%\glm.txt"
 
 
 echo(
