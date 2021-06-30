@@ -1,22 +1,42 @@
 @echo off
 
-:: FIXME: 64-bit builds DO NOT work and instead seem to build as 32-bit or just fail.
-:: If you pass x64 as the first argument to the batch script, it would (in theory) build 64-bit versions of the libraries.
-::   C:\> buildVC2017.bat x64
-
-if not "%DevEnvDir%" == "" (
-	echo.
-	echo Please do not run from an existing Visual Studio command prompt or with a prompt from a previous run.
-	goto:eof
-)
-
-set ARCH=x86
-:: if "%1" == "x64" set ARCH=x64
-
-
 :: Adjust this if you have an edition other than Community
 set VSEDITION=Community
 
+
+
+if not "%DevEnvDir%" == "" (
+	echo.
+	echo Please do not run from an existing Visual Studio command prompt.
+	goto:eof
+)
+
+:: The first argument can specify which architecture to build the dependencies for.
+:: If none is provided, both x86 and x64 will be compiled.
+if "%1" == "x86" (
+	set ARCH=x86
+) else if "%1" == "x64" (
+	set ARCH=x64
+) else (
+	setlocal
+	call buildVC2017.bat x86 /nopause
+	endlocal
+	setlocal
+	call buildVC2017.bat x64 /nopause
+	endlocal
+	pause
+	goto:eof
+)
+
+:: The second argument can disable pausing at the end of the build.
+if "%2" == "/nopause" (
+	set PAUSE=0
+) else (
+	set PAUSE=1
+)
+
+
+:: Load the Visual Studio command prompt vars
 if exist "%ProgramFiles%\Microsoft Visual Studio\2017\%VSEDITION%\VC\Auxiliary\Build\vcvarsall.bat" (
 	call "%ProgramFiles%\Microsoft Visual Studio\2017\%VSEDITION%\VC\Auxiliary\Build\vcvarsall.bat" %ARCH%
 ) else if exist "%ProgramFiles(x86)%\Microsoft Visual Studio\2017\%VSEDITION%\VC\Auxiliary\Build\vcvarsall.bat" (
@@ -27,11 +47,11 @@ if exist "%ProgramFiles%\Microsoft Visual Studio\2017\%VSEDITION%\VC\Auxiliary\B
 	goto:eof
 )
 
-
+:: Compile the release and debug version for the current architecture
 call:buildDeps %ARCH% release
 call:buildDeps %ARCH% debug
 
-pause
+if %PAUSE% == 1 pause
 
 goto:eof
 
@@ -59,9 +79,7 @@ echo Building PDCurses
 echo ==============================
 
 cd "%srcroot%\pdcurses\wincon"
-:: Not sure if we need to clean between builds
-::nmake -f Makefile.vc clean
-::del none pdcurses.ilk
+nmake -f Makefile.vc clean
 
 if "%CONF%" == "debug" (
 	nmake -f Makefile.vc DEBUG=Y WIDE=Y UTF8=Y pdcurses.lib
@@ -84,8 +102,7 @@ echo Building zlib
 echo ==============================
 
 cd "%srcroot%\zlib"
-:: Not sure if we need to clean between builds
-::nmake -f win32\Makefile.msc clean
+nmake -f win32\Makefile.msc clean
 nmake -f win32\Makefile.msc zdll.lib
 
 set ZLIB_RESULT=%ERRORLEVEL%
@@ -109,8 +126,7 @@ echo Building libpng
 echo ==============================
 
 cd "%srcroot%\libpng"
-:: Not sure if we need to clean between builds
-::nmake -f scripts\makefile.vcwin32 clean
+nmake -f scripts\makefile.vcwin32 clean
 nmake -f scripts\makefile.vcwin32 libpng.lib
 
 set LIBPNG_RESULT=%ERRORLEVEL%
@@ -129,8 +145,7 @@ echo ==============================
 
 cd "%srcroot%\c-ares"
 
-:: Not sure if we need to clean between builds
-::nmake -f Makefile.msvc clean
+nmake -f Makefile.msvc clean
 nmake -f Makefile.msvc CFG=dll-%CONF% c-ares
 set CARES_RESULT=%ERRORLEVEL%
 cd "%srcroot%\c-ares"
@@ -150,10 +165,9 @@ echo ==============================
 echo Building libcurl
 echo ==============================
 
-cd "%srcroot%\curl"
-
 cd "%srcroot%\curl\winbuild"
 
+nmake -f Makefile.vc clean
 if "%CONF%" == "debug" (
 	nmake -f Makefile.vc mode=dll VC=15 WITH_DEVEL="%outputroot%" WITH_ZLIB=dll WITH_CARES=dll ENABLE_IDN=no ENABLE_SCHANNEL=yes GEN_PDB=no DEBUG=yes MACHINE=%ARCH%
 ) else (
