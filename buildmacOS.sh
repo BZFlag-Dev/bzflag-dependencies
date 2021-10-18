@@ -1,11 +1,26 @@
 #!/bin/bash
 
+ORIGROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+SRCROOT=$ORIGROOT/src
+
+# check for spaces in path
+ESCAPEDORIGROOT=$(printf %q "$ORIGROOT")
+if [[ "$ORIGROOT" != "$ESCAPEDORIGROOT" ]] ; then
+	echo "This script has detected that the path to its parent directory contains spaces"
+	echo "or other special characters. The build systems of some of our dependencies do"
+	echo "not support escaped paths, so building is likely to fail. Please move the"
+	echo "parent directory of this script to a location without spaces or other special"
+	echo "characters in its path, then try building again."
+	echo
+	echo "Press enter to continue anyway, or Ctrl-C to cancel."
+	read -rs
+	echo
+fi
+
 function buildDeps {
 	ARCH=$1
 	CONF=$2
 
-	ORIGROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-	SRCROOT=$ORIGROOT/src
 	OUTPUTROOT=$ORIGROOT/dependencies/output-macOS-$CONF-$ARCH
 
 	mkdir -p $OUTPUTROOT
