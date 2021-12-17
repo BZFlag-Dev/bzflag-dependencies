@@ -23,7 +23,6 @@
  ***************************************************************************/
 #include "tool_setup.h"
 #include "tool_sdecls.h"
-#include "tool_metalink.h"
 #include "tool_urlglob.h"
 #include "tool_formparse.h"
 
@@ -54,9 +53,9 @@ struct OperationConfig {
   char *random_file;
   char *egd_file;
   char *useragent;
-  char *cookie;             /* single line with specified cookies */
+  struct curl_slist *cookies;  /* cookies to serialize into a single line */
   char *cookiejar;          /* write to this file */
-  char *cookiefile;         /* read from this file */
+  struct curl_slist *cookiefiles;  /* file(s) to load cookies from */
   char *altsvc;             /* alt-svc cache file name */
   char *hsts;               /* HSTS cache file name */
   bool cookiesession;       /* new session? */
@@ -118,6 +117,7 @@ struct OperationConfig {
   bool use_ascii;           /* select ascii or text transfer */
   bool autoreferer;         /* automatically set referer */
   bool failonerror;         /* fail on (HTTP) errors */
+  bool failwithbody;        /* fail on (HTTP) errors but still store body */
   bool show_headers;        /* show headers to data output */
   bool no_body;             /* don't get the body */
   bool dirlistonly;         /* only get the FTP dir list */
@@ -158,6 +158,7 @@ struct OperationConfig {
   char *proxy_key_passwd;
   char *pubkey;
   char *hostpubmd5;
+  char *hostpubsha256;
   char *engine;
   char *etag_save_file;
   char *etag_compare_file;
@@ -173,10 +174,13 @@ struct OperationConfig {
   bool globoff;
   bool use_httpget;
   bool insecure_ok;         /* set TRUE to allow insecure SSL connects */
+  bool doh_insecure_ok;     /* set TRUE to allow insecure SSL connects
+                               for DoH */
   bool proxy_insecure_ok;   /* set TRUE to allow insecure SSL connects
                                for proxy */
   bool terminal_binary_ok;
   bool verifystatus;
+  bool doh_verifystatus;
   bool create_dirs;
   bool ftp_create_dirs;
   bool ftp_skip_ip;
@@ -263,10 +267,9 @@ struct OperationConfig {
                                   revocation list errors */
 
   bool native_ca_store;        /* use the native os ca store */
-
-  bool use_metalink;        /* process given URLs as metalink XML file */
-  struct metalinkfile *metalinkfile_list; /* point to the first node */
-  struct metalinkfile *metalinkfile_last; /* point to the last/current node */
+  bool ssl_auto_client_cert;   /* automatically locate and use a client
+                                  certificate for authentication (Schannel) */
+  bool proxy_ssl_auto_client_cert; /* proxy version of ssl_auto_client_cert */
   char *oauth_bearer;             /* OAuth 2.0 bearer token */
   bool nonpn;                     /* enable/disable TLS NPN extension */
   bool noalpn;                    /* enable/disable TLS ALPN extension */

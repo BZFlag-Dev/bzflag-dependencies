@@ -148,7 +148,9 @@ Available substitute variables include:
 - `%SRCDIR` - Full path to the source dir
 - `%SSHPORT` - Port number of the SCP/SFTP server
 - `%SSHSRVMD5` - MD5 of SSH server's public key
+- `%SSHSRVSHA256` - SHA256 of SSH server's public key
 - `%SSH_PWD` - Current directory friendly for the SSH server
+- `%TESTNUMBER` - Number of the test case
 - `%TFTP6PORT` - IPv6 port number of the TFTP server
 - `%TFTPPORT` - Port number of the TFTP server
 - `%USER` - Login ID of the user running the test
@@ -176,12 +178,14 @@ that will be checked/used if specified.
 
 ### `<keywords>`
 A newline-separated list of keywords describing what this test case uses and
-tests. Try to use an already used keyword.  These keywords will be used for
-statistical/informational purposes and for choosing or skipping classes
-of tests.  "Keywords" must begin with an alphabetic character, "-", "["
-or "{" and may actually consist of multiple words separated by spaces
-which are treated together as a single identifier.
+tests. Try to use already used keywords.  These keywords will be used for
+statistical/informational purposes and for choosing or skipping classes of
+tests.  "Keywords" must begin with an alphabetic character, "-", "[" or "{"
+and may actually consist of multiple words separated by spaces which are
+treated together as a single identifier.
 
+When using curl built with Hyper, the keywords must include HTTP or HTTPS for
+'hyper mode' to kick in and make line ending checks work for tests.
 ## `<reply>`
 
 ### `<data [nocheck="yes"] [sendzero="yes"] [base64="yes"] [hex="yes"]>`
@@ -385,7 +389,6 @@ Features testable here are:
 - `ld_preload`
 - `libz`
 - `manual`
-- `Metalink`
 - `Mime`
 - `netrc`
 - `NSS`
@@ -395,6 +398,7 @@ Features testable here are:
 - `proxy`
 - `PSL`
 - `Schannel`
+- `sectransp`
 - `shuffle-dns`
 - `socks`
 - `SPNEGO`
@@ -405,6 +409,7 @@ Features testable here are:
 - `TLS-SRP`
 - `TrackMemory`
 - `typecheck`
+- `Unicode`
 - `unittest`
 - `unix-sockets`
 - `verbose-strings`

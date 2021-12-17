@@ -5,7 +5,7 @@
 #                            | (__| |_| |  _ <| |___
 #                             \___|\___/|_| \_\_____|
 #
-# Copyright (C) 1999 - 2020, Daniel Stenberg, <daniel@haxx.se>, et al.
+# Copyright (C) 1999 - 2021, Daniel Stenberg, <daniel@haxx.se>, et al.
 #
 # This software is licensed as described in the file COPYING, which
 # you should have received as part of this distribution. The terms
@@ -58,6 +58,10 @@ endif
 # Edit the path below to point to the base of your librtmp package.
 ifndef LIBRTMP_PATH
 LIBRTMP_PATH = ../../librtmp-2.4
+endif
+# Edit the path below to point to the base of your libgsasl package.
+ifndef LIBGSASL_PATH
+LIBGSASL_PATH = ../../libgsasl-1.10.0
 endif
 # Edit the path below to point to the base of your libidn2 package.
 ifndef LIBIDN2_PATH
@@ -175,12 +179,10 @@ SYNC = 1
 endif
 ifeq ($(findstring -rtmp,$(CFG)),-rtmp)
 RTMP = 1
-SSL = 1
 ZLIB = 1
 endif
 ifeq ($(findstring -ssh2,$(CFG)),-ssh2)
 SSH2 = 1
-SSL = 1
 ZLIB = 1
 endif
 ifeq ($(findstring -ssl,$(CFG)),-ssl)
@@ -197,6 +199,9 @@ ZSTD = 1
 endif
 ifeq ($(findstring -brotli,$(CFG)),-brotli)
 BROTLI = 1
+endif
+ifeq ($(findstring -gsasl,$(CFG)),-gsasl)
+GSASL = 1
 endif
 ifeq ($(findstring -idn2,$(CFG)),-idn2)
 IDN2 = 1
@@ -228,6 +233,13 @@ NGTCP2 = 1
 endif
 ifeq ($(findstring -unicode,$(CFG)),-unicode)
 UNICODE = 1
+endif
+
+# SSH2 and RTMP require an SSL library; assume OpenSSL if none specified
+ifneq ($(SSH2)$(RTMP),)
+  ifeq ($(SSL)$(WINSSL),)
+    SSL = 1
+  endif
 endif
 
 INCLUDES = -I. -I../include
@@ -292,7 +304,7 @@ ifdef SSL
     endif
   endif
   ifneq "$(wildcard $(OPENSSL_INCLUDE)/openssl/opensslv.h)" "$(OPENSSL_INCLUDE)/openssl/opensslv.h"
-  $(error Invalid path to OpenSSL package: $(OPENSSL_PATH))
+    $(error Invalid path to OpenSSL package: $(OPENSSL_PATH))
   endif
   ifndef OPENSSL_LIBPATH
     ifeq "$(wildcard $(OPENSSL_PATH)/out)" "$(OPENSSL_PATH)/out"
@@ -345,6 +357,11 @@ ifdef BROTLI
   else
     DLL_LIBS += -lbrotlidec
   endif
+endif
+ifdef GSASL
+  INCLUDES += -I"$(LIBGSASL_PATH)/include"
+  CFLAGS += -DUSE_GSASL
+  DLL_LIBS += -L"$(LIBGSASL_PATH)/lib" -lgsasl
 endif
 ifdef IDN2
   INCLUDES += -I"$(LIBIDN2_PATH)/include"
