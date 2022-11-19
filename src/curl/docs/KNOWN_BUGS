@@ -34,6 +34,7 @@ problems may have been fixed or changed somewhat since this was written.
  2.10 Store TLS context per transfer instead of per connection
  2.11 Schannel TLS 1.2 handshake bug in old Windows versions
  2.12 FTPS with Schannel times out file list operation
+ 2.13 CURLOPT_CERTINFO results in CURLE_OUT_OF_MEMORY with Schannel
  2.14 Secure Transport disabling hostname validation also disables SNI
  2.15 Renegotiate from server may cause hang for OpenSSL backend
 
@@ -61,6 +62,8 @@ problems may have been fixed or changed somewhat since this was written.
  5.10 curl hangs on SMB upload over stdin
  5.11 configure --with-gssapi with Heimdal is ignored on macOS
  5.12 flaky Windows CI builds
+ 5.13 long paths are not fully supported on Windows
+ 5.14 Windows Unicode builds use homedir in current locale
 
  6. Authentication
  6.1 NTLM authentication and unicode
@@ -75,6 +78,7 @@ problems may have been fixed or changed somewhat since this was written.
  6.10 curl never completes Negotiate over HTTP
  6.11 Negotiate on Windows fails
  6.12 cannot use Secure Transport with Crypto Token Kit
+ 6.13 Negotiate against Hadoop HDFS
 
  7. FTP
  7.1 FTP without or slow 220 response
@@ -88,6 +92,7 @@ problems may have been fixed or changed somewhat since this was written.
  7.9 Passive transfer tries only one IP address
  7.10 FTPS needs session reuse
  7.11 FTPS upload data loss with TLS 1.3
+ 7.12 FTPS directory listing hangs on Windows with Schannel
 
  8. TELNET
  8.1 TELNET and time limitations do not work
@@ -97,6 +102,7 @@ problems may have been fixed or changed somewhat since this was written.
  9.1 SFTP does not do CURLOPT_POSTQUOTE correct
  9.2 wolfssh: publickey auth does not work
  9.3 Remote recursive folder creation with SFTP
+ 9.4 libssh blocking and infinite loop problem
 
  10. SOCKS
  10.3 FTPS over SOCKS
@@ -108,14 +114,11 @@ problems may have been fixed or changed somewhat since this was written.
  11.3 Disconnects do not do verbose
  11.4 HTTP test server 'connection-monitor' problems
  11.5 Connection information when using TCP Fast Open
- 11.6 slow connect to localhost on Windows
  11.7 signal-based resolver timeouts
  11.8 DoH leaks memory after followlocation
  11.9 DoH does not inherit all transfer options
  11.10 Blocking socket operations in non-blocking API
  11.11 A shared connection cache is not thread-safe
- 11.12 'no_proxy' string-matches IPv6 numerical addresses
- 11.13 wakeup socket disconnect causes havoc
  11.14 Multi perform hangs waiting for threaded resolver
  11.15 CURLOPT_OPENSOCKETPAIRFUNCTION is missing
  11.16 libcurl uses renames instead of locking for atomic operations
@@ -143,13 +146,13 @@ problems may have been fixed or changed somewhat since this was written.
  15.7 generated .pc file contains strange entries
  15.8 libcurl.pc uses absolute library paths
  15.9 cert paths autodetected when cross-compiling
- 15.10 libspsl is not supported
+ 15.10 libpsl is not supported
  15.11 ExternalProject_Add does not set CURL_CA_PATH
  15.12 cannot enable LDAPS on Windows
  15.13 CMake build with MIT Kerberos does not work
+ 15.14 cmake build is not thread-safe
 
  16. Applications
- 16.1 pulseUI VPN client
 
  17. HTTP/2
  17.1 Excessive HTTP/2 packets with TCP_NODELAY
@@ -160,13 +163,8 @@ problems may have been fixed or changed somewhat since this was written.
 
  18. HTTP/3
  18.1 If the HTTP/3 server closes connection during upload curl hangs
- 18.2 Uploading HTTP/3 files gets interrupted at certain file sizes
- 18.3 HTTP/3 download is 5x times slower than HTTP/2
- 18.4 Downloading with HTTP/3 produces broken files
- 18.5 HTTP/3 download with quiche halts after a while
- 18.6 HTTP/3 multipart POST with quiche fails
- 18.7 HTTP/3 quiche upload large file fails
- 18.8 HTTP/3 does not support client certs
+ 18.2 Transfer closed with n bytes remaining to read
+ 18.4 timeout when reusing a http3 connection
  18.9 connection migration does not work
 
 ==============================================================================
@@ -196,7 +194,7 @@ problems may have been fixed or changed somewhat since this was written.
  something beyond ascii but currently libcurl will only pass in the verbatim
  string the app provides. There are several browsers that already do this
  encoding. The key seems to be the updated draft to RFC2231:
- https://tools.ietf.org/html/draft-reschke-rfc2231-in-http-02
+ https://datatracker.ietf.org/doc/html/draft-reschke-rfc2231-in-http-02
 
 1.5 Expect-100 meets 417
 
@@ -213,7 +211,7 @@ problems may have been fixed or changed somewhat since this was written.
 
 1.7 Deflate error after all content was received
 
- There's a situation where we can get an error in a HTTP response that is
+ There's a situation where we can get an error in an HTTP response that is
  compressed, when that error is detected after all the actual body contents
  have been received and delivered to the application. This is tricky, but is
  ultimately a broken server.
@@ -232,14 +230,13 @@ problems may have been fixed or changed somewhat since this was written.
 
 1.11 CURLOPT_SEEKFUNCTION not called with CURLFORM_STREAM
 
- I'm using libcurl to POST form data using a FILE* with the CURLFORM_STREAM
- option of curl_formadd(). I have noticed that if the connection drops at just
- the right time, the POST is reattempted without the data from the file. It
- seems like the file stream position is not getting reset to the beginning of
- the file. I found the CURLOPT_SEEKFUNCTION option and set that with a
- function that performs an fseek() on the FILE*. However, setting that did not
- seem to fix the issue or even get called. See
- https://github.com/curl/curl/issues/768
+ When using libcurl to POST form data using a FILE* with the CURLFORM_STREAM
+ option of curl_formadd(). I notice that if the connection drops at just the
+ right time, the POST is reattempted without the data from the file. It seems
+ like the file stream position is not getting reset to the beginning of the
+ file. I found the CURLOPT_SEEKFUNCTION option and set that with a function
+ that performs an fseek() on the FILE*. However, setting that did not seem to
+ fix the issue or even get called. See https://github.com/curl/curl/issues/768
 
 
 2. TLS
@@ -337,6 +334,10 @@ problems may have been fixed or changed somewhat since this was written.
  "Instead of the command completing, it just sits there until the timeout
  expires." - the same command line seems to work with other TLS backends and
  other operating systems. See https://github.com/curl/curl/issues/5284.
+
+2.13 CURLOPT_CERTINFO results in CURLE_OUT_OF_MEMORY with Schannel
+
+ https://github.com/curl/curl/issues/8741
 
 2.14 Secure Transport disabling hostname validation also disables SNI
 
@@ -543,6 +544,25 @@ problems may have been fixed or changed somewhat since this was written.
 
  See https://github.com/curl/curl/issues/6972
 
+5.13 long paths are not fully supported on Windows
+
+ curl on Windows cannot access long paths (paths longer than 260 characters).
+ However, as a workaround, the Windows path prefix \\?\ which disables all path
+ interpretation may work to allow curl to access the path. For example:
+ \\?\c:\longpath.
+
+ See https://github.com/curl/curl/issues/8361
+
+5.14 Windows Unicode builds use homedir in current locale
+
+ The Windows Unicode builds of curl use the current locale, but expect Unicode
+ UTF-8 encoded paths for internal use such as open, access and stat. The user's
+ home directory is retrieved via curl_getenv in the current locale and not as
+ UTF-8 encoded Unicode.
+
+ See https://github.com/curl/curl/pull/7252 and
+     https://github.com/curl/curl/pull/7281
+
 6. Authentication
 
 6.1 NTLM authentication and unicode
@@ -627,7 +647,7 @@ problems may have been fixed or changed somewhat since this was written.
 
 6.11 Negotiate on Windows fails
 
- When using --negotiate (or NTLM) with curl on Windows, SSL/TSL handshake
+ When using --negotiate (or NTLM) with curl on Windows, SSL/TLS handshake
  fails despite having a valid kerberos ticket cached. Works without any issue
  in Unix/Linux.
 
@@ -637,11 +657,15 @@ problems may have been fixed or changed somewhat since this was written.
 
  https://github.com/curl/curl/issues/7048
 
+6.13 Negotiate authentication against Hadoop HDFS
+
+ https://github.com/curl/curl/issues/8264
+
 7. FTP
 
 7.1 FTP without or slow 220 response
 
- If a connection is made to a FTP server but the server then just never sends
+ If a connection is made to an FTP server but the server then just never sends
  the 220 response or otherwise is dead slow, libcurl will not acknowledge the
  connection timeout during that phase but only the "real" timeout - which may
  surprise users as it is probably considered to be the connect phase to most
@@ -751,6 +775,10 @@ problems may have been fixed or changed somewhat since this was written.
 
  https://github.com/curl/curl/issues/6149
 
+7.12 FTPS directory listing hangs on Windows with Schannel
+
+ https://github.com/curl/curl/issues/9161
+
 8. TELNET
 
 8.1 TELNET and time limitations do not work
@@ -786,9 +814,17 @@ problems may have been fixed or changed somewhat since this was written.
 9.3 Remote recursive folder creation with SFTP
 
  On this servers, the curl fails to create directories on the remote server
- even when CURLOPT_FTP_CREATE_MISSING_DIRS option is set.
+ even when the CURLOPT_FTP_CREATE_MISSING_DIRS option is set.
 
  See https://github.com/curl/curl/issues/5204
+
+9.4 libssh blocking and infinite loop problem
+
+ In the SSH_SFTP_INIT state for libssh, the ssh session working mode is set to
+ blocking mode. If the network is suddenly disconnected during sftp
+ transmission, curl will be stuck, even if curl is configured with a timeout.
+
+ https://github.com/curl/curl/issues/8632
 
 
 10. SOCKS
@@ -808,7 +844,7 @@ problems may have been fixed or changed somewhat since this was written.
 
  Curl sends DNS requests for hostnames with a .onion TLD. This leaks
  information about what the user is attempting to access, and violates this
- requirement of RFC7686: https://tools.ietf.org/html/rfc7686
+ requirement of RFC7686: https://datatracker.ietf.org/doc/html/rfc7686
 
  Issue: https://github.com/curl/curl/issues/543
 
@@ -852,20 +888,6 @@ problems may have been fixed or changed somewhat since this was written.
  See https://github.com/curl/curl/issues/1332 and
  https://github.com/curl/curl/issues/4296
 
-11.6 slow connect to localhost on Windows
-
- When connecting to "localhost" on Windows, curl will resolve the name for
- both ipv4 and ipv6 and try to connect to both happy eyeballs-style. Something
- in there does however make it take 200 milliseconds to succeed - which is the
- HAPPY_EYEBALLS_TIMEOUT define exactly. Lowering that define speeds up the
- connection, suggesting a problem in the HE handling.
-
- If we can *know* that we are talking to a local host, we should lower the
- happy eyeballs delay timeout for IPv6 (related: hardcode the "localhost"
- addresses, mentioned in TODO). Possibly we should reduce that delay for all.
-
- https://github.com/curl/curl/issues/2281
-
 11.7 signal-based resolver timeouts
 
  libcurl built without an asynchronous resolver library uses alarm() to time
@@ -908,25 +930,6 @@ problems may have been fixed or changed somewhat since this was written.
 
  See https://github.com/curl/curl/issues/4915 and lib1541.c
 
-11.12 'no_proxy' string-matches IPv6 numerical addresses
-
- This has the downside that "::1" for example does not match "::0:1" even
- though they are in fact the same address.
-
- See https://github.com/curl/curl/issues/5745
-
-11.13 wakeup socket disconnect causes havoc
-
- waking an iPad breaks the wakeup socket pair, triggering a POLLIN event and
- resulting in SOCKERRNO being set to ENOTCONN.
-
- This condition, and other possible error conditions on the wakeup socket, are
- not handled, so the condition remains on the FD and curl_multi_poll will
- never block again.
-
- See https://github.com/curl/curl/issues/6132 and
- https://github.com/curl/curl/pull/6133
-
 11.14 Multi perform hangs waiting for threaded resolver
 
  If a threaded resolver takes a long time to complete, libcurl can be blocked
@@ -940,7 +943,7 @@ problems may have been fixed or changed somewhat since this was written.
 
  When libcurl creates sockets with socketpair(), those are not "exposed" in
  CURLOPT_OPENSOCKETFUNCTION and therefore might surprise and be unknown to
- applications that expects and wants all sockets known beforehand. One way to
+ applications that expect and want all sockets known beforehand. One way to
  address this issue is to introduce a CURLOPT_OPENSOCKETPAIRFUNCTION callback.
 
  https://github.com/curl/curl/issues/5747
@@ -958,10 +961,10 @@ problems may have been fixed or changed somewhat since this was written.
 
 12.1 OpenLDAP hangs after returning results
 
- By configuration defaults, openldap automatically chase referrals on
+ By configuration defaults, OpenLDAP automatically chase referrals on
  secondary socket descriptors. The OpenLDAP backend is asynchronous and thus
  should monitor all socket descriptors involved. Currently, these secondary
- descriptors are not monitored, causing openldap library to never receive
+ descriptors are not monitored, causing OpenLDAP library to never receive
  data from them.
 
  As a temporary workaround, disable referrals chasing by configuration.
@@ -1070,7 +1073,7 @@ problems may have been fixed or changed somewhat since this was written.
 
  See https://github.com/curl/curl/issues/6178
 
-15.10 libspsl is not supported
+15.10 libpsl is not supported
 
  See https://github.com/curl/curl/issues/6214
 
@@ -1096,20 +1099,16 @@ problems may have been fixed or changed somewhat since this was written.
 
  https://github.com/curl/curl/issues/6904
 
+15.14 cmake build is not thread-safe
+
+ The cmake build does not check for and verify presence of a working Atomic
+ type, which then makes curl_global_init() to not build thread-safe on
+ non-Windows platforms.
+
+ Bug: https://github.com/curl/curl/issues/8973
+ Partial fix: https://github.com/curl/curl/pull/8982
+
 16. Applications
-
-16.1 pulseUI VPN client
-
- This application crashes at startup with libcurl 7.74.0 (and presumably later
- versions too) after we cleaned up OpenSSL initialization. Since this is the
- only known application to do this, we suspect it is related to something they
- are doing in their setup that is not kosher. We have not been able to get in
- contact with them nor got any technical details to help us debug this
- further.
-
- See
- https://community.pulsesecure.net/t5/Pulse-Desktop-Clients/Linux-Pulse-Client-does-not-work-with-curl-7-74/m-p/44378
- and https://github.com/curl/curl/issues/6306
 
 17. HTTP/2
 
@@ -1154,35 +1153,18 @@ problems may have been fixed or changed somewhat since this was written.
 
  See https://github.com/curl/curl/issues/6606
 
-18.2 Uploading HTTP/3 files gets interrupted at certain file sizes
+18.2 Transfer closed with n bytes remaining to read
 
- See https://github.com/curl/curl/issues/6510
+ HTTP/3 transfers with the Jetty HTTP/3 server seem to not work.
 
-18.3 HTTP/3 download is 5x times slower than HTTP/2
+ https://github.com/curl/curl/issues/8523
 
- See https://github.com/curl/curl/issues/6494
+18.4 timeout when reusing a http3 connection
 
-18.4 Downloading with HTTP/3 produces broken files
+ HTTP/3 with quiche seems to not work and always timeout a subsequent transfer
+ that reuses an already established connection
 
- See https://github.com/curl/curl/issues/7351
-
-18.5 HTTP/3 download with quiche halts after a while
-
- See https://github.com/curl/curl/issues/7339
-
-18.6 HTTP/3 multipart POST with quiche fails
-
- https://github.com/curl/curl/issues/7125
-
-18.7 HTTP/3 quiche upload large file fails
-
- https://github.com/curl/curl/issues/7532
-
-18.8 HTTP/3 does not support client certs
-
- aka "mutual authentication".
-
- https://github.com/curl/curl/issues/7625
+ https://github.com/curl/curl/issues/8764
 
 18.9 connection migration does not work
 

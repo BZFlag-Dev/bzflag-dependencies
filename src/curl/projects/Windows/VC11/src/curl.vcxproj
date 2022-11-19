@@ -2683,11 +2683,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\..\lib\curl_ctype.c" />
     <ClCompile Include="..\..\..\..\lib\curl_multibyte.c" />
     <ClCompile Include="..\..\..\..\lib\dynbuf.c" />
     <ClCompile Include="..\..\..\..\lib\nonblock.c" />
     <ClCompile Include="..\..\..\..\lib\strtoofft.c" />
+    <ClCompile Include="..\..\..\..\lib\timediff.c" />
     <ClCompile Include="..\..\..\..\lib\version_win32.c" />
     <ClCompile Include="..\..\..\..\lib\warnless.c" />
     <ClCompile Include="..\..\..\..\src\slist_wc.c" />
@@ -2700,7 +2700,6 @@
     <ClCompile Include="..\..\..\..\src\tool_cb_see.c" />
     <ClCompile Include="..\..\..\..\src\tool_cb_wrt.c" />
     <ClCompile Include="..\..\..\..\src\tool_cfgable.c" />
-    <ClCompile Include="..\..\..\..\src\tool_convert.c" />
     <ClCompile Include="..\..\..\..\src\tool_dirhie.c" />
     <ClCompile Include="..\..\..\..\src\tool_doswin.c" />
     <ClCompile Include="..\..\..\..\src\tool_easysrc.c" />
@@ -2740,6 +2739,7 @@
     <ClInclude Include="..\..\..\..\lib\dynbuf.h" />
     <ClInclude Include="..\..\..\..\lib\nonblock.h" />
     <ClInclude Include="..\..\..\..\lib\strtoofft.h" />
+    <ClInclude Include="..\..\..\..\lib\timediff.h" />
     <ClInclude Include="..\..\..\..\lib\version_win32.h" />
     <ClInclude Include="..\..\..\..\lib\warnless.h" />
     <ClInclude Include="..\..\..\..\src\slist_wc.h" />
@@ -2752,7 +2752,6 @@
     <ClInclude Include="..\..\..\..\src\tool_cb_see.h" />
     <ClInclude Include="..\..\..\..\src\tool_cb_wrt.h" />
     <ClInclude Include="..\..\..\..\src\tool_cfgable.h" />
-    <ClInclude Include="..\..\..\..\src\tool_convert.h" />
     <ClInclude Include="..\..\..\..\src\tool_dirhie.h" />
     <ClInclude Include="..\..\..\..\src\tool_doswin.h" />
     <ClInclude Include="..\..\..\..\src\tool_easysrc.h" />

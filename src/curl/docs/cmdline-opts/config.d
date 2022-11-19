@@ -1,3 +1,5 @@
+c: Copyright (C) 1998 - 2022, Daniel Stenberg, <daniel@haxx.se>, et al.
+SPDX-License-Identifier: curl
 Long: config
 Arg: <file>
 Help: Read config from a file
@@ -6,6 +8,7 @@ Category: curl
 Example: --config file.txt $URL
 Added: 4.10
 See-also: disable
+Multi: append
 ---
 Specify a text file to read curl arguments from. The command line arguments
 found in the text file will be used as if they were provided on the command
@@ -64,9 +67,10 @@ config file is checked for in the following places in this order:
 
 6) Windows: "%USERPROFILE%\\Application Data\\.curlrc"
 
-7) Non-windows: use getpwuid to find the home directory
+7) Non-Windows: use getpwuid to find the home directory
 
-8) On windows, if it finds no .curlrc file in the sequence described above, it
+8) On Windows, if it finds no .curlrc file in the sequence described above, it
 checks for one in the same dir the curl executable is placed.
 
-This option can be used multiple times to load multiple config files.
+On Windows two filenames are checked per location: .curlrc and _curlrc,
+preferring the former. Older versions on Windows checked for _curlrc only.
