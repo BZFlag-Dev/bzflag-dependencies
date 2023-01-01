@@ -62,9 +62,9 @@ function buildDeps {
 
 	cp include/ares_build.h include/ares_build.h.bak &&
 	if [[ $CONF == "debug" ]] ; then
-		./configure --prefix=$OUTPUTROOT --disable-shared --disable-tests
-	else
 		./configure --prefix=$OUTPUTROOT --disable-shared --disable-tests --enable-debug
+	else
+		./configure --prefix=$OUTPUTROOT --disable-shared --disable-tests
 	fi &&
 	make -j`sysctl -n hw.ncpu` &&
 	make install &&
