@@ -45,6 +45,15 @@ function buildDeps {
 	export CXXFLAGS="-arch $ARCH"
 	export LDFLAGS="-L$OUTPUTROOT/lib -arch $ARCH"
 
+	if [[ "$ARCH" == x86_64 ]] ; then
+		BUILD_HOST=x86_64-apple-darwin$(uname -r)
+	elif [[ "$ARCH" == arm64 ]] ; then
+		BUILD_HOST=arm-apple-darwin$(uname -r)
+	else
+		echo Unknown architecture type $ARCH. Exiting.
+		exit
+	fi
+
 	############################################
 	printHeading "Building libpng ($ARCH $CONF)"
 	############################################
@@ -52,7 +61,7 @@ function buildDeps {
 	cd $SRCROOT/libpng
 
 	# libpng appears to have no debug configuration
-	./configure --prefix=$OUTPUTROOT --disable-shared &&
+	./configure --prefix=$OUTPUTROOT --host=$BUILD_HOST --disable-shared &&
 	make -j`sysctl -n hw.ncpu` &&
 	make install &&
 	cp LICENSE $ORIGROOT/dependencies/licenses/libpng.txt &&
@@ -72,9 +81,9 @@ function buildDeps {
 
 	cp include/ares_build.h include/ares_build.h.bak &&
 	if [[ $CONF == "debug" ]] ; then
-		./configure --prefix=$OUTPUTROOT --disable-shared --disable-tests --enable-debug
+		./configure --prefix=$OUTPUTROOT --host=$BUILD_HOST --disable-shared --disable-tests --enable-debug
 	else
-		./configure --prefix=$OUTPUTROOT --disable-shared --disable-tests
+		./configure --prefix=$OUTPUTROOT --host=$BUILD_HOST --disable-shared --disable-tests
 	fi &&
 	make -j`sysctl -n hw.ncpu` &&
 	make install &&
@@ -95,10 +104,10 @@ function buildDeps {
 	cd $SRCROOT/glew
 
 	if [[ $CONF == "debug" ]] ; then
-		make glew.lib.static GLEW_DEST=$OUTPUTROOT STRIP= &&
+		make glew.lib.static GLEW_DEST=$OUTPUTROOT SYSTEM=darwin CFLAGS.EXTRA="$CFLAGS" STRIP= &&
 		make install GLEW_DEST=$OUTPUTROOT STRIP=
 	else
-		make glew.lib.static GLEW_DEST=$OUTPUTROOT &&
+		make glew.lib.static GLEW_DEST=$OUTPUTROOT SYSTEM=darwin CFLAGS.EXTRA="$CFLAGS" &&
 		make install GLEW_DEST=$OUTPUTROOT
 	fi &&
 	rm $OUTPUTROOT/lib/libGLEW*.dylib && # the makefile doesn't seem to respect the static-only build configuration
@@ -119,7 +128,7 @@ function buildDeps {
 
 	cp include/SDL_config.h include/SDL_config.h.bak &&
 	# SDL2 appears to have no debug configuration
-	./configure --prefix=$OUTPUTROOT --disable-shared &&
+	./configure --prefix=$OUTPUTROOT --host=$BUILD_HOST --disable-shared &&
 	make -j`sysctl -n hw.ncpu` &&
 	make install &&
 	mv include/SDL_config.h.bak include/SDL_config.h &&
@@ -151,9 +160,11 @@ function buildDeps {
 	cd $ORIGROOT
 }
 
-# build 64-bit dependencies for macOS (no reason to support 32-bit anymore)
+# build these configurations
 buildDeps x86_64 release
 buildDeps x86_64 debug
+buildDeps arm64 release
+buildDeps arm64 debug
 
 echo "#######################"
 echo "# Final build results #"
