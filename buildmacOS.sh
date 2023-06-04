@@ -17,6 +17,16 @@ if [[ "$ORIGROOT" != "$ESCAPEDORIGROOT" ]] ; then
 	echo
 fi
 
+function printHeading {
+	if [[ "$#" -gt 0 ]] ; then
+		NUM_CHARS="$(echo -n "$1" | wc -c)"
+		while [[ "$NUM_CHARS" -gt 0 ]] ; do printf "=" ; NUM_CHARS="$(($NUM_CHARS - 1))" ; done ; echo
+		echo $1
+		NUM_CHARS="$(echo -n "$1" | wc -c)"
+		while [[ "$NUM_CHARS" -gt 0 ]] ; do printf "=" ; NUM_CHARS="$(($NUM_CHARS - 1))" ; done ; echo
+	fi
+}
+
 function buildDeps {
 	ARCH=$1
 	CONF=$2
@@ -35,9 +45,9 @@ function buildDeps {
 	export CXXFLAGS="-arch $ARCH"
 	export LDFLAGS="-L$OUTPUTROOT/lib -arch $ARCH"
 
-	echo "=============================="
-	echo "Building libpng ($CONF)"
-	echo "=============================="
+	############################################
+	printHeading "Building libpng ($ARCH $CONF)"
+	############################################
 
 	cd $SRCROOT/libpng
 
@@ -54,9 +64,9 @@ function buildDeps {
 
 	echo
 
-	echo "=============================="
-	echo "Building c-ares ($CONF)"
-	echo "=============================="
+	############################################
+	printHeading "Building c-ares ($ARCH $CONF)"
+	############################################
 
 	cd $SRCROOT/c-ares
 
@@ -78,9 +88,9 @@ function buildDeps {
 
 	echo
 
-	echo "=============================="
-	echo "Building GLEW ($CONF)"
-	echo "=============================="
+	##########################################
+	printHeading "Building GLEW ($ARCH $CONF)"
+	##########################################
 
 	cd $SRCROOT/glew
 
@@ -101,9 +111,9 @@ function buildDeps {
 
 	echo
 
-	echo "=============================="
-	echo "Building SDL2 ($CONF)"
-	echo "=============================="
+	##########################################
+	printHeading "Building SDL2 ($ARCH $CONF)"
+	##########################################
 
 	cd $SRCROOT/SDL2
 
@@ -122,9 +132,9 @@ function buildDeps {
 
 	echo
 
-	echo "=============================="
-	echo "Copying glm ($CONF)"
-	echo "=============================="
+	########################################
+	printHeading "Copying glm ($ARCH $CONF)"
+	########################################
 
 	cd $SRCROOT/glm
 
