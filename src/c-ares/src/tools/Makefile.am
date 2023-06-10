@@ -15,9 +15,15 @@ AM_CPPFLAGS = -I$(top_builddir)/include \
               -I$(top_srcdir)/include \
               -I$(top_srcdir)/src/lib
 
+if USE_CPPFLAG_CARES_STATICLIB
+AM_CPPFLAGS += $(CPPFLAG_CARES_STATICLIB)
+endif
+
 include Makefile.inc
 
-LDADD = $(top_builddir)/src/lib/libcares.la
+# We're not interested in code coverage of the test apps themselves, but need
+# to link with gcov if building with code coverage enabled
+LDADD = $(top_builddir)/src/lib/libcares.la $(CODE_COVERAGE_LIBS)
 
 ahost_SOURCES = ahost.c $(SAMPLESOURCES) $(SAMPLEHEADERS)
 ahost_CFLAGS = $(AM_CFLAGS)

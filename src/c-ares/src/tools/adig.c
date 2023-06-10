@@ -25,14 +25,8 @@
 #ifdef HAVE_NETDB_H
 #  include <netdb.h>
 #endif
-#ifdef HAVE_ARPA_NAMESER_H
-#  include <arpa/nameser.h>
-#else
-#  include "nameser.h"
-#endif
-#ifdef HAVE_ARPA_NAMESER_COMPAT_H
-#  include <arpa/nameser_compat.h>
-#endif
+
+#include "ares_nameser.h"
 
 #ifdef HAVE_STRINGS_H
 #  include <strings.h>
@@ -62,30 +56,6 @@
 #undef WIN32  /* Redefined in MingW headers */
 #endif
 
-#ifndef T_SRV
-#  define T_SRV     33 /* Server selection */
-#endif
-#ifndef T_NAPTR
-#  define T_NAPTR   35 /* Naming authority pointer */
-#endif
-#ifndef T_DS
-#  define T_DS      43 /* Delegation Signer (RFC4034) */
-#endif
-#ifndef T_SSHFP
-#  define T_SSHFP   44 /* SSH Key Fingerprint (RFC4255) */
-#endif
-#ifndef T_RRSIG
-#  define T_RRSIG   46 /* Resource Record Signature (RFC4034) */
-#endif
-#ifndef T_NSEC
-#  define T_NSEC    47 /* Next Secure (RFC4034) */
-#endif
-#ifndef T_DNSKEY
-#  define T_DNSKEY  48 /* DNS Public Key (RFC4034) */
-#endif
-#ifndef T_CAA
-#  define T_CAA    257 /* Certification Authority Authorization */
-#endif
 
 struct nv {
   const char *name;
@@ -151,6 +121,7 @@ static const struct nv types[] = {
   { "NSEC",     T_NSEC },
   { "DNSKEY",   T_DNSKEY },
   { "CAA",      T_CAA },
+  { "URI",      T_URI },
   { "ANY",      T_ANY }
 };
 static const int ntypes = sizeof(types) / sizeof(types[0]);
@@ -325,6 +296,7 @@ int main(int argc, char **argv)
           if (!ISDIGIT(*optarg))
             usage();
           options.tcp_port = (unsigned short)strtol(optarg, NULL, 0);
+          options.flags |= ARES_FLAG_USEVC;
           optmask |= ARES_OPT_TCP_PORT;
           break;
 
@@ -335,7 +307,7 @@ int main(int argc, char **argv)
           options.udp_port = (unsigned short)strtol(optarg, NULL, 0);
           optmask |= ARES_OPT_UDP_PORT;
           break;
-          
+
         case 'x':
           use_ptr_helper++;
           break;
@@ -546,7 +518,7 @@ static const unsigned char *display_rr(const unsigned char *aptr,
                                        const unsigned char *abuf, int alen)
 {
   const unsigned char *p;
-  int type, dnsclass, ttl, dlen, status;
+  int type, dnsclass, ttl, dlen, status, i;
   long len;
   int vlen;
   char addr[46];
@@ -703,7 +675,7 @@ static const unsigned char *display_rr(const unsigned char *aptr,
           p += len;
         }
       break;
- 
+
     case T_CAA:
 
       p = aptr;
@@ -765,6 +737,18 @@ static const unsigned char *display_rr(const unsigned char *aptr,
         return NULL;
       printf("\t%s.", name.as_char);
       ares_free_string(name.as_char);
+      break;
+
+    case T_URI:
+      /* The RR data is two two-byte numbers representing the
+       * priority and weight, followed by a target.
+       */
+
+      printf("\t%d ", (int)DNS__16BIT(aptr));
+      printf("%d \t\t", (int)DNS__16BIT(aptr+2));
+      p = aptr +4;
+      for (i=0; i <dlen-4; ++i)
+        printf("%c",p[i]);
       break;
 
     case T_NAPTR:
@@ -976,23 +960,27 @@ static void append_addr_list(struct ares_addr_node **head,
 
 /* Information from the man page. Formatting taken from man -h */
 static void print_help_info_adig(void) {
-    printf("adig, version %s \n\n", ARES_VERSION_STR);
-    printf("usage: adig [-h] [-d] [-f flag] [-s server] [-c class] [-t type] [-T|U port] [-x | -xx] name ...\n\n"
-    "  d : Print some extra debugging output.\n"
-    "  f : Add a flag. Possible values for flag are igntc, noaliases, norecurse, primary, stayopen, usevc.\n"
-    "  h : Display this help and exit.\n\n"
-    "  T port   : Use specified TCP port to connect to DNS server.\n"
-    "  U port   : Use specified UDP port to connect to DNS server.\n"
-    "  c class  : Set the query class. Possible values for class are NY, CHAOS, HS, IN  (default).\n"
-    "  s server : Connect to specified DNS server, instead of the system's default one(s).\n"
-    "  t type   : Query records of specified type.  \n"
-    "              Possible values for type are A  \n"
-    "              (default), AAAA, AFSDB,  ANY,\n"
-    "              AXFR, CNAME, GPOS, HINFO, ISDN,\n"
-    "              KEY, LOC, MAILA, MAILB, MB, MD,\n"
-    "              MF, MG, MINFO, MR, MX, NAPTR, NS,\n"
-    "              NSAP, NSAP_PTR, NULL, PTR, PX, RP,\n"
-    "              RT,  SIG,  SOA, SRV, TXT, WKS, X25\n\n"
+    printf("adig, version %s\n\n", ARES_VERSION_STR);
+    printf("usage: adig [-h] [-d] [-f flag] [[-s server] ...] [-T|U port] [-c class] [-t type] [-x|-xx] name ...\n\n"
+    "  h : Display this help and exit.\n"
+    "  d : Print some extra debugging output.\n\n"
+    "  f flag   : Add a behavior control flag. Possible values are\n"
+    "              igntc - ignore to query in TCP to get truncated UDP answer,\n"
+    "              noaliases - don't honor the HOSTALIASES environment variable,\n"
+    "              norecurse - don't query upstream servers recursively,\n"
+    "              primary - use the first server,\n"
+    "              stayopen - don't close the communication sockets, and\n"
+    "              usevc - use TCP only.\n"
+    "  s server : Connect to the specified DNS server, instead of the system's default one(s).\n"
+    "              Servers are tried in round-robin, if the previous one failed.\n"
+    "  T port   : Connect to the specified TCP port of DNS server.\n"
+    "  U port   : Connect to the specified UDP port of DNS server.\n"
+    "  c class  : Set the query class. Possible values for class are ANY, CHAOS, HS and IN (default)\n"
+    "  t type   : Query records of the specified type.\n"
+    "              Possible values for type are A (default), AAAA, AFSDB, ANY, AXFR,\n"
+    "              CNAME, GPOS, HINFO, ISDN, KEY, LOC, MAILA, MAILB, MB, MD, MF, MG,\n"
+    "              MINFO, MR, MX, NAPTR, NS, NSAP, NSAP_PTR, NULL, PTR, PX, RP, RT,\n"
+    "              SIG, SOA, SRV, TXT, URI, WKS and X25.\n\n"
     " -x  : For a '-t PTR a.b.c.d' lookup, query for 'd.c.b.a.in-addr.arpa.'\n"
     " -xx : As above, but for IPv6, compact the format into a bitstring like\n"
     "       '[xabcdef00000000000000000000000000].IP6.ARPA.'\n");

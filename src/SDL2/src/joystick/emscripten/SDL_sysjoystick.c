@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2023 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -280,6 +280,12 @@ EMSCRIPTEN_JoystickGetDeviceName(int device_index)
     return JoystickByDeviceIndex(device_index)->name;
 }
 
+static const char *
+EMSCRIPTEN_JoystickGetDevicePath(int device_index)
+{
+    return NULL;
+}
+
 static int
 EMSCRIPTEN_JoystickGetDevicePlayerIndex(int device_index)
 {
@@ -388,12 +394,9 @@ EMSCRIPTEN_JoystickClose(SDL_Joystick *joystick)
 static SDL_JoystickGUID
 EMSCRIPTEN_JoystickGetDeviceGUID(int device_index)
 {
-    SDL_JoystickGUID guid;
-    /* the GUID is just the first 16 chars of the name for now */
+    /* the GUID is just the name for now */
     const char *name = EMSCRIPTEN_JoystickGetDeviceName(device_index);
-    SDL_zero(guid);
-    SDL_memcpy(&guid, name, SDL_min(sizeof(guid), SDL_strlen(name)));
-    return guid;
+    return SDL_CreateJoystickGUIDForName(name);
 }
 
 static int
@@ -414,14 +417,20 @@ EMSCRIPTEN_JoystickGetGamepadMapping(int device_index, SDL_GamepadMapping *out)
     return SDL_FALSE;
 }
 
-static SDL_bool
-EMSCRIPTEN_JoystickHasLED(SDL_Joystick *joystick)
+static Uint32
+EMSCRIPTEN_JoystickGetCapabilities(SDL_Joystick *joystick)
 {
-    return SDL_FALSE;
+    return 0;
 }
 
 static int
 EMSCRIPTEN_JoystickSetLED(SDL_Joystick *joystick, Uint8 red, Uint8 green, Uint8 blue)
+{
+    return SDL_Unsupported();
+}
+
+static int
+EMSCRIPTEN_JoystickSendEffect(SDL_Joystick *joystick, const void *data, int size)
 {
     return SDL_Unsupported();
 }
@@ -438,6 +447,7 @@ SDL_JoystickDriver SDL_EMSCRIPTEN_JoystickDriver =
     EMSCRIPTEN_JoystickGetCount,
     EMSCRIPTEN_JoystickDetect,
     EMSCRIPTEN_JoystickGetDeviceName,
+    EMSCRIPTEN_JoystickGetDevicePath,
     EMSCRIPTEN_JoystickGetDevicePlayerIndex,
     EMSCRIPTEN_JoystickSetDevicePlayerIndex,
     EMSCRIPTEN_JoystickGetDeviceGUID,
@@ -445,8 +455,9 @@ SDL_JoystickDriver SDL_EMSCRIPTEN_JoystickDriver =
     EMSCRIPTEN_JoystickOpen,
     EMSCRIPTEN_JoystickRumble,
     EMSCRIPTEN_JoystickRumbleTriggers,
-    EMSCRIPTEN_JoystickHasLED,
+    EMSCRIPTEN_JoystickGetCapabilities,
     EMSCRIPTEN_JoystickSetLED,
+    EMSCRIPTEN_JoystickSendEffect,
     EMSCRIPTEN_JoystickSetSensorsEnabled,
     EMSCRIPTEN_JoystickUpdate,
     EMSCRIPTEN_JoystickClose,

@@ -5,7 +5,7 @@
  *                            | (__| |_| |  _ <| |___
  *                             \___|\___/|_| \_\_____|
  *
- * Copyright (C) 1998 - 2020, Daniel Stenberg, <daniel@haxx.se>, et al.
+ * Copyright (C) Daniel Stenberg, <daniel@haxx.se>, et al.
  *
  * This software is licensed as described in the file COPYING, which
  * you should have received as part of this distribution. The terms
@@ -18,9 +18,9 @@
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
  *
+ * SPDX-License-Identifier: curl
+ *
  ***************************************************************************/
-
-/* !checksrc! disable ASSIGNWITHINCONDITION 14 */
 
 /* Now include the curl_setup.h file from libcurl's private libdir (the source
    version, but that might include "curl_config.h" from the build dir so we
@@ -40,11 +40,11 @@
 #include <unistd.h>
 #endif
 
-#ifdef TPF
-#  include "select.h"
-#endif
-
 #include "curl_printf.h"
+
+#ifdef WIN32
+#define sleep(sec) Sleep ((sec)*1000)
+#endif
 
 #define test_setopt(A,B,C)                                      \
   if((res = curl_easy_setopt((A), (B), (C))) != CURLE_OK)       \
@@ -73,9 +73,7 @@ extern int test(char *URL); /* the actual test function provided by each
 
 extern char *hexdump(const unsigned char *buffer, size_t len);
 
-#ifdef UNITTESTS
 extern int unitfail;
-#endif
 
 /*
 ** TEST_ERR_* values must be greater than CURL_LAST CURLcode in order
@@ -488,5 +486,13 @@ extern int unitfail;
 
 #define global_init(A) \
   chk_global_init((A), (__FILE__), (__LINE__))
+
+#define NO_SUPPORT_BUILT_IN                     \
+  int test(char *URL)                           \
+  {                                             \
+    (void)URL;                                  \
+    fprintf(stderr, "Missing support\n");       \
+    return 1;                                   \
+  }
 
 /* ---------------------------------------------------------------- */

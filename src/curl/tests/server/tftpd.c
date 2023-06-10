@@ -15,7 +15,7 @@
  */
 
 /*
- * Copyright (C) 2005 - 2020, Daniel Stenberg, <daniel@haxx.se>, et al.
+ * Copyright (C) Daniel Stenberg, <daniel@haxx.se>, et al.
  * Copyright (c) 1983, Regents of the University of California.
  * All rights reserved.
  *
@@ -46,6 +46,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * SPDX-License-Identifier: BSD-4-Clause-UC
  */
 
 #include "server_setup.h"
@@ -85,6 +87,8 @@
 #ifdef HAVE_PWD_H
 #include <pwd.h>
 #endif
+
+#include <ctype.h>
 
 #define ENABLE_CURLX_PRINTF
 /* make the curlx header define all printf() functions to use the curlx_*
@@ -159,7 +163,7 @@ struct bf {
 #define DEFAULT_LOGFILE "log/tftpd.log"
 #endif
 
-#define REQUEST_DUMP  "log/server.input"
+#define REQUEST_DUMP  "server.input"
 
 #define DEFAULT_PORT 8999 /* UDP */
 
@@ -179,7 +183,7 @@ static struct errmsg errmsgs[] = {
   { -1,           0 }
 };
 
-static struct formats formata[] = {
+static const struct formats formata[] = {
   { "netascii",   1 },
   { "octet",      0 },
   { NULL,         0 }
@@ -211,10 +215,13 @@ static bool use_ipv6 = FALSE;
 static const char *ipv_inuse = "IPv4";
 
 const  char *serverlogfile = DEFAULT_LOGFILE;
+const char *logdir = "log";
+char loglockfile[256];
 static const char *pidname = ".tftpd.pid";
-static const char *portfile = NULL;
+static const char *portname = NULL; /* none by default */
 static int serverlogslocked = 0;
 static int wrotepidfile = 0;
+static int wroteportfile = 0;
 
 #ifdef HAVE_SIGSETJMP
 static sigjmp_buf timeoutbuf;
@@ -244,9 +251,9 @@ static int do_tftp(struct testcase *test, struct tftphdr *tp, ssize_t size);
 
 static int validate_access(struct testcase *test, const char *fname, int mode);
 
-static void sendtftp(struct testcase *test, struct formats *pf);
+static void sendtftp(struct testcase *test, const struct formats *pf);
 
-static void recvtftp(struct testcase *test, struct formats *pf);
+static void recvtftp(struct testcase *test, const struct formats *pf);
 
 static void nak(int error);
 
@@ -289,9 +296,13 @@ static void timer(int signum)
       wrotepidfile = 0;
       unlink(pidname);
     }
+    if(wroteportfile) {
+      wroteportfile = 0;
+      unlink(portname);
+    }
     if(serverlogslocked) {
       serverlogslocked = 0;
-      clear_advisor_read_lock(SERVERLOGS_LOCK);
+      clear_advisor_read_lock(loglockfile);
     }
     exit(1);
   }
@@ -449,7 +460,7 @@ static ssize_t write_behind(struct testcase *test, int convert)
 
   if(!test->ofile) {
     char outfile[256];
-    msnprintf(outfile, sizeof(outfile), "log/upload.%ld", test->testno);
+    msnprintf(outfile, sizeof(outfile), "%s/upload.%ld", logdir, test->testno);
 #ifdef WIN32
     test->ofile = open(outfile, O_CREAT|O_RDWR|O_BINARY, 0777);
 #else
@@ -489,7 +500,7 @@ static ssize_t write_behind(struct testcase *test, int convert)
        putc(c, file); */
     if(1 != write(test->ofile, &c, 1))
       break;
-    skipit:
+skipit:
     prevchar = c;
   }
   return count;
@@ -555,7 +566,6 @@ int main(int argc, char **argv)
   int flag;
   int rc;
   int error;
-  long pid;
   struct testcase test;
   int result = 0;
 
@@ -580,12 +590,17 @@ int main(int argc, char **argv)
     else if(!strcmp("--portfile", argv[arg])) {
       arg++;
       if(argc>arg)
-        portfile = argv[arg++];
+        portname = argv[arg++];
     }
     else if(!strcmp("--logfile", argv[arg])) {
       arg++;
       if(argc>arg)
         serverlogfile = argv[arg++];
+    }
+    else if(!strcmp("--logdir", argv[arg])) {
+      arg++;
+      if(argc>arg)
+        logdir = argv[arg++];
     }
     else if(!strcmp("--ipv4", argv[arg])) {
 #ifdef ENABLE_IPV6
@@ -621,7 +636,9 @@ int main(int argc, char **argv)
       puts("Usage: tftpd [option]\n"
            " --version\n"
            " --logfile [file]\n"
+           " --logdir [directory]\n"
            " --pidfile [file]\n"
+           " --portfile [file]\n"
            " --ipv4\n"
            " --ipv6\n"
            " --port [port]\n"
@@ -630,14 +647,15 @@ int main(int argc, char **argv)
     }
   }
 
+  msnprintf(loglockfile, sizeof(loglockfile), "%s/%s",
+            logdir, SERVERLOGS_LOCK);
+
 #ifdef WIN32
   win32_init();
   atexit(win32_cleanup);
 #endif
 
   install_signal_handlers(true);
-
-  pid = (long)getpid();
 
 #ifdef ENABLE_IPV6
   if(!use_ipv6)
@@ -742,9 +760,9 @@ int main(int argc, char **argv)
     goto tftpd_cleanup;
   }
 
-  if(portfile) {
-    wrotepidfile = write_portfile(portfile, port);
-    if(!wrotepidfile) {
+  if(portname) {
+    wroteportfile = write_portfile(portname, port);
+    if(!wroteportfile) {
       result = 1;
       goto tftpd_cleanup;
     }
@@ -772,7 +790,7 @@ int main(int argc, char **argv)
       break;
     }
 
-    set_advisor_read_lock(SERVERLOGS_LOCK);
+    set_advisor_read_lock(loglockfile);
     serverlogslocked = 1;
 
 #ifdef ENABLE_IPV6
@@ -826,7 +844,7 @@ int main(int argc, char **argv)
 
     if(serverlogslocked) {
       serverlogslocked = 0;
-      clear_advisor_read_lock(SERVERLOGS_LOCK);
+      clear_advisor_read_lock(loglockfile);
     }
 
     logmsg("end of one transfer");
@@ -849,19 +867,19 @@ tftpd_cleanup:
 
   if(wrotepidfile)
     unlink(pidname);
-  if(portfile)
-    unlink(portfile);
+  if(wroteportfile)
+    unlink(portname);
 
   if(serverlogslocked) {
     serverlogslocked = 0;
-    clear_advisor_read_lock(SERVERLOGS_LOCK);
+    clear_advisor_read_lock(loglockfile);
   }
 
   restore_signal_handlers(true);
 
   if(got_exit_signal) {
     logmsg("========> %s tftpd (port: %d pid: %ld) exits with signal (%d)",
-           ipv_inuse, (int)port, pid, exit_signal);
+           ipv_inuse, (int)port, (long)getpid(), exit_signal);
     /*
      * To properly set the return status of the process we
      * must raise the same signal SIGINT or SIGTERM that we
@@ -881,25 +899,29 @@ static int do_tftp(struct testcase *test, struct tftphdr *tp, ssize_t size)
 {
   char *cp;
   int first = 1, ecode;
-  struct formats *pf;
+  const struct formats *pf;
   char *filename, *mode = NULL;
 #ifdef USE_WINSOCK
   DWORD recvtimeout, recvtimeoutbak;
 #endif
   const char *option = "mode"; /* mode is implicit */
   int toggle = 1;
+  FILE *server;
+  char dumpfile[256];
+
+  msnprintf(dumpfile, sizeof(dumpfile), "%s/%s", logdir, REQUEST_DUMP);
 
   /* Open request dump file. */
-  FILE *server = fopen(REQUEST_DUMP, "ab");
+  server = fopen(dumpfile, "ab");
   if(!server) {
     int error = errno;
     logmsg("fopen() failed with error: %d %s", error, strerror(error));
-    logmsg("Error opening file: %s", REQUEST_DUMP);
+    logmsg("Error opening file: %s", dumpfile);
     return -1;
   }
 
   /* store input protocol */
-  fprintf(server, "opcode: %x\n", tp->th_opcode);
+  fprintf(server, "opcode = %x\n", tp->th_opcode);
 
   cp = (char *)&tp->th_stuff;
   filename = cp;
@@ -927,7 +949,7 @@ static int do_tftp(struct testcase *test, struct tftphdr *tp, ssize_t size)
       }
       if(toggle)
         /* name/value pair: */
-        fprintf(server, "%s: %s\n", option, cp);
+        fprintf(server, "%s = %s\n", option, cp);
       else {
         /* store the name pointer */
         option = cp;
@@ -946,7 +968,7 @@ static int do_tftp(struct testcase *test, struct tftphdr *tp, ssize_t size)
   }
 
   /* store input protocol */
-  fprintf(server, "filename: %s\n", filename);
+  fprintf(server, "filename = %s\n", filename);
 
   for(cp = mode; cp && *cp; cp++)
     if(ISUPPER(*cp))
@@ -997,7 +1019,7 @@ static int parse_servercmd(struct testcase *req)
   FILE *stream;
   int error;
 
-  stream = test2fopen(req->testno);
+  stream = test2fopen(req->testno, logdir);
   if(!stream) {
     error = errno;
     logmsg("fopen() failed with error: %d %s", error, strerror(error));
@@ -1065,8 +1087,8 @@ static int validate_access(struct testcase *test,
 
   if(!strncmp("verifiedserver", filename, 14)) {
     char weare[128];
-    size_t count = msnprintf(weare, sizeof(weare),
-                             "WE ROOLZ: %ld\r\n", (long)getpid());
+    size_t count = msnprintf(weare, sizeof(weare), "WE ROOLZ: %"
+                             CURL_FORMAT_CURL_OFF_T "\r\n", our_getpid());
 
     logmsg("Are-we-friendly question received");
     test->buffer = strdup(weare);
@@ -1108,7 +1130,7 @@ static int validate_access(struct testcase *test,
 
     (void)parse_servercmd(test);
 
-    stream = test2fopen(testno);
+    stream = test2fopen(testno, logdir);
 
     if(0 != partno)
       msnprintf(partbuf, sizeof(partbuf), "data%ld", partno);
@@ -1148,7 +1170,7 @@ static int validate_access(struct testcase *test,
 /*
  * Send the requested file.
  */
-static void sendtftp(struct testcase *test, struct formats *pf)
+static void sendtftp(struct testcase *test, const struct formats *pf)
 {
   int size;
   ssize_t n;
@@ -1179,7 +1201,7 @@ static void sendtftp(struct testcase *test, struct formats *pf)
       wait_ms(1000*test->writedelay);
     }
 
-    send_data:
+send_data:
     logmsg("write");
     if(swrite(peer, sdp, size + 4) != size + 4) {
       logmsg("write: fail");
@@ -1229,7 +1251,7 @@ static void sendtftp(struct testcase *test, struct formats *pf)
 /*
  * Receive a file.
  */
-static void recvtftp(struct testcase *test, struct formats *pf)
+static void recvtftp(struct testcase *test, const struct formats *pf)
 {
   ssize_t n, size;
   /* These are volatile to live through a siglongjmp */

@@ -5,7 +5,7 @@
  *                            | (__| |_| |  _ <| |___
  *                             \___|\___/|_| \_\_____|
  *
- * Copyright (C) 1998 - 2021, Daniel Stenberg, <daniel@haxx.se>, et al.
+ * Copyright (C) Daniel Stenberg, <daniel@haxx.se>, et al.
  *
  * This software is licensed as described in the file COPYING, which
  * you should have received as part of this distribution. The terms
@@ -18,6 +18,8 @@
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
  *
+ * SPDX-License-Identifier: curl
+ *
  ***************************************************************************/
 #include "tool_setup.h"
 #define ENABLE_CURLX_PRINTF
@@ -26,81 +28,499 @@
 #include "tool_cfgable.h"
 #include "tool_writeout.h"
 #include "tool_writeout_json.h"
+#include "dynbuf.h"
 
 #include "memdebug.h" /* keep this as LAST include */
 
-static const struct writeoutvar variables[] = {
-  {"content_type", VAR_CONTENT_TYPE, 0, CURLINFO_CONTENT_TYPE, JSON_STRING},
-  {"filename_effective", VAR_EFFECTIVE_FILENAME, 0, 0, JSON_FILENAME},
-  {"exitcode", VAR_EXITCODE, 0, 0, JSON_LONG},
-  {"errormsg", VAR_ERRORMSG, 0, 0, JSON_STRING},
-  {"ftp_entry_path", VAR_FTP_ENTRY_PATH, 0, CURLINFO_FTP_ENTRY_PATH,
-   JSON_STRING},
-  {"http_code", VAR_HTTP_CODE, 0, CURLINFO_RESPONSE_CODE, JSON_LONG},
-  {"http_connect", VAR_HTTP_CODE_PROXY, 0, CURLINFO_HTTP_CONNECTCODE,
-   JSON_LONG},
-  {"http_version", VAR_HTTP_VERSION, 0, CURLINFO_HTTP_VERSION, JSON_VERSION},
-  {"json", VAR_JSON, 1, 0, JSON_NONE},
-  {"local_ip", VAR_LOCAL_IP, 0, CURLINFO_LOCAL_IP, JSON_STRING},
-  {"local_port", VAR_LOCAL_PORT, 0, CURLINFO_LOCAL_PORT, JSON_LONG},
-  {"method", VAR_EFFECTIVE_METHOD, 0, CURLINFO_EFFECTIVE_METHOD, JSON_STRING},
-  {"num_connects", VAR_NUM_CONNECTS, 0, CURLINFO_NUM_CONNECTS, JSON_LONG},
-  {"num_headers", VAR_NUM_HEADERS, 0, 0, JSON_LONG},
-  {"num_redirects", VAR_REDIRECT_COUNT, 0, CURLINFO_REDIRECT_COUNT, JSON_LONG},
-  {"onerror", VAR_ONERROR, 1, 0, JSON_NONE},
-  {"proxy_ssl_verify_result", VAR_PROXY_SSL_VERIFY_RESULT, 0,
-   CURLINFO_PROXY_SSL_VERIFYRESULT, JSON_LONG},
-  {"redirect_url", VAR_REDIRECT_URL, 0, CURLINFO_REDIRECT_URL, JSON_STRING},
-  {"remote_ip", VAR_PRIMARY_IP, 0, CURLINFO_PRIMARY_IP, JSON_STRING},
-  {"remote_port", VAR_PRIMARY_PORT, 0, CURLINFO_PRIMARY_PORT, JSON_LONG},
-  {"response_code", VAR_HTTP_CODE, 0, CURLINFO_RESPONSE_CODE, JSON_LONG},
-  {"scheme", VAR_SCHEME, 0, CURLINFO_SCHEME, JSON_STRING},
-  {"size_download", VAR_SIZE_DOWNLOAD, 0, CURLINFO_SIZE_DOWNLOAD_T,
-   JSON_OFFSET},
-  {"size_header", VAR_HEADER_SIZE, 0, CURLINFO_HEADER_SIZE, JSON_LONG},
-  {"size_request", VAR_REQUEST_SIZE, 0, CURLINFO_REQUEST_SIZE, JSON_LONG},
-  {"size_upload", VAR_SIZE_UPLOAD, 0, CURLINFO_SIZE_UPLOAD_T, JSON_OFFSET},
-  {"speed_download", VAR_SPEED_DOWNLOAD, 0, CURLINFO_SPEED_DOWNLOAD_T,
-   JSON_OFFSET},
-  {"speed_upload", VAR_SPEED_UPLOAD, 0, CURLINFO_SPEED_UPLOAD_T, JSON_OFFSET},
-  {"ssl_verify_result", VAR_SSL_VERIFY_RESULT, 0, CURLINFO_SSL_VERIFYRESULT,
-   JSON_LONG},
-  {"stderr", VAR_STDERR, 1, 0, JSON_NONE},
-  {"stdout", VAR_STDOUT, 1, 0, JSON_NONE},
-  {"time_appconnect", VAR_APPCONNECT_TIME, 0, CURLINFO_APPCONNECT_TIME_T,
-   JSON_TIME},
-  {"time_connect", VAR_CONNECT_TIME, 0, CURLINFO_CONNECT_TIME_T, JSON_TIME},
-  {"time_namelookup", VAR_NAMELOOKUP_TIME, 0, CURLINFO_NAMELOOKUP_TIME_T,
-   JSON_TIME},
-  {"time_pretransfer", VAR_PRETRANSFER_TIME, 0, CURLINFO_PRETRANSFER_TIME_T,
-   JSON_TIME},
-  {"time_redirect", VAR_REDIRECT_TIME, 0, CURLINFO_REDIRECT_TIME_T, JSON_TIME},
-  {"time_starttransfer", VAR_STARTTRANSFER_TIME, 0,
-   CURLINFO_STARTTRANSFER_TIME_T, JSON_TIME},
-  {"time_total", VAR_TOTAL_TIME, 0, CURLINFO_TOTAL_TIME_T, JSON_TIME},
-  {"url", VAR_INPUT_URL, 0, 0, JSON_STRING},
-  {"url_effective", VAR_EFFECTIVE_URL, 0, CURLINFO_EFFECTIVE_URL, JSON_STRING},
-  {"urlnum", VAR_URLNUM, 0, 0, JSON_LONG},
-  {NULL, VAR_NONE, 1, 0, JSON_NONE}
+static int writeTime(FILE *stream, const struct writeoutvar *wovar,
+                     struct per_transfer *per, CURLcode per_result,
+                     bool use_json);
+
+static int writeString(FILE *stream, const struct writeoutvar *wovar,
+                       struct per_transfer *per, CURLcode per_result,
+                       bool use_json);
+
+static int writeLong(FILE *stream, const struct writeoutvar *wovar,
+                     struct per_transfer *per, CURLcode per_result,
+                     bool use_json);
+
+static int writeOffset(FILE *stream, const struct writeoutvar *wovar,
+                       struct per_transfer *per, CURLcode per_result,
+                       bool use_json);
+
+struct httpmap {
+  const char *str;
+  int num;
 };
 
-static void us2sec(FILE *stream, curl_off_t us)
+static const struct httpmap http_version[] = {
+  { "0",   CURL_HTTP_VERSION_NONE},
+  { "1",   CURL_HTTP_VERSION_1_0},
+  { "1.1", CURL_HTTP_VERSION_1_1},
+  { "2",   CURL_HTTP_VERSION_2},
+  { "3",   CURL_HTTP_VERSION_3},
+  { NULL, 0} /* end of list */
+};
+
+/* The designated write function should be the same as the CURLINFO return type
+   with exceptions special cased in the respective function. For example,
+   http_version uses CURLINFO_HTTP_VERSION which returns the version as a long,
+   however it is output as a string and therefore is handled in writeString.
+
+   Yes: "http_version": "1.1"
+   No:  "http_version": 1.1
+
+   Variable names should be in alphabetical order.
+   */
+static const struct writeoutvar variables[] = {
+  {"certs", VAR_CERT, CURLINFO_NONE, writeString},
+  {"content_type", VAR_CONTENT_TYPE, CURLINFO_CONTENT_TYPE, writeString},
+  {"errormsg", VAR_ERRORMSG, CURLINFO_NONE, writeString},
+  {"exitcode", VAR_EXITCODE, CURLINFO_NONE, writeLong},
+  {"filename_effective", VAR_EFFECTIVE_FILENAME, CURLINFO_NONE, writeString},
+  {"ftp_entry_path", VAR_FTP_ENTRY_PATH, CURLINFO_FTP_ENTRY_PATH, writeString},
+  {"header_json", VAR_HEADER_JSON, CURLINFO_NONE, NULL},
+  {"http_code", VAR_HTTP_CODE, CURLINFO_RESPONSE_CODE, writeLong},
+  {"http_connect", VAR_HTTP_CODE_PROXY, CURLINFO_HTTP_CONNECTCODE, writeLong},
+  {"http_version", VAR_HTTP_VERSION, CURLINFO_HTTP_VERSION, writeString},
+  {"json", VAR_JSON, CURLINFO_NONE, NULL},
+  {"local_ip", VAR_LOCAL_IP, CURLINFO_LOCAL_IP, writeString},
+  {"local_port", VAR_LOCAL_PORT, CURLINFO_LOCAL_PORT, writeLong},
+  {"method", VAR_EFFECTIVE_METHOD, CURLINFO_EFFECTIVE_METHOD, writeString},
+  {"num_certs", VAR_NUM_CERTS, CURLINFO_NONE, writeLong},
+  {"num_connects", VAR_NUM_CONNECTS, CURLINFO_NUM_CONNECTS, writeLong},
+  {"num_headers", VAR_NUM_HEADERS, CURLINFO_NONE, writeLong},
+  {"num_redirects", VAR_REDIRECT_COUNT, CURLINFO_REDIRECT_COUNT, writeLong},
+  {"onerror", VAR_ONERROR, CURLINFO_NONE, NULL},
+  {"proxy_ssl_verify_result", VAR_PROXY_SSL_VERIFY_RESULT,
+   CURLINFO_PROXY_SSL_VERIFYRESULT, writeLong},
+  {"redirect_url", VAR_REDIRECT_URL, CURLINFO_REDIRECT_URL, writeString},
+  {"referer", VAR_REFERER, CURLINFO_REFERER, writeString},
+  {"remote_ip", VAR_PRIMARY_IP, CURLINFO_PRIMARY_IP, writeString},
+  {"remote_port", VAR_PRIMARY_PORT, CURLINFO_PRIMARY_PORT, writeLong},
+  {"response_code", VAR_HTTP_CODE, CURLINFO_RESPONSE_CODE, writeLong},
+  {"scheme", VAR_SCHEME, CURLINFO_SCHEME, writeString},
+  {"size_download", VAR_SIZE_DOWNLOAD, CURLINFO_SIZE_DOWNLOAD_T, writeOffset},
+  {"size_header", VAR_HEADER_SIZE, CURLINFO_HEADER_SIZE, writeLong},
+  {"size_request", VAR_REQUEST_SIZE, CURLINFO_REQUEST_SIZE, writeLong},
+  {"size_upload", VAR_SIZE_UPLOAD, CURLINFO_SIZE_UPLOAD_T, writeOffset},
+  {"speed_download", VAR_SPEED_DOWNLOAD, CURLINFO_SPEED_DOWNLOAD_T,
+   writeOffset},
+  {"speed_upload", VAR_SPEED_UPLOAD, CURLINFO_SPEED_UPLOAD_T, writeOffset},
+  {"ssl_verify_result", VAR_SSL_VERIFY_RESULT, CURLINFO_SSL_VERIFYRESULT,
+   writeLong},
+  {"stderr", VAR_STDERR, CURLINFO_NONE, NULL},
+  {"stdout", VAR_STDOUT, CURLINFO_NONE, NULL},
+  {"time_appconnect", VAR_APPCONNECT_TIME, CURLINFO_APPCONNECT_TIME_T,
+   writeTime},
+  {"time_connect", VAR_CONNECT_TIME, CURLINFO_CONNECT_TIME_T, writeTime},
+  {"time_namelookup", VAR_NAMELOOKUP_TIME, CURLINFO_NAMELOOKUP_TIME_T,
+   writeTime},
+  {"time_pretransfer", VAR_PRETRANSFER_TIME, CURLINFO_PRETRANSFER_TIME_T,
+   writeTime},
+  {"time_redirect", VAR_REDIRECT_TIME, CURLINFO_REDIRECT_TIME_T, writeTime},
+  {"time_starttransfer", VAR_STARTTRANSFER_TIME, CURLINFO_STARTTRANSFER_TIME_T,
+   writeTime},
+  {"time_total", VAR_TOTAL_TIME, CURLINFO_TOTAL_TIME_T, writeTime},
+  {"url", VAR_INPUT_URL, CURLINFO_NONE, writeString},
+  {"url.scheme", VAR_INPUT_URLSCHEME, CURLINFO_NONE, writeString},
+  {"url.user", VAR_INPUT_URLUSER, CURLINFO_NONE, writeString},
+  {"url.password", VAR_INPUT_URLPASSWORD, CURLINFO_NONE, writeString},
+  {"url.options", VAR_INPUT_URLOPTIONS, CURLINFO_NONE, writeString},
+  {"url.host", VAR_INPUT_URLHOST, CURLINFO_NONE, writeString},
+  {"url.port", VAR_INPUT_URLPORT, CURLINFO_NONE, writeString},
+  {"url.path", VAR_INPUT_URLPATH, CURLINFO_NONE, writeString},
+  {"url.query", VAR_INPUT_URLQUERY, CURLINFO_NONE, writeString},
+  {"url.fragment", VAR_INPUT_URLFRAGMENT, CURLINFO_NONE, writeString},
+  {"url.zoneid", VAR_INPUT_URLZONEID, CURLINFO_NONE, writeString},
+  {"urle.scheme", VAR_INPUT_URLESCHEME, CURLINFO_NONE, writeString},
+  {"urle.user", VAR_INPUT_URLEUSER, CURLINFO_NONE, writeString},
+  {"urle.password", VAR_INPUT_URLEPASSWORD, CURLINFO_NONE, writeString},
+  {"urle.options", VAR_INPUT_URLEOPTIONS, CURLINFO_NONE, writeString},
+  {"urle.host", VAR_INPUT_URLEHOST, CURLINFO_NONE, writeString},
+  {"urle.port", VAR_INPUT_URLEPORT, CURLINFO_NONE, writeString},
+  {"urle.path", VAR_INPUT_URLEPATH, CURLINFO_NONE, writeString},
+  {"urle.query", VAR_INPUT_URLEQUERY, CURLINFO_NONE, writeString},
+  {"urle.fragment", VAR_INPUT_URLEFRAGMENT, CURLINFO_NONE, writeString},
+  {"urle.zoneid", VAR_INPUT_URLEZONEID, CURLINFO_NONE, writeString},
+  {"url_effective", VAR_EFFECTIVE_URL, CURLINFO_EFFECTIVE_URL, writeString},
+  {"urlnum", VAR_URLNUM, CURLINFO_NONE, writeLong},
+  {NULL, VAR_NONE, CURLINFO_NONE, NULL}
+};
+
+static int writeTime(FILE *stream, const struct writeoutvar *wovar,
+                     struct per_transfer *per, CURLcode per_result,
+                     bool use_json)
 {
-  curl_off_t secs = us / 1000000;
-  us %= 1000000;
-  fprintf(stream, "%" CURL_FORMAT_CURL_OFF_TU ".%06" CURL_FORMAT_CURL_OFF_TU,
-          secs, us);
+  bool valid = false;
+  curl_off_t us = 0;
+
+  (void)per;
+  (void)per_result;
+  DEBUGASSERT(wovar->writefunc == writeTime);
+
+  if(wovar->ci) {
+    if(!curl_easy_getinfo(per->curl, wovar->ci, &us))
+      valid = true;
+  }
+  else {
+    DEBUGASSERT(0);
+  }
+
+  if(valid) {
+    curl_off_t secs = us / 1000000;
+    us %= 1000000;
+
+    if(use_json)
+      fprintf(stream, "\"%s\":", wovar->name);
+
+    fprintf(stream, "%" CURL_FORMAT_CURL_OFF_TU
+            ".%06" CURL_FORMAT_CURL_OFF_TU, secs, us);
+  }
+  else {
+    if(use_json)
+      fprintf(stream, "\"%s\":null", wovar->name);
+  }
+
+  return 1; /* return 1 if anything was written */
 }
 
-void ourWriteOut(CURL *curl, struct per_transfer *per, const char *writeinfo,
-                 CURLcode result)
+static int urlpart(struct per_transfer *per, writeoutid vid,
+                   const char **contentp)
+{
+  CURLU *uh = curl_url();
+  int rc = 0;
+  if(uh) {
+    CURLUPart cpart = CURLUPART_HOST;
+    char *part = NULL;
+    const char *url = NULL;
+
+    if(vid >= VAR_INPUT_URLEHOST) {
+      if(curl_easy_getinfo(per->curl, CURLINFO_EFFECTIVE_URL, &url))
+        rc = 5;
+    }
+    else
+      url = per->this_url;
+
+    if(!rc) {
+      switch(vid) {
+      case VAR_INPUT_URLSCHEME:
+      case VAR_INPUT_URLESCHEME:
+        cpart = CURLUPART_SCHEME;
+        break;
+      case VAR_INPUT_URLUSER:
+      case VAR_INPUT_URLEUSER:
+        cpart = CURLUPART_USER;
+        break;
+      case VAR_INPUT_URLPASSWORD:
+      case VAR_INPUT_URLEPASSWORD:
+        cpart = CURLUPART_PASSWORD;
+        break;
+      case VAR_INPUT_URLOPTIONS:
+      case VAR_INPUT_URLEOPTIONS:
+        cpart = CURLUPART_OPTIONS;
+        break;
+      case VAR_INPUT_URLHOST:
+      case VAR_INPUT_URLEHOST:
+        cpart = CURLUPART_HOST;
+        break;
+      case VAR_INPUT_URLPORT:
+      case VAR_INPUT_URLEPORT:
+        cpart = CURLUPART_PORT;
+        break;
+      case VAR_INPUT_URLPATH:
+      case VAR_INPUT_URLEPATH:
+        cpart = CURLUPART_PATH;
+        break;
+      case VAR_INPUT_URLQUERY:
+      case VAR_INPUT_URLEQUERY:
+        cpart = CURLUPART_QUERY;
+        break;
+      case VAR_INPUT_URLFRAGMENT:
+      case VAR_INPUT_URLEFRAGMENT:
+        cpart = CURLUPART_FRAGMENT;
+        break;
+      case VAR_INPUT_URLZONEID:
+      case VAR_INPUT_URLEZONEID:
+        cpart = CURLUPART_ZONEID;
+        break;
+      default:
+        /* not implemented */
+        rc = 4;
+        break;
+      }
+    }
+    if(!rc && curl_url_set(uh, CURLUPART_URL, url,
+                           CURLU_GUESS_SCHEME|CURLU_NON_SUPPORT_SCHEME))
+      rc = 2;
+
+    if(!rc && curl_url_get(uh, cpart, &part, CURLU_DEFAULT_PORT))
+      rc = 3;
+
+    if(!rc && part)
+      *contentp = part;
+    curl_url_cleanup(uh);
+  }
+  else
+    return 1;
+  return rc;
+}
+
+static int writeString(FILE *stream, const struct writeoutvar *wovar,
+                       struct per_transfer *per, CURLcode per_result,
+                       bool use_json)
+{
+  bool valid = false;
+  const char *strinfo = NULL;
+  const char *freestr = NULL;
+  struct dynbuf buf;
+  curlx_dyn_init(&buf, 256*1024);
+
+  DEBUGASSERT(wovar->writefunc == writeString);
+
+  if(wovar->ci) {
+    if(wovar->ci == CURLINFO_HTTP_VERSION) {
+      long version = 0;
+      if(!curl_easy_getinfo(per->curl, CURLINFO_HTTP_VERSION, &version)) {
+        const struct httpmap *m = &http_version[0];
+        while(m->str) {
+          if(m->num == version) {
+            strinfo = m->str;
+            valid = true;
+            break;
+          }
+          m++;
+        }
+      }
+    }
+    else {
+      if(!curl_easy_getinfo(per->curl, wovar->ci, &strinfo) && strinfo)
+        valid = true;
+    }
+  }
+  else {
+    switch(wovar->id) {
+    case VAR_CERT:
+      if(per->certinfo) {
+        int i;
+        bool error = FALSE;
+        for(i = 0; (i < per->certinfo->num_of_certs) && !error; i++) {
+          struct curl_slist *slist;
+
+          for(slist = per->certinfo->certinfo[i]; slist; slist = slist->next) {
+            size_t len;
+            if(curl_strnequal(slist->data, "cert:", 5)) {
+              if(curlx_dyn_add(&buf, &slist->data[5])) {
+                error = TRUE;
+                break;
+              }
+            }
+            else {
+              if(curlx_dyn_add(&buf, slist->data)) {
+                error = TRUE;
+                break;
+              }
+            }
+            len = curlx_dyn_len(&buf);
+            if(len) {
+              char *ptr = curlx_dyn_ptr(&buf);
+              if(ptr[len -1] != '\n') {
+                /* add a newline to make things look better */
+                if(curlx_dyn_addn(&buf, "\n", 1)) {
+                  error = TRUE;
+                  break;
+                }
+              }
+            }
+          }
+        }
+        if(!error) {
+          strinfo = curlx_dyn_ptr(&buf);
+          if(!strinfo)
+            /* maybe not a TLS protocol */
+            strinfo = "";
+          valid = true;
+        }
+      }
+      else
+        strinfo = ""; /* no cert info */
+      break;
+    case VAR_ERRORMSG:
+      if(per_result) {
+        strinfo = (per->errorbuffer && per->errorbuffer[0]) ?
+          per->errorbuffer : curl_easy_strerror(per_result);
+        valid = true;
+      }
+      break;
+    case VAR_EFFECTIVE_FILENAME:
+      if(per->outs.filename) {
+        strinfo = per->outs.filename;
+        valid = true;
+      }
+      break;
+    case VAR_INPUT_URL:
+      if(per->this_url) {
+        strinfo = per->this_url;
+        valid = true;
+      }
+      break;
+    case VAR_INPUT_URLSCHEME:
+    case VAR_INPUT_URLUSER:
+    case VAR_INPUT_URLPASSWORD:
+    case VAR_INPUT_URLOPTIONS:
+    case VAR_INPUT_URLHOST:
+    case VAR_INPUT_URLPORT:
+    case VAR_INPUT_URLPATH:
+    case VAR_INPUT_URLQUERY:
+    case VAR_INPUT_URLFRAGMENT:
+    case VAR_INPUT_URLZONEID:
+    case VAR_INPUT_URLESCHEME:
+    case VAR_INPUT_URLEUSER:
+    case VAR_INPUT_URLEPASSWORD:
+    case VAR_INPUT_URLEOPTIONS:
+    case VAR_INPUT_URLEHOST:
+    case VAR_INPUT_URLEPORT:
+    case VAR_INPUT_URLEPATH:
+    case VAR_INPUT_URLEQUERY:
+    case VAR_INPUT_URLEFRAGMENT:
+    case VAR_INPUT_URLEZONEID:
+      if(per->this_url) {
+        if(!urlpart(per, wovar->id, &strinfo)) {
+          freestr = strinfo;
+          valid = true;
+        }
+      }
+      break;
+    default:
+      DEBUGASSERT(0);
+      break;
+    }
+  }
+
+  if(valid) {
+    DEBUGASSERT(strinfo);
+    if(use_json) {
+      fprintf(stream, "\"%s\":", wovar->name);
+      jsonWriteString(stream, strinfo, FALSE);
+    }
+    else
+      fputs(strinfo, stream);
+  }
+  else {
+    if(use_json)
+      fprintf(stream, "\"%s\":null", wovar->name);
+  }
+  curl_free((char *)freestr);
+
+  curlx_dyn_free(&buf);
+  return 1; /* return 1 if anything was written */
+}
+
+static int writeLong(FILE *stream, const struct writeoutvar *wovar,
+                     struct per_transfer *per, CURLcode per_result,
+                     bool use_json)
+{
+  bool valid = false;
+  long longinfo = 0;
+
+  DEBUGASSERT(wovar->writefunc == writeLong);
+
+  if(wovar->ci) {
+    if(!curl_easy_getinfo(per->curl, wovar->ci, &longinfo))
+      valid = true;
+  }
+  else {
+    switch(wovar->id) {
+    case VAR_NUM_CERTS:
+      longinfo = per->certinfo ? per->certinfo->num_of_certs : 0;
+      valid = true;
+      break;
+    case VAR_NUM_HEADERS:
+      longinfo = per->num_headers;
+      valid = true;
+      break;
+    case VAR_EXITCODE:
+      longinfo = per_result;
+      valid = true;
+      break;
+    case VAR_URLNUM:
+      if(per->urlnum <= INT_MAX) {
+        longinfo = (long)per->urlnum;
+        valid = true;
+      }
+      break;
+    default:
+      DEBUGASSERT(0);
+      break;
+    }
+  }
+
+  if(valid) {
+    if(use_json)
+      fprintf(stream, "\"%s\":%ld", wovar->name, longinfo);
+    else {
+      if(wovar->id == VAR_HTTP_CODE || wovar->id == VAR_HTTP_CODE_PROXY)
+        fprintf(stream, "%03ld", longinfo);
+      else
+        fprintf(stream, "%ld", longinfo);
+    }
+  }
+  else {
+    if(use_json)
+      fprintf(stream, "\"%s\":null", wovar->name);
+  }
+
+  return 1; /* return 1 if anything was written */
+}
+
+static int writeOffset(FILE *stream, const struct writeoutvar *wovar,
+                       struct per_transfer *per, CURLcode per_result,
+                       bool use_json)
+{
+  bool valid = false;
+  curl_off_t offinfo = 0;
+
+  (void)per;
+  (void)per_result;
+  DEBUGASSERT(wovar->writefunc == writeOffset);
+
+  if(wovar->ci) {
+    if(!curl_easy_getinfo(per->curl, wovar->ci, &offinfo))
+      valid = true;
+  }
+  else {
+    DEBUGASSERT(0);
+  }
+
+  if(valid) {
+    if(use_json)
+      fprintf(stream, "\"%s\":", wovar->name);
+
+    fprintf(stream, "%" CURL_FORMAT_CURL_OFF_T, offinfo);
+  }
+  else {
+    if(use_json)
+      fprintf(stream, "\"%s\":null", wovar->name);
+  }
+
+  return 1; /* return 1 if anything was written */
+}
+
+void ourWriteOut(struct OperationConfig *config, struct per_transfer *per,
+                 CURLcode per_result)
 {
   FILE *stream = stdout;
+  const char *writeinfo = config->writeout;
   const char *ptr = writeinfo;
-  char *stringp = NULL;
-  long longinfo;
-  curl_off_t offinfo;
   bool done = FALSE;
+  struct curl_certinfo *certinfo;
+  CURLcode res = curl_easy_getinfo(per->curl, CURLINFO_CERTINFO, &certinfo);
+
+  if(!writeinfo)
+    return;
+
+  if(!res && certinfo)
+    per->certinfo = certinfo;
 
   while(ptr && *ptr && !done) {
     if('%' == *ptr && ptr[1]) {
@@ -112,8 +532,8 @@ void ourWriteOut(CURL *curl, struct per_transfer *per, const char *writeinfo,
       else {
         /* this is meant as a variable to output */
         char *end;
+        size_t vlen;
         if('{' == ptr[1]) {
-          char keepit;
           int i;
           bool match = FALSE;
           end = strchr(ptr, '}');
@@ -122,223 +542,16 @@ void ourWriteOut(CURL *curl, struct per_transfer *per, const char *writeinfo,
             fputs("%{", stream);
             continue;
           }
-          keepit = *end;
-          *end = 0; /* null-terminate */
+          vlen = end - ptr;
           for(i = 0; variables[i].name; i++) {
-            if(curl_strequal(ptr, variables[i].name)) {
+            if((strlen(variables[i].name) == vlen) &&
+               curl_strnequal(ptr, variables[i].name, vlen)) {
               match = TRUE;
               switch(variables[i].id) {
               case VAR_ONERROR:
-                if(result == CURLE_OK)
+                if(per_result == CURLE_OK)
                   /* this isn't error so skip the rest */
                   done = TRUE;
-                break;
-              case VAR_EXITCODE:
-                fprintf(stream, "%d", (int)result);
-                break;
-              case VAR_ERRORMSG:
-                if(result)
-                  fputs(per->errorbuffer[0] ? per->errorbuffer :
-                        curl_easy_strerror(result), stream);
-                break;
-              case VAR_INPUT_URL:
-                if(per->this_url)
-                  fputs(per->this_url, stream);
-                break;
-              case VAR_URLNUM:
-                fprintf(stream, "%u", per->urlnum);
-                break;
-              case VAR_EFFECTIVE_URL:
-                if((CURLE_OK ==
-                    curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &stringp))
-                   && stringp)
-                  fputs(stringp, stream);
-                break;
-              case VAR_EFFECTIVE_METHOD:
-                if((CURLE_OK == curl_easy_getinfo(curl,
-                                                  CURLINFO_EFFECTIVE_METHOD,
-                                                  &stringp))
-                   && stringp)
-                  fputs(stringp, stream);
-                break;
-              case VAR_HTTP_CODE:
-                if(CURLE_OK ==
-                   curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &longinfo))
-                  fprintf(stream, "%03ld", longinfo);
-                break;
-              case VAR_NUM_HEADERS:
-                fprintf(stream, "%ld", per->num_headers);
-                break;
-              case VAR_HTTP_CODE_PROXY:
-                if(CURLE_OK ==
-                   curl_easy_getinfo(curl, CURLINFO_HTTP_CONNECTCODE,
-                                     &longinfo))
-                  fprintf(stream, "%03ld", longinfo);
-                break;
-              case VAR_HEADER_SIZE:
-                if(CURLE_OK ==
-                   curl_easy_getinfo(curl, CURLINFO_HEADER_SIZE, &longinfo))
-                  fprintf(stream, "%ld", longinfo);
-                break;
-              case VAR_REQUEST_SIZE:
-                if(CURLE_OK ==
-                   curl_easy_getinfo(curl, CURLINFO_REQUEST_SIZE, &longinfo))
-                  fprintf(stream, "%ld", longinfo);
-                break;
-              case VAR_NUM_CONNECTS:
-                if(CURLE_OK ==
-                   curl_easy_getinfo(curl, CURLINFO_NUM_CONNECTS, &longinfo))
-                  fprintf(stream, "%ld", longinfo);
-                break;
-              case VAR_REDIRECT_COUNT:
-                if(CURLE_OK ==
-                   curl_easy_getinfo(curl, CURLINFO_REDIRECT_COUNT, &longinfo))
-                  fprintf(stream, "%ld", longinfo);
-                break;
-              case VAR_REDIRECT_TIME:
-                if(CURLE_OK ==
-                   curl_easy_getinfo(curl, CURLINFO_REDIRECT_TIME_T, &offinfo))
-                  us2sec(stream, offinfo);
-                break;
-              case VAR_TOTAL_TIME:
-                if(CURLE_OK ==
-                   curl_easy_getinfo(curl, CURLINFO_TOTAL_TIME_T, &offinfo))
-                  us2sec(stream, offinfo);
-                break;
-              case VAR_NAMELOOKUP_TIME:
-                if(CURLE_OK ==
-                   curl_easy_getinfo(curl, CURLINFO_NAMELOOKUP_TIME_T,
-                                     &offinfo))
-                  us2sec(stream, offinfo);
-                break;
-              case VAR_CONNECT_TIME:
-                if(CURLE_OK ==
-                   curl_easy_getinfo(curl, CURLINFO_CONNECT_TIME_T, &offinfo))
-                  us2sec(stream, offinfo);
-                break;
-              case VAR_APPCONNECT_TIME:
-                if(CURLE_OK ==
-                   curl_easy_getinfo(curl, CURLINFO_APPCONNECT_TIME_T,
-                                     &offinfo))
-                  us2sec(stream, offinfo);
-                break;
-              case VAR_PRETRANSFER_TIME:
-                if(CURLE_OK ==
-                   curl_easy_getinfo(curl, CURLINFO_PRETRANSFER_TIME_T,
-                                     &offinfo))
-                  us2sec(stream, offinfo);
-                break;
-              case VAR_STARTTRANSFER_TIME:
-                if(CURLE_OK ==
-                   curl_easy_getinfo(curl, CURLINFO_STARTTRANSFER_TIME_T,
-                                     &offinfo))
-                  us2sec(stream, offinfo);
-                break;
-              case VAR_SIZE_UPLOAD:
-                if(CURLE_OK ==
-                   curl_easy_getinfo(curl, CURLINFO_SIZE_UPLOAD_T, &offinfo))
-                  fprintf(stream, "%" CURL_FORMAT_CURL_OFF_TU, offinfo);
-                break;
-              case VAR_SIZE_DOWNLOAD:
-                if(CURLE_OK ==
-                   curl_easy_getinfo(curl, CURLINFO_SIZE_DOWNLOAD_T,
-                                     &offinfo))
-                  fprintf(stream, "%" CURL_FORMAT_CURL_OFF_TU, offinfo);
-                break;
-              case VAR_SPEED_DOWNLOAD:
-                if(CURLE_OK ==
-                   curl_easy_getinfo(curl, CURLINFO_SPEED_DOWNLOAD_T,
-                                     &offinfo))
-                  fprintf(stream, "%" CURL_FORMAT_CURL_OFF_TU, offinfo);
-                break;
-              case VAR_SPEED_UPLOAD:
-                if(CURLE_OK ==
-                   curl_easy_getinfo(curl, CURLINFO_SPEED_UPLOAD_T, &offinfo))
-                  fprintf(stream, "%" CURL_FORMAT_CURL_OFF_TU, offinfo);
-                break;
-              case VAR_CONTENT_TYPE:
-                if((CURLE_OK ==
-                    curl_easy_getinfo(curl, CURLINFO_CONTENT_TYPE, &stringp))
-                   && stringp)
-                  fputs(stringp, stream);
-                break;
-              case VAR_FTP_ENTRY_PATH:
-                if((CURLE_OK ==
-                    curl_easy_getinfo(curl, CURLINFO_FTP_ENTRY_PATH, &stringp))
-                   && stringp)
-                  fputs(stringp, stream);
-                break;
-              case VAR_REDIRECT_URL:
-                if((CURLE_OK ==
-                    curl_easy_getinfo(curl, CURLINFO_REDIRECT_URL, &stringp))
-                   && stringp)
-                  fputs(stringp, stream);
-                break;
-              case VAR_SSL_VERIFY_RESULT:
-                if(CURLE_OK ==
-                   curl_easy_getinfo(curl, CURLINFO_SSL_VERIFYRESULT,
-                                     &longinfo))
-                  fprintf(stream, "%ld", longinfo);
-                break;
-              case VAR_PROXY_SSL_VERIFY_RESULT:
-                if(CURLE_OK ==
-                   curl_easy_getinfo(curl, CURLINFO_PROXY_SSL_VERIFYRESULT,
-                                     &longinfo))
-                  fprintf(stream, "%ld", longinfo);
-                break;
-              case VAR_EFFECTIVE_FILENAME:
-                if(per->outs.filename)
-                  fputs(per->outs.filename, stream);
-                break;
-              case VAR_PRIMARY_IP:
-                if((CURLE_OK == curl_easy_getinfo(curl, CURLINFO_PRIMARY_IP,
-                                                  &stringp)) && stringp)
-                  fputs(stringp, stream);
-                break;
-              case VAR_PRIMARY_PORT:
-                if(CURLE_OK ==
-                   curl_easy_getinfo(curl, CURLINFO_PRIMARY_PORT,
-                                     &longinfo))
-                  fprintf(stream, "%ld", longinfo);
-                break;
-              case VAR_LOCAL_IP:
-                if((CURLE_OK == curl_easy_getinfo(curl, CURLINFO_LOCAL_IP,
-                                                  &stringp)) && stringp)
-                  fputs(stringp, stream);
-                break;
-              case VAR_LOCAL_PORT:
-                if(CURLE_OK ==
-                   curl_easy_getinfo(curl, CURLINFO_LOCAL_PORT,
-                                     &longinfo))
-                  fprintf(stream, "%ld", longinfo);
-                break;
-              case VAR_HTTP_VERSION:
-                if(CURLE_OK ==
-                   curl_easy_getinfo(curl, CURLINFO_HTTP_VERSION,
-                                     &longinfo)) {
-                  const char *version = "0";
-                  switch(longinfo) {
-                  case CURL_HTTP_VERSION_1_0:
-                    version = "1.0";
-                    break;
-                  case CURL_HTTP_VERSION_1_1:
-                    version = "1.1";
-                    break;
-                  case CURL_HTTP_VERSION_2_0:
-                    version = "2";
-                    break;
-                  case CURL_HTTP_VERSION_3:
-                    version = "3";
-                    break;
-                  }
-
-                  fprintf(stream, version);
-                }
-                break;
-              case VAR_SCHEME:
-                if((CURLE_OK == curl_easy_getinfo(curl, CURLINFO_SCHEME,
-                                                  &stringp)) && stringp)
-                  fputs(stringp, stream);
                 break;
               case VAR_STDOUT:
                 stream = stdout;
@@ -347,18 +560,43 @@ void ourWriteOut(CURL *curl, struct per_transfer *per, const char *writeinfo,
                 stream = stderr;
                 break;
               case VAR_JSON:
-                ourWriteOutJSON(variables, curl, per, stream);
+                ourWriteOutJSON(stream, variables, per, per_result);
+                break;
+              case VAR_HEADER_JSON:
+                headerJSON(stream, per);
+                break;
               default:
+                (void)variables[i].writefunc(stream, &variables[i],
+                                             per, per_result, false);
                 break;
               }
               break;
             }
           }
           if(!match) {
-            fprintf(stderr, "curl: unknown --write-out variable: '%s'\n", ptr);
+            fprintf(stderr, "curl: unknown --write-out variable: '%.*s'\n",
+                    (int)vlen, ptr);
           }
           ptr = end + 1; /* pass the end */
-          *end = keepit;
+        }
+        else if(!strncmp("header{", &ptr[1], 7)) {
+          ptr += 8;
+          end = strchr(ptr, '}');
+          if(end) {
+            char hname[256]; /* holds the longest header field name */
+            struct curl_header *header;
+            vlen = end - ptr;
+            if(vlen < sizeof(hname)) {
+              memcpy(hname, ptr, vlen);
+              hname[vlen] = 0;
+              if(CURLHE_OK == curl_easy_header(per->curl, hname, 0,
+                                               CURLH_HEADER, -1, &header))
+                fputs(header->value, stream);
+            }
+            ptr = end + 1;
+          }
+          else
+            fputs("%header{", stream);
         }
         else {
           /* illegal syntax, then just output the characters that are used */

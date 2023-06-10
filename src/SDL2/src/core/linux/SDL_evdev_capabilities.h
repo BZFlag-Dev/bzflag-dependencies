@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2023 Sam Lantinga <slouken@libsdl.org>
   Copyright (C) 2020 Collabora Ltd.
 
   This software is provided 'as-is', without any express or implied
@@ -19,13 +19,12 @@
      misrepresented as being the original software.
   3. This notice may not be removed or altered from any source distribution.
 */
-
 #include "../../SDL_internal.h"
 
 #ifndef SDL_evdev_capabilities_h_
 #define SDL_evdev_capabilities_h_
 
-#if HAVE_LIBUDEV_H || defined(SDL_JOYSTICK_LINUX)
+#if HAVE_LINUX_INPUT_H
 
 #include <linux/input.h>
 
@@ -38,7 +37,8 @@ typedef enum
     SDL_UDEV_DEVICE_JOYSTICK    = 0x0004,
     SDL_UDEV_DEVICE_SOUND       = 0x0008,
     SDL_UDEV_DEVICE_TOUCHSCREEN = 0x0010,
-    SDL_UDEV_DEVICE_ACCELEROMETER = 0x0020
+    SDL_UDEV_DEVICE_ACCELEROMETER = 0x0020,
+    SDL_UDEV_DEVICE_TOUCHPAD    = 0x0040
 } SDL_UDEV_deviceclass;
 
 #define BITS_PER_LONG           (sizeof(unsigned long) * 8)
@@ -52,7 +52,7 @@ extern int SDL_EVDEV_GuessDeviceClass(unsigned long bitmask_ev[NBITS(EV_MAX)],
                                       unsigned long bitmask_key[NBITS(KEY_MAX)],
                                       unsigned long bitmask_rel[NBITS(REL_MAX)]);
 
-#endif /* HAVE_LIBUDEV_H || defined(SDL_JOYSTICK_LINUX) */
+#endif /* HAVE_LINUX_INPUT_H */
 
 #endif /* SDL_evdev_capabilities_h_ */
 

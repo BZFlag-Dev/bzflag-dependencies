@@ -272,7 +272,7 @@ if %SDL2_RESULT% == 0 (
 	)
 	if not exist "%outputroot%\include\SDL2" mkdir "%outputroot%\include\SDL2"
 	copy "include\*.h" "%outputroot%\include\SDL2\"
-	copy COPYING.txt "%licenseroot%\SDL2.txt"
+	copy LICENSE.txt "%licenseroot%\SDL2.txt"
 )
 
 echo(

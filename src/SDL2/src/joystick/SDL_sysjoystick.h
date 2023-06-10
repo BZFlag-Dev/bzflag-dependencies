@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2023 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -24,9 +24,13 @@
 #define SDL_sysjoystick_h_
 
 /* This is the system specific header for the SDL joystick API */
-
 #include "SDL_joystick.h"
 #include "SDL_joystick_c.h"
+
+/* Set up for C function definitions, even when using C++ */
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* The SDL joystick structure */
 typedef struct _SDL_JoystickAxisInfo
@@ -37,6 +41,7 @@ typedef struct _SDL_JoystickAxisInfo
     SDL_bool has_initial_value; /* Whether we've seen a value on the axis yet */
     SDL_bool has_second_value;  /* Whether we've seen a second value on the axis yet */
     SDL_bool sent_initial_value; /* Whether we've sent the initial axis value */
+    SDL_bool sending_initial_value; /* Whether we are sending the initial axis value */
 } SDL_JoystickAxisInfo;
 
 typedef struct _SDL_JoystickTouchpadFingerInfo
@@ -57,15 +62,21 @@ typedef struct _SDL_JoystickSensorInfo
 {
     SDL_SensorType type;
     SDL_bool enabled;
+    float rate;
     float data[3];      /* If this needs to expand, update SDL_ControllerSensorEvent */
+    Uint64 timestamp_us;
 } SDL_JoystickSensorInfo;
 
 struct _SDL_Joystick
 {
+    const void *magic;
+
     SDL_JoystickID instance_id; /* Device instance, monotonically increasing from 0 */
     char *name;                 /* Joystick name - system dependent */
+    char *path;                 /* Joystick path - system dependent */
     char *serial;               /* Joystick serial */
     SDL_JoystickGUID guid;      /* Joystick guid */
+    Uint16 firmware_version;    /* Firmware version, if available */
 
     int naxes;                  /* Number of axis controls on the joystick */
     SDL_JoystickAxisInfo *axes;
@@ -92,6 +103,7 @@ struct _SDL_Joystick
     Uint16 low_frequency_rumble;
     Uint16 high_frequency_rumble;
     Uint32 rumble_expiration;
+    Uint32 rumble_resend;
 
     Uint16 left_trigger_rumble;
     Uint16 right_trigger_rumble;
@@ -100,6 +112,7 @@ struct _SDL_Joystick
     Uint8 led_red;
     Uint8 led_green;
     Uint8 led_blue;
+    Uint32 led_expiration;
 
     SDL_bool attached;
     SDL_bool is_game_controller;
@@ -116,8 +129,15 @@ struct _SDL_Joystick
 };
 
 /* Device bus definitions */
+#define SDL_HARDWARE_BUS_UNKNOWN    0x00
 #define SDL_HARDWARE_BUS_USB        0x03
 #define SDL_HARDWARE_BUS_BLUETOOTH  0x05
+#define SDL_HARDWARE_BUS_VIRTUAL    0xFF
+
+/* Joystick capability flags for GetCapabilities() */
+#define SDL_JOYCAP_LED              0x01
+#define SDL_JOYCAP_RUMBLE           0x02
+#define SDL_JOYCAP_RUMBLE_TRIGGERS  0x04
 
 /* Macro to combine a USB vendor ID and product ID into a single Uint32 value */
 #define MAKE_VIDPID(VID, PID)   (((Uint32)(VID))<<16|(PID))
@@ -139,10 +159,13 @@ typedef struct _SDL_JoystickDriver
     /* Function to get the device-dependent name of a joystick */
     const char *(*GetDeviceName)(int device_index);
 
+    /* Function to get the device-dependent path of a joystick */
+    const char *(*GetDevicePath)(int device_index);
+
     /* Function to get the player index of a joystick */
     int (*GetDevicePlayerIndex)(int device_index);
 
-    /* Function to get the player index of a joystick */
+    /* Function to set the player index of a joystick */
     void (*SetDevicePlayerIndex)(int device_index, int player_index);
 
     /* Function to return the stable GUID for a plugged in device */
@@ -162,9 +185,14 @@ typedef struct _SDL_JoystickDriver
     int (*Rumble)(SDL_Joystick *joystick, Uint16 low_frequency_rumble, Uint16 high_frequency_rumble);
     int (*RumbleTriggers)(SDL_Joystick *joystick, Uint16 left_rumble, Uint16 right_rumble);
 
+    /* Capability detection */
+    Uint32 (*GetCapabilities)(SDL_Joystick *joystick);
+
     /* LED functionality */
-    SDL_bool (*HasLED)(SDL_Joystick *joystick);
     int (*SetLED)(SDL_Joystick *joystick, Uint8 red, Uint8 green, Uint8 blue);
+
+    /* General effects */
+    int (*SendEffect)(SDL_Joystick *joystick, const void *data, int size);
 
     /* Sensor functionality */
     int (*SetSensorsEnabled)(SDL_Joystick *joystick, SDL_bool enabled);
@@ -190,6 +218,12 @@ typedef struct _SDL_JoystickDriver
 /* Windows and Mac OSX has a limit of MAX_DWORD / 1000, Linux kernel has a limit of 0xFFFF */
 #define SDL_MAX_RUMBLE_DURATION_MS  0xFFFF
 
+/* Dualshock4 only rumbles for about 5 seconds max, resend rumble command every 2 seconds 
+ * to make long rumble work. */
+#define SDL_RUMBLE_RESEND_MS  2000
+
+#define SDL_LED_MIN_REPEAT_MS  5000
+
 /* The available joystick drivers */
 extern SDL_JoystickDriver SDL_ANDROID_JoystickDriver;
 extern SDL_JoystickDriver SDL_BSD_JoystickDriver;
@@ -204,6 +238,17 @@ extern SDL_JoystickDriver SDL_LINUX_JoystickDriver;
 extern SDL_JoystickDriver SDL_VIRTUAL_JoystickDriver;
 extern SDL_JoystickDriver SDL_WGI_JoystickDriver;
 extern SDL_JoystickDriver SDL_WINDOWS_JoystickDriver;
+extern SDL_JoystickDriver SDL_WINMM_JoystickDriver;
+extern SDL_JoystickDriver SDL_OS2_JoystickDriver;
+extern SDL_JoystickDriver SDL_PS2_JoystickDriver;
+extern SDL_JoystickDriver SDL_PSP_JoystickDriver;
+extern SDL_JoystickDriver SDL_VITA_JoystickDriver;
+extern SDL_JoystickDriver SDL_N3DS_JoystickDriver;
+
+/* Ends C function definitions when using C++ */
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* SDL_sysjoystick_h_ */
 

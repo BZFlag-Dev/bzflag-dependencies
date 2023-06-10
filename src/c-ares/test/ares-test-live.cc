@@ -145,7 +145,7 @@ TEST_P(DefaultChannelModeTest, LiveGetLocalhostByNameV4) {
   ares_gethostbyname(channel_, "localhost", AF_INET, HostCallback, &result);
   Process();
   EXPECT_TRUE(result.done_);
-  if ((result.status_ != ARES_ENOTFOUND) && (result.status_ != ARES_ECONNREFUSED)) {
+  if (result.status_ != ARES_ECONNREFUSED) {
     EXPECT_EQ(ARES_SUCCESS, result.status_);
     EXPECT_EQ(1, (int)result.host_.addrs_.size());
     EXPECT_EQ(AF_INET, result.host_.addrtype_);
@@ -158,12 +158,41 @@ TEST_P(DefaultChannelModeTest, LiveGetLocalhostByNameV6) {
   ares_gethostbyname(channel_, "localhost", AF_INET6, HostCallback, &result);
   Process();
   EXPECT_TRUE(result.done_);
-  if (result.status_ == ARES_SUCCESS) {
+  if (result.status_ != ARES_ECONNREFUSED) {
+    EXPECT_EQ(ARES_SUCCESS, result.status_);
     EXPECT_EQ(1, (int)result.host_.addrs_.size());
     EXPECT_EQ(AF_INET6, result.host_.addrtype_);
     std::stringstream ss;
     ss << HostEnt(result.host_);
     EXPECT_NE(std::string::npos, result.host_.name_.find("localhost"));
+  }
+}
+
+TEST_P(DefaultChannelModeTest, LiveGetNonExistLocalhostByNameV4) {
+  HostResult result;
+  ares_gethostbyname(channel_, "idonotexist.localhost", AF_INET, HostCallback, &result);
+  Process();
+  EXPECT_TRUE(result.done_);
+  if (result.status_ != ARES_ECONNREFUSED) {
+    EXPECT_EQ(ARES_SUCCESS, result.status_);
+    EXPECT_EQ(1, (int)result.host_.addrs_.size());
+    EXPECT_EQ(AF_INET, result.host_.addrtype_);
+    EXPECT_NE(std::string::npos, result.host_.name_.find("idonotexist.localhost"));
+  }
+}
+
+TEST_P(DefaultChannelModeTest, LiveGetNonExistLocalhostByNameV6) {
+  HostResult result;
+  ares_gethostbyname(channel_, "idonotexist.localhost", AF_INET6, HostCallback, &result);
+  Process();
+  EXPECT_TRUE(result.done_);
+  if (result.status_ != ARES_ECONNREFUSED) {
+    EXPECT_EQ(ARES_SUCCESS, result.status_);
+    EXPECT_EQ(1, (int)result.host_.addrs_.size());
+    EXPECT_EQ(AF_INET6, result.host_.addrtype_);
+    std::stringstream ss;
+    ss << HostEnt(result.host_);
+    EXPECT_NE(std::string::npos, result.host_.name_.find("idonotexist.localhost"));
   }
 }
 
@@ -268,12 +297,12 @@ TEST_P(DefaultChannelModeTest, LiveGetHostByAddrFailAlloc) {
   EXPECT_EQ(ARES_ENOMEM, result.status_);
 }
 
-INSTANTIATE_TEST_CASE_P(Modes, DefaultChannelModeTest,
+INSTANTIATE_TEST_SUITE_P(Modes, DefaultChannelModeTest,
                         ::testing::Values("f", "b", "fb", "bf"));
 
 VIRT_NONVIRT_TEST_F(DefaultChannelTest, LiveSearchA) {
   SearchResult result;
-  ares_search(channel_, "www.youtube.com.", ns_c_in, ns_t_a,
+  ares_search(channel_, "www.youtube.com.", C_IN, T_A,
               SearchCallback, &result);
   Process();
   EXPECT_TRUE(result.done_);
@@ -282,7 +311,7 @@ VIRT_NONVIRT_TEST_F(DefaultChannelTest, LiveSearchA) {
 
 VIRT_NONVIRT_TEST_F(DefaultChannelTest, LiveSearchEmptyA) {
   SearchResult result;
-  ares_search(channel_, "", ns_c_in, ns_t_a,
+  ares_search(channel_, "", C_IN, T_A,
               SearchCallback, &result);
   Process();
   EXPECT_TRUE(result.done_);
@@ -291,7 +320,7 @@ VIRT_NONVIRT_TEST_F(DefaultChannelTest, LiveSearchEmptyA) {
 
 VIRT_NONVIRT_TEST_F(DefaultChannelTest, LiveSearchNS) {
   SearchResult result;
-  ares_search(channel_, "google.com.", ns_c_in, ns_t_ns,
+  ares_search(channel_, "google.com.", C_IN, T_NS,
               SearchCallback, &result);
   Process();
   EXPECT_TRUE(result.done_);
@@ -300,7 +329,7 @@ VIRT_NONVIRT_TEST_F(DefaultChannelTest, LiveSearchNS) {
 
 VIRT_NONVIRT_TEST_F(DefaultChannelTest, LiveSearchMX) {
   SearchResult result;
-  ares_search(channel_, "google.com.", ns_c_in, ns_t_mx,
+  ares_search(channel_, "google.com.", C_IN, T_MX,
               SearchCallback, &result);
   Process();
   EXPECT_TRUE(result.done_);
@@ -309,7 +338,7 @@ VIRT_NONVIRT_TEST_F(DefaultChannelTest, LiveSearchMX) {
 
 VIRT_NONVIRT_TEST_F(DefaultChannelTest, LiveSearchTXT) {
   SearchResult result;
-  ares_search(channel_, "google.com.", ns_c_in, ns_t_txt,
+  ares_search(channel_, "google.com.", C_IN, T_TXT,
               SearchCallback, &result);
   Process();
   EXPECT_TRUE(result.done_);
@@ -318,7 +347,7 @@ VIRT_NONVIRT_TEST_F(DefaultChannelTest, LiveSearchTXT) {
 
 VIRT_NONVIRT_TEST_F(DefaultChannelTest, LiveSearchSOA) {
   SearchResult result;
-  ares_search(channel_, "google.com.", ns_c_in, ns_t_soa,
+  ares_search(channel_, "google.com.", C_IN, T_SOA,
               SearchCallback, &result);
   Process();
   EXPECT_TRUE(result.done_);
@@ -327,7 +356,7 @@ VIRT_NONVIRT_TEST_F(DefaultChannelTest, LiveSearchSOA) {
 
 VIRT_NONVIRT_TEST_F(DefaultChannelTest, LiveSearchSRV) {
   SearchResult result;
-  ares_search(channel_, "_imap._tcp.gmail.com.", ns_c_in, ns_t_srv,
+  ares_search(channel_, "_imap._tcp.gmail.com.", C_IN, T_SRV,
               SearchCallback, &result);
   Process();
   EXPECT_TRUE(result.done_);
@@ -336,7 +365,7 @@ VIRT_NONVIRT_TEST_F(DefaultChannelTest, LiveSearchSRV) {
 
 VIRT_NONVIRT_TEST_F(DefaultChannelTest, LiveSearchANY) {
   SearchResult result;
-  ares_search(channel_, "google.com.", ns_c_in, ns_t_any,
+  ares_search(channel_, "google.com.", C_IN, T_ANY,
               SearchCallback, &result);
   Process();
   EXPECT_TRUE(result.done_);

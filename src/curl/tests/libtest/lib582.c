@@ -5,7 +5,7 @@
  *                            | (__| |_| |  _ <| |___
  *                             \___|\___/|_| \_\_____|
  *
- * Copyright (C) 1998 - 2020, Daniel Stenberg, <daniel@haxx.se>, et al.
+ * Copyright (C) Daniel Stenberg, <daniel@haxx.se>, et al.
  *
  * This software is licensed as described in the file COPYING, which
  * you should have received as part of this distribution. The terms
@@ -17,6 +17,8 @@
  *
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
+ *
+ * SPDX-License-Identifier: curl
  *
  ***************************************************************************/
 #include "test.h"
@@ -134,7 +136,7 @@ static int curlTimerCallback(CURLM *multi, long timeout_ms, void *userp)
   (void)multi; /* unused */
   if(timeout_ms != -1) {
     *timeout = tutil_tvnow();
-    timeout->tv_usec += timeout_ms * 1000;
+    timeout->tv_usec += (int)timeout_ms * 1000;
   }
   else {
     timeout->tv_sec = -1;
@@ -147,11 +149,13 @@ static int curlTimerCallback(CURLM *multi, long timeout_ms, void *userp)
  */
 static int checkForCompletion(CURLM *curl, int *success)
 {
-  int numMessages;
-  CURLMsg *message;
   int result = 0;
   *success = 0;
-  while((message = curl_multi_info_read(curl, &numMessages)) != NULL) {
+  while(1) {
+    int numMessages;
+    CURLMsg *message = curl_multi_info_read(curl, &numMessages);
+    if(!message)
+      break;
     if(message->msg == CURLMSG_DONE) {
       result = 1;
       if(message->data.result == CURLE_OK)
@@ -234,6 +238,8 @@ int test(char *URL)
   struct timeval timeout = {-1, 0};
   int success = 0;
 
+  assert(test_argc >= 5);
+
   start_test_timing();
 
   if(!libtest_arg3) {
@@ -242,7 +248,7 @@ int test(char *URL)
   }
 
   hd_src = fopen(libtest_arg2, "rb");
-  if(NULL == hd_src) {
+  if(!hd_src) {
     fprintf(stderr, "fopen() failed with error: %d (%s)\n",
             errno, strerror(errno));
     fprintf(stderr, "Error opening file: (%s)\n", libtest_arg2);
@@ -282,8 +288,8 @@ int test(char *URL)
   easy_setopt(curl, CURLOPT_READDATA, hd_src);
 
   easy_setopt(curl, CURLOPT_USERPWD, libtest_arg3);
-  easy_setopt(curl, CURLOPT_SSH_PUBLIC_KEYFILE, "curl_client_key.pub");
-  easy_setopt(curl, CURLOPT_SSH_PRIVATE_KEYFILE, "curl_client_key");
+  easy_setopt(curl, CURLOPT_SSH_PUBLIC_KEYFILE, test_argv[4]);
+  easy_setopt(curl, CURLOPT_SSH_PRIVATE_KEYFILE, test_argv[5]);
   easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
 
   easy_setopt(curl, CURLOPT_INFILESIZE_LARGE, (curl_off_t)file_info.st_size);

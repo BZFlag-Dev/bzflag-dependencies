@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2023 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -18,6 +18,7 @@
 #include <string.h>
 
 #include "SDL.h"
+#include "testutils.h"
 
 #ifndef SDL_JOYSTICK_DISABLED
 
@@ -27,8 +28,10 @@
 #define SCREEN_WIDTH    512
 #define SCREEN_HEIGHT   320
 
-#define MARKER_BUTTON 1
-#define MARKER_AXIS 2
+enum marker_type {
+    MARKER_BUTTON,
+    MARKER_AXIS,
+};
 
 enum
 {
@@ -47,13 +50,13 @@ enum
 
 #define BINDING_COUNT (SDL_CONTROLLER_BUTTON_MAX + SDL_CONTROLLER_BINDING_AXIS_MAX)
 
-static struct 
+static struct
 {
     int x, y;
     double angle;
-    int marker;
+    enum marker_type marker;
 
-} s_arrBindingDisplay[BINDING_COUNT] = {
+} s_arrBindingDisplay[] = {
     { 387, 167, 0.0, MARKER_BUTTON }, /* SDL_CONTROLLER_BUTTON_A */
     { 431, 132, 0.0, MARKER_BUTTON }, /* SDL_CONTROLLER_BUTTON_B */
     { 342, 132, 0.0, MARKER_BUTTON }, /* SDL_CONTROLLER_BUTTON_X */
@@ -86,8 +89,9 @@ static struct
     {  91, -20, 180.0, MARKER_AXIS }, /* SDL_CONTROLLER_BINDING_AXIS_TRIGGERLEFT */
     { 375, -20, 180.0, MARKER_AXIS }, /* SDL_CONTROLLER_BINDING_AXIS_TRIGGERRIGHT */
 };
+SDL_COMPILE_TIME_ASSERT(s_arrBindingDisplay, SDL_arraysize(s_arrBindingDisplay) == BINDING_COUNT);
 
-static int s_arrBindingOrder[BINDING_COUNT] = {
+static int s_arrBindingOrder[] = {
     SDL_CONTROLLER_BUTTON_A,
     SDL_CONTROLLER_BUTTON_B,
     SDL_CONTROLLER_BUTTON_Y,
@@ -118,7 +122,9 @@ static int s_arrBindingOrder[BINDING_COUNT] = {
     SDL_CONTROLLER_BUTTON_PADDLE2,
     SDL_CONTROLLER_BUTTON_PADDLE3,
     SDL_CONTROLLER_BUTTON_PADDLE4,
+    SDL_CONTROLLER_BUTTON_TOUCHPAD,
 };
+SDL_COMPILE_TIME_ASSERT(s_arrBindingOrder, SDL_arraysize(s_arrBindingOrder) == BINDING_COUNT);
 
 typedef struct
 {
@@ -162,40 +168,9 @@ static Uint32 s_unPendingAdvanceTime;
 static SDL_bool s_bBindingComplete;
 
 static SDL_Window *window;
+static SDL_Renderer *screen;
 static SDL_bool done = SDL_FALSE;
-
-SDL_Texture *
-LoadTexture(SDL_Renderer *renderer, const char *file, SDL_bool transparent)
-{
-    SDL_Surface *temp;
-    SDL_Texture *texture;
-
-    /* Load the sprite image */
-    temp = SDL_LoadBMP(file);
-    if (temp == NULL) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't load %s: %s", file, SDL_GetError());
-        return NULL;
-    }
-
-    /* Set transparent pixel as the pixel at (0,0) */
-    if (transparent) {
-        if (temp->format->palette) {
-            SDL_SetColorKey(temp, SDL_TRUE, *(Uint8 *) temp->pixels);
-        }
-    }
-
-    /* Create textures from the image */
-    texture = SDL_CreateTextureFromSurface(renderer, temp);
-    if (!texture) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't create texture: %s\n", SDL_GetError());
-        SDL_FreeSurface(temp);
-        return NULL;
-    }
-    SDL_FreeSurface(temp);
-
-    /* We're ready to roll. :) */
-    return texture;
-}
+static SDL_bool bind_touchpad = SDL_FALSE;
 
 static int
 StandardizeAxisValue(int nValue)
@@ -221,6 +196,19 @@ SetCurrentBinding(int iBinding)
 
     if (iBinding == BINDING_COUNT) {
         s_bBindingComplete = SDL_TRUE;
+        return;
+    }
+
+    if (s_arrBindingOrder[iBinding] == -1)
+    {
+        SetCurrentBinding(iBinding + 1);
+        return;
+    }
+
+    if (s_arrBindingOrder[iBinding] == SDL_CONTROLLER_BUTTON_TOUCHPAD &&
+        !bind_touchpad)
+    {
+        SetCurrentBinding(iBinding + 1);
         return;
     }
 
@@ -366,8 +354,7 @@ BMergeAxisBindings(int iIndex)
 static void
 WatchJoystick(SDL_Joystick * joystick)
 {
-    SDL_Renderer *screen = NULL;
-    SDL_Texture *background_front, *background_back, *button, *axis, *marker;
+    SDL_Texture *background_front, *background_back, *button, *axis, *marker=NULL;
     const char *name = NULL;
     SDL_Event event;
     SDL_Rect dst;
@@ -375,16 +362,10 @@ WatchJoystick(SDL_Joystick * joystick)
     Uint32 alpha_ticks = 0;
     SDL_JoystickID nJoystickID;
 
-    screen = SDL_CreateRenderer(window, -1, 0);
-    if (screen == NULL) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't create renderer: %s\n", SDL_GetError());
-        return;
-    }
-    
-    background_front = LoadTexture(screen, "controllermap.bmp", SDL_FALSE);
-    background_back = LoadTexture(screen, "controllermap_back.bmp", SDL_FALSE);
-    button = LoadTexture(screen, "button.bmp", SDL_TRUE);
-    axis = LoadTexture(screen, "axis.bmp", SDL_TRUE);
+    background_front = LoadTexture(screen, "controllermap.bmp", SDL_FALSE, NULL, NULL);
+    background_back = LoadTexture(screen, "controllermap_back.bmp", SDL_FALSE, NULL, NULL);
+    button = LoadTexture(screen, "button.bmp", SDL_TRUE, NULL, NULL);
+    axis = LoadTexture(screen, "axis.bmp", SDL_TRUE, NULL, NULL);
     SDL_RaiseWindow(window);
 
     /* scale for platforms that don't give you the window size you asked for. */
@@ -392,8 +373,8 @@ WatchJoystick(SDL_Joystick * joystick)
 
     /* Print info about the joystick we are watching */
     name = SDL_JoystickName(joystick);
-    SDL_Log("Watching joystick %d: (%s)\n", SDL_JoystickInstanceID(joystick),
-           name ? name : "Unknown Joystick");
+    SDL_Log("Watching joystick %" SDL_PRIs32 ": (%s)\n", SDL_JoystickInstanceID(joystick),
+            name ? name : "Unknown Joystick");
     SDL_Log("Joystick has %d axes, %d hats, %d balls, and %d buttons\n",
            SDL_JoystickNumAxes(joystick), SDL_JoystickNumHats(joystick),
            SDL_JoystickNumBalls(joystick), SDL_JoystickNumButtons(joystick));
@@ -412,10 +393,10 @@ WatchJoystick(SDL_Joystick * joystick)
     s_nNumAxes = SDL_JoystickNumAxes(joystick);
     s_arrAxisState = (AxisState *)SDL_calloc(s_nNumAxes, sizeof(*s_arrAxisState));
 
-	/* Skip any spurious events at start */
-	while (SDL_PollEvent(&event) > 0) {
-		continue;
-	}
+    /* Skip any spurious events at start */
+    while (SDL_PollEvent(&event) > 0) {
+        continue;
+    }
 
     /* Loop, getting joystick events! */
     while (!done && !s_bBindingComplete) {
@@ -427,8 +408,6 @@ WatchJoystick(SDL_Joystick * joystick)
                 break;
             case MARKER_BUTTON:
                 marker = button;
-                break;
-            default:
                 break;
         }
         
@@ -559,7 +538,7 @@ WatchJoystick(SDL_Joystick * joystick)
                 if ((event.key.keysym.sym != SDLK_ESCAPE)) {
                     break;
                 }
-                /* Fall through to signal quit */
+                SDL_FALLTHROUGH;
             case SDL_QUIT:
                 done = SDL_TRUE;
                 break;
@@ -579,6 +558,8 @@ WatchJoystick(SDL_Joystick * joystick)
     }
 
     if (s_bBindingComplete) {
+        SDL_JoystickGUID guid;
+        Uint16 crc;
         char mapping[1024];
         char trimmed_name[128];
         char *spot;
@@ -597,13 +578,28 @@ WatchJoystick(SDL_Joystick * joystick)
         }
 
         /* Initialize mapping with GUID and name */
-        SDL_JoystickGetGUIDString(SDL_JoystickGetGUID(joystick), mapping, SDL_arraysize(mapping));
+        guid = SDL_JoystickGetGUID(joystick);
+        SDL_GetJoystickGUIDInfo(guid, NULL, NULL, NULL, &crc);
+        if (crc) {
+            /* Clear the CRC from the GUID for the mapping */
+            guid.data[2] = 0;
+            guid.data[3] = 0;
+        }
+        SDL_JoystickGetGUIDString(guid, mapping, SDL_arraysize(mapping));
         SDL_strlcat(mapping, ",", SDL_arraysize(mapping));
         SDL_strlcat(mapping, trimmed_name, SDL_arraysize(mapping));
         SDL_strlcat(mapping, ",", SDL_arraysize(mapping));
         SDL_strlcat(mapping, "platform:", SDL_arraysize(mapping));
         SDL_strlcat(mapping, SDL_GetPlatform(), SDL_arraysize(mapping));
         SDL_strlcat(mapping, ",", SDL_arraysize(mapping));
+        if (crc) {
+            char crc_string[5];
+
+            SDL_strlcat(mapping, "crc:", SDL_arraysize(mapping));
+            SDL_snprintf(crc_string, sizeof(crc_string), "%.4x", crc);
+            SDL_strlcat(mapping, crc_string, SDL_arraysize(mapping));
+            SDL_strlcat(mapping, ",", SDL_arraysize(mapping));
+        }
 
         for (iIndex = 0; iIndex < SDL_arraysize(s_arrBindings); ++iIndex) {
             SDL_GameControllerExtendedBind *pBinding = &s_arrBindings[iIndex];
@@ -615,7 +611,7 @@ WatchJoystick(SDL_Joystick * joystick)
                 SDL_GameControllerButton eButton = (SDL_GameControllerButton)iIndex;
                 SDL_strlcat(mapping, SDL_GameControllerGetStringForButton(eButton), SDL_arraysize(mapping));
             } else {
-                const char *pszAxisName;
+                const char *pszAxisName = NULL;
                 switch (iIndex - SDL_CONTROLLER_BUTTON_MAX) {
                 case SDL_CONTROLLER_BINDING_AXIS_LEFTX_NEGATIVE:
                     if (!BMergeAxisBindings(iIndex)) {
@@ -664,7 +660,9 @@ WatchJoystick(SDL_Joystick * joystick)
                     pszAxisName = SDL_GameControllerGetStringForAxis(SDL_CONTROLLER_AXIS_TRIGGERRIGHT);
                     break;
                 }
-                SDL_strlcat(mapping, pszAxisName, SDL_arraysize(mapping));
+                if (pszAxisName) {
+                    SDL_strlcat(mapping, pszAxisName, SDL_arraysize(mapping));
+                }
             }
             SDL_strlcat(mapping, ":", SDL_arraysize(mapping));
 
@@ -715,6 +713,7 @@ main(int argc, char *argv[])
 {
     const char *name;
     int i;
+    int joystick_index;
     SDL_Joystick *joystick;
 
     SDL_SetHint(SDL_HINT_ACCELEROMETER_AS_JOYSTICK, "0");
@@ -728,6 +727,10 @@ main(int argc, char *argv[])
         exit(1);
     }
 
+    if (argv[1] && SDL_strcmp(argv[1], "--bind-touchpad") == 0) {
+        bind_touchpad = SDL_TRUE;
+    }
+
     /* Create a window to display joystick axis position */
     window = SDL_CreateWindow("Game Controller Map", SDL_WINDOWPOS_CENTERED,
                               SDL_WINDOWPOS_CENTERED, SCREEN_WIDTH,
@@ -737,7 +740,13 @@ main(int argc, char *argv[])
         return 2;
     }
 
-    while (SDL_NumJoysticks() == 0) {
+    screen = SDL_CreateRenderer(window, -1, 0);
+    if (screen == NULL) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't create renderer: %s\n", SDL_GetError());
+        return 2;
+    }
+
+    while (!done && SDL_NumJoysticks() == 0) {
         SDL_Event event;
 
         while (SDL_PollEvent(&event) > 0) {
@@ -746,7 +755,7 @@ main(int argc, char *argv[])
                 if ((event.key.keysym.sym != SDLK_ESCAPE)) {
                     break;
                 }
-                /* Fall through to signal quit */
+                SDL_FALLTHROUGH;
             case SDL_QUIT:
                 done = SDL_TRUE;
                 break;
@@ -754,6 +763,7 @@ main(int argc, char *argv[])
                 break;
             }
         }
+        SDL_RenderPresent(screen);
     }
 
     /* Print information about the joysticks */
@@ -773,16 +783,23 @@ main(int argc, char *argv[])
             SDL_Log("      balls: %d\n", SDL_JoystickNumBalls(joystick));
             SDL_Log("       hats: %d\n", SDL_JoystickNumHats(joystick));
             SDL_Log("    buttons: %d\n", SDL_JoystickNumButtons(joystick));
-            SDL_Log("instance id: %d\n", SDL_JoystickInstanceID(joystick));
+            SDL_Log("instance id: %" SDL_PRIu32 "\n", SDL_JoystickInstanceID(joystick));
             SDL_Log("       guid: %s\n", guid);
             SDL_Log("    VID/PID: 0x%.4x/0x%.4x\n", SDL_JoystickGetVendor(joystick), SDL_JoystickGetProduct(joystick));
             SDL_JoystickClose(joystick);
         }
     }
 
-    joystick = SDL_JoystickOpen(0);
+    joystick_index = 0;
+    for (i = 1; i < argc; ++i) {
+        if (argv[i] && *argv[i] != '-') {
+            joystick_index = SDL_atoi(argv[i]);
+            break;
+        }
+    }
+    joystick = SDL_JoystickOpen(joystick_index);
     if (joystick == NULL) {
-        SDL_Log("Couldn't open joystick 0: %s\n", SDL_GetError());
+        SDL_Log("Couldn't open joystick %d: %s\n", joystick_index, SDL_GetError());
     } else {
         WatchJoystick(joystick);
         SDL_JoystickClose(joystick);

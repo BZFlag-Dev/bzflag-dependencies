@@ -28,9 +28,9 @@ http
 HTTP PUT with --anyauth (when the server requires none)
  </name>
  <command>
-http://%HOSTIP:%HTTPPORT/156 -T log/put156 -u testuser:testpass --anyauth
+http://%HOSTIP:%HTTPPORT/%TESTNUMBER -T %LOGDIR/put%TESTNUMBER -u testuser:testpass --anyauth
 </command>
-<file name="log/put156">
+<file name="%LOGDIR/put%TESTNUMBER">
 This is data we upload with PUT
 a second line
 line three
@@ -41,12 +41,11 @@ four is the number of lines
 # Verify data after the test has been "shot"
 <verify>
 <protocol>
-PUT /156 HTTP/1.1
+PUT /%TESTNUMBER HTTP/1.1
 Host: %HOSTIP:%HTTPPORT
 User-Agent: curl/%VERSION
 Accept: */*
 Content-Length: 85
-Expect: 100-continue
 
 This is data we upload with PUT
 a second line

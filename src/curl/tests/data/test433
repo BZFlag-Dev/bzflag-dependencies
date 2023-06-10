@@ -20,7 +20,7 @@ Content-Type: text/1
 #
 # Client-side
 <client>
-<file1 name="log/.curlrc">
+<file1 name="%LOGDIR/.curlrc">
 --next
 header = "a: a"
 data = "curlrc read"
@@ -29,13 +29,15 @@ data = "curlrc read"
 http
 </server>
 <setenv>
-XDG_CONFIG_HOME=%PWD/log
+XDG_CONFIG_HOME=%PWD/%LOGDIR
+HOME=
+CURL_HOME=
 </setenv>
 <name>
 Verify XDG_CONFIG_HOME use to find .curlrc
 </name>
 <command>
-%HOSTIP:%HTTPPORT/433
+%HOSTIP:%HTTPPORT/%TESTNUMBER
 </command>
 </client>
 
@@ -43,7 +45,7 @@ Verify XDG_CONFIG_HOME use to find .curlrc
 # Verify data after the test has been "shot"
 <verify>
 <protocol nonewline="yes">
-POST /433 HTTP/1.1
+POST /%TESTNUMBER HTTP/1.1
 Host: %HOSTIP:%HTTPPORT
 User-Agent: curl/%VERSION
 Accept: */*
