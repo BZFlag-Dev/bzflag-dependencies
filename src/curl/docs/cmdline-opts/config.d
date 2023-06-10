@@ -1,4 +1,4 @@
-c: Copyright (C) 1998 - 2022, Daniel Stenberg, <daniel@haxx.se>, et al.
+c: Copyright (C) Daniel Stenberg, <daniel@haxx.se>, et al.
 SPDX-License-Identifier: curl
 Long: config
 Arg: <file>
@@ -57,7 +57,7 @@ config file is checked for in the following places in this order:
 
 1) "$CURL_HOME/.curlrc"
 
-2) "$XDG_CONFIG_HOME/.curlrc" (Added in 7.73.0)
+2) "$XDG_CONFIG_HOME/curlrc" (Added in 7.73.0)
 
 3) "$HOME/.curlrc"
 
