@@ -113,7 +113,7 @@ function buildDeps {
 	make -j`sysctl -n hw.ncpu` &&
 	make install &&
 	mv include/SDL_config.h.bak include/SDL_config.h &&
-	cp COPYING.txt $ORIGROOT/dependencies/licenses/SDL2.txt &&
+	cp LICENSE.txt $ORIGROOT/dependencies/licenses/SDL2.txt &&
 	make distclean
 
 	THIS_RESULT=$?
