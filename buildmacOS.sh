@@ -80,7 +80,7 @@ function buildDeps {
 	cd $SRCROOT/c-ares
 
 	cp include/ares_build.h include/ares_build.h.bak &&
-	if [[ $CONF == "debug" ]] ; then
+	if [[ $CONF == "Debug" ]] ; then
 		./configure --prefix=$OUTPUTROOT --host=$BUILD_HOST --disable-shared --disable-tests --enable-debug
 	else
 		./configure --prefix=$OUTPUTROOT --host=$BUILD_HOST --disable-shared --disable-tests
@@ -103,7 +103,7 @@ function buildDeps {
 
 	cd $SRCROOT/glew
 
-	if [[ $CONF == "debug" ]] ; then
+	if [[ $CONF == "Debug" ]] ; then
 		make glew.lib.static GLEW_DEST=$OUTPUTROOT SYSTEM=darwin CFLAGS.EXTRA="$CFLAGS" STRIP= &&
 		make install GLEW_DEST=$OUTPUTROOT STRIP=
 	else
@@ -161,10 +161,10 @@ function buildDeps {
 }
 
 # build these configurations
-buildDeps x86_64 release
-buildDeps x86_64 debug
-buildDeps arm64 release
-buildDeps arm64 debug
+buildDeps x86_64 Release
+buildDeps x86_64 Debug
+buildDeps arm64 Release
+buildDeps arm64 Debug
 
 echo "#######################"
 echo "# Final build results #"
