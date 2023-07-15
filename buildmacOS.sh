@@ -17,6 +17,16 @@ if [[ "$ORIGROOT" != "$ESCAPEDORIGROOT" ]] ; then
 	echo
 fi
 
+function printHeading {
+	if [[ "$#" -gt 0 ]] ; then
+		NUM_CHARS="$(echo -n "$1" | wc -c)"
+		while [[ "$NUM_CHARS" -gt 0 ]] ; do printf "=" ; NUM_CHARS="$(($NUM_CHARS - 1))" ; done ; echo
+		echo $1
+		NUM_CHARS="$(echo -n "$1" | wc -c)"
+		while [[ "$NUM_CHARS" -gt 0 ]] ; do printf "=" ; NUM_CHARS="$(($NUM_CHARS - 1))" ; done ; echo
+	fi
+}
+
 function buildDeps {
 	ARCH=$1
 	CONF=$2
@@ -29,20 +39,29 @@ function buildDeps {
 	mkdir -p $OUTPUTROOT/include
 	mkdir -p $ORIGROOT/dependencies/licenses
 
-	export MACOSX_DEPLOYMENT_TARGET=10.9
+	export MACOSX_DEPLOYMENT_TARGET=10.13
 	export CPPFLAGS="-I$OUTPUTROOT/include"
 	export CFLAGS="-arch $ARCH"
 	export CXXFLAGS="-arch $ARCH"
 	export LDFLAGS="-L$OUTPUTROOT/lib -arch $ARCH"
 
-	echo "=============================="
-	echo "Building libpng ($CONF)"
-	echo "=============================="
+	if [[ "$ARCH" == x86_64 ]] ; then
+		BUILD_HOST=x86_64-apple-darwin$(uname -r)
+	elif [[ "$ARCH" == arm64 ]] ; then
+		BUILD_HOST=arm-apple-darwin$(uname -r)
+	else
+		echo Unknown architecture type $ARCH. Exiting.
+		exit
+	fi
+
+	############################################
+	printHeading "Building libpng ($ARCH $CONF)"
+	############################################
 
 	cd $SRCROOT/libpng
 
 	# libpng appears to have no debug configuration
-	./configure --prefix=$OUTPUTROOT --disable-shared &&
+	./configure --prefix=$OUTPUTROOT --host=$BUILD_HOST --disable-shared &&
 	make -j`sysctl -n hw.ncpu` &&
 	make install &&
 	cp LICENSE $ORIGROOT/dependencies/licenses/libpng.txt &&
@@ -54,17 +73,17 @@ function buildDeps {
 
 	echo
 
-	echo "=============================="
-	echo "Building c-ares ($CONF)"
-	echo "=============================="
+	############################################
+	printHeading "Building c-ares ($ARCH $CONF)"
+	############################################
 
 	cd $SRCROOT/c-ares
 
 	cp include/ares_build.h include/ares_build.h.bak &&
-	if [[ $CONF == "debug" ]] ; then
-		./configure --prefix=$OUTPUTROOT --disable-shared --disable-tests --enable-debug
+	if [[ $CONF == "Debug" ]] ; then
+		./configure --prefix=$OUTPUTROOT --host=$BUILD_HOST --disable-shared --disable-tests --enable-debug
 	else
-		./configure --prefix=$OUTPUTROOT --disable-shared --disable-tests
+		./configure --prefix=$OUTPUTROOT --host=$BUILD_HOST --disable-shared --disable-tests
 	fi &&
 	make -j`sysctl -n hw.ncpu` &&
 	make install &&
@@ -78,17 +97,17 @@ function buildDeps {
 
 	echo
 
-	echo "=============================="
-	echo "Building GLEW ($CONF)"
-	echo "=============================="
+	##########################################
+	printHeading "Building GLEW ($ARCH $CONF)"
+	##########################################
 
 	cd $SRCROOT/glew
 
-	if [[ $CONF == "debug" ]] ; then
-		make glew.lib.static GLEW_DEST=$OUTPUTROOT STRIP= &&
+	if [[ $CONF == "Debug" ]] ; then
+		make glew.lib.static GLEW_DEST=$OUTPUTROOT SYSTEM=darwin CFLAGS.EXTRA="$CFLAGS" STRIP= &&
 		make install GLEW_DEST=$OUTPUTROOT STRIP=
 	else
-		make glew.lib.static GLEW_DEST=$OUTPUTROOT &&
+		make glew.lib.static GLEW_DEST=$OUTPUTROOT SYSTEM=darwin CFLAGS.EXTRA="$CFLAGS" &&
 		make install GLEW_DEST=$OUTPUTROOT
 	fi &&
 	rm $OUTPUTROOT/lib/libGLEW*.dylib && # the makefile doesn't seem to respect the static-only build configuration
@@ -101,15 +120,15 @@ function buildDeps {
 
 	echo
 
-	echo "=============================="
-	echo "Building SDL2 ($CONF)"
-	echo "=============================="
+	##########################################
+	printHeading "Building SDL2 ($ARCH $CONF)"
+	##########################################
 
 	cd $SRCROOT/SDL2
 
 	cp include/SDL_config.h include/SDL_config.h.bak &&
 	# SDL2 appears to have no debug configuration
-	./configure --prefix=$OUTPUTROOT --disable-shared &&
+	./configure --prefix=$OUTPUTROOT --host=$BUILD_HOST --disable-shared &&
 	make -j`sysctl -n hw.ncpu` &&
 	make install &&
 	mv include/SDL_config.h.bak include/SDL_config.h &&
@@ -122,9 +141,9 @@ function buildDeps {
 
 	echo
 
-	echo "=============================="
-	echo "Copying glm ($CONF)"
-	echo "=============================="
+	########################################
+	printHeading "Copying glm ($ARCH $CONF)"
+	########################################
 
 	cd $SRCROOT/glm
 
@@ -141,9 +160,11 @@ function buildDeps {
 	cd $ORIGROOT
 }
 
-# build 64-bit dependencies for macOS (no reason to support 32-bit anymore)
-buildDeps x86_64 release
-buildDeps x86_64 debug
+# build these configurations
+buildDeps x86_64 Release
+buildDeps x86_64 Debug
+buildDeps arm64 Release
+buildDeps arm64 Debug
 
 echo "#######################"
 echo "# Final build results #"
