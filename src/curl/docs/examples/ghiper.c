@@ -22,7 +22,7 @@
  *
  ***************************************************************************/
 /* <DESC>
- * multi socket API usage together with with glib2
+ * multi socket API usage together with glib2
  * </DESC>
  */
 /* Example application source code using the multi socket interface to
@@ -311,7 +311,7 @@ static void new_conn(char *url, GlobalInfo *g)
   curl_easy_setopt(conn->easy, CURLOPT_VERBOSE, (long)SHOW_VERBOSE);
   curl_easy_setopt(conn->easy, CURLOPT_ERRORBUFFER, conn->error);
   curl_easy_setopt(conn->easy, CURLOPT_PRIVATE, conn);
-  curl_easy_setopt(conn->easy, CURLOPT_NOPROGRESS, SHOW_PROGRESS?0L:1L);
+  curl_easy_setopt(conn->easy, CURLOPT_NOPROGRESS, SHOW_PROGRESS ? 0L : 1L);
   curl_easy_setopt(conn->easy, CURLOPT_PROGRESSFUNCTION, prog_cb);
   curl_easy_setopt(conn->easy, CURLOPT_PROGRESSDATA, conn);
   curl_easy_setopt(conn->easy, CURLOPT_FOLLOWLOCATION, 1L);
@@ -323,8 +323,8 @@ static void new_conn(char *url, GlobalInfo *g)
   rc = curl_multi_add_handle(g->multi, conn->easy);
   mcode_or_die("new_conn: curl_multi_add_handle", rc);
 
-  /* note that the add_handle() will set a time-out to trigger very soon so
-     that the necessary socket_action() call will be called by this app */
+  /* note that add_handle() sets a timeout to trigger soon so that the
+     necessary socket_action() gets called */
 }
 
 /* This gets called by glib whenever data is received from the fifo */

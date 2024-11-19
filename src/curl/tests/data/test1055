@@ -32,10 +32,10 @@ Connection: close
 http
 ftp
 </server>
- <name>
+<name>
 HTTP PUT Location: redirect to FTP URL
- </name>
- <command>
+</name>
+<command>
 http://%HOSTIP:%HTTPPORT/%TESTNUMBER -L -T %LOGDIR/test%TESTNUMBER.txt
 </command>
 <file name="%LOGDIR/test%TESTNUMBER.txt">
@@ -54,6 +54,9 @@ the
 #
 # Verify data after the test has been "shot"
 <verify>
+<strip>
+QUIT
+</strip>
 <protocol>
 PUT /%TESTNUMBER HTTP/1.1
 Host: %HOSTIP:%HTTPPORT

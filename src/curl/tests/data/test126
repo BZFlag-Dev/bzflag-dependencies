@@ -22,16 +22,19 @@ RETRWEIRDO
 <server>
 ftp
 </server>
- <name>
+<name>
 FTP download with multiple replies at once in RETR
- </name>
- <command>
+</name>
+<command>
 ftp://%HOSTIP:%FTPPORT/blalbla/lululul/%TESTNUMBER
 </command>
 </client>
 
 # Verify data after the test has been "shot"
 <verify>
+<strip>
+QUIT
+</strip>
 <protocol>
 USER anonymous
 PASS ftp@example.com

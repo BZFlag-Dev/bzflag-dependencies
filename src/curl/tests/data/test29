@@ -26,10 +26,13 @@ wait 10
 <server>
 http
 </server>
- <name>
+<killserver>
+http
+</killserver>
+<name>
 HTTP with 2 secs timeout
- </name>
- <command>
+</name>
+<command>
 http://%HOSTIP:%HTTPPORT/want/%TESTNUMBER -m 2
 </command>
 </client>

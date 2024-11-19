@@ -17,10 +17,10 @@ REPLY SIZE 500 command not understood
 <server>
 ftp
 </server>
- <name>
+<name>
 FTP resumed upload but no file present remotely
- </name>
- <command>
+</name>
+<command>
 ftp://%HOSTIP:%FTPPORT/%TESTNUMBER -T %LOGDIR/upload%TESTNUMBER -C -
 </command>
 <file name="%LOGDIR/upload%TESTNUMBER">
@@ -32,6 +32,9 @@ worx?
 
 # Verify data after the test has been "shot"
 <verify>
+<strip>
+QUIT
+</strip>
 <protocol>
 USER anonymous
 PASS ftp@example.com

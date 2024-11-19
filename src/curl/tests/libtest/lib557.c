@@ -37,6 +37,15 @@
 
 #include "memdebug.h"
 
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat"
+#pragma GCC diagnostic ignored "-Wformat-extra-args"
+#if !defined(__clang__) && __GNUC__ >= 7
+#pragma GCC diagnostic ignored "-Wformat-overflow"
+#endif
+#endif
+
 #if (SIZEOF_CURL_OFF_T > SIZEOF_LONG)
 #  define MPRNT_SUFFIX_CURL_OFF_T  LL
 #else
@@ -148,7 +157,7 @@ static int test_unsigned_short_formatting(void)
 
   for(i = 1; i <= num_ushort_tests; i++) {
 
-    for(j = 0; j<BUFSZ; j++)
+    for(j = 0; j < BUFSZ; j++)
       us_test[i].result[j] = 'X';
     us_test[i].result[BUFSZ-1] = '\0';
 
@@ -222,7 +231,7 @@ static int test_signed_short_formatting(void)
 
   for(i = 1; i <= num_sshort_tests; i++) {
 
-    for(j = 0; j<BUFSZ; j++)
+    for(j = 0; j < BUFSZ; j++)
       ss_test[i].result[j] = 'X';
     ss_test[i].result[BUFSZ-1] = '\0';
 
@@ -372,7 +381,7 @@ static int test_unsigned_int_formatting(void)
 
   for(i = 1; i <= num_uint_tests; i++) {
 
-    for(j = 0; j<BUFSZ; j++)
+    for(j = 0; j < BUFSZ; j++)
       ui_test[i].result[j] = 'X';
     ui_test[i].result[BUFSZ-1] = '\0';
 
@@ -600,7 +609,7 @@ static int test_signed_int_formatting(void)
 
   for(i = 1; i <= num_sint_tests; i++) {
 
-    for(j = 0; j<BUFSZ; j++)
+    for(j = 0; j < BUFSZ; j++)
       si_test[i].result[j] = 'X';
     si_test[i].result[BUFSZ-1] = '\0';
 
@@ -749,7 +758,7 @@ static int test_unsigned_long_formatting(void)
 
   for(i = 1; i <= num_ulong_tests; i++) {
 
-    for(j = 0; j<BUFSZ; j++)
+    for(j = 0; j < BUFSZ; j++)
       ul_test[i].result[j] = 'X';
     ul_test[i].result[BUFSZ-1] = '\0';
 
@@ -977,7 +986,7 @@ static int test_signed_long_formatting(void)
 
   for(i = 1; i <= num_slong_tests; i++) {
 
-    for(j = 0; j<BUFSZ; j++)
+    for(j = 0; j < BUFSZ; j++)
       sl_test[i].result[j] = 'X';
     sl_test[i].result[BUFSZ-1] = '\0';
 
@@ -1091,7 +1100,7 @@ static int test_curl_off_t_formatting(void)
 
   for(i = 1; i <= num_cofft_tests; i++) {
 
-    for(j = 0; j<BUFSZ; j++)
+    for(j = 0; j < BUFSZ; j++)
       co_test[i].result[j] = 'X';
     co_test[i].result[BUFSZ-1] = '\0';
 
@@ -1179,11 +1188,48 @@ static int test_string_formatting(void)
   return errors;
 }
 
+static int test_pos_arguments(void)
+{
+  int errors = 0;
+  char buf[256];
+
+  curl_msnprintf(buf, sizeof(buf), "%3$d %2$d %1$d", 500, 501, 502);
+  errors += string_check(buf, "502 501 500");
+
+  curl_msnprintf(buf, sizeof(buf), "%3$d %1$d %2$d", 500, 501, 502);
+  errors += string_check(buf, "502 500 501");
+
+  /* this is in invalid sequence but the output does not match
+     what glibc does */
+  curl_msnprintf(buf, sizeof(buf), "%3$d %d %2$d", 500, 501, 502);
+  errors += string_check(buf, "");
+
+  return errors;
+}
+
 static int test_weird_arguments(void)
 {
   int errors = 0;
   char buf[256];
   int rc;
+
+  /* verify %% */
+  rc = curl_msnprintf(buf, sizeof(buf), "%-20d%% right? %%", 500);
+  errors += string_check(buf, "500                 % right? %");
+
+  /* 100 x % */
+  rc = curl_msnprintf(buf, sizeof(buf), "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
+                      "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
+                      "%%%%%%%%%%%%%%%%%%%%%%");
+  /* 50 x % */
+  errors += string_check(buf, "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
+                         "%%%%%%%%%%%%%%%");
+
+  rc = curl_msnprintf(buf, sizeof(buf), "%2 AA %d %K", 500, 501, 502);
+  errors += string_check(buf, "%2 AA 500 %K");
+
+  rc = curl_msnprintf(buf, sizeof(buf), "%2 %d %K", 500, 501, 502);
+  errors += string_check(buf, "%2 500 %K");
 
   /* MAX_PARAMETERS is 128, try exact 128! */
   rc = curl_msnprintf(buf, sizeof(buf),
@@ -1274,18 +1320,6 @@ static int test_weird_arguments(void)
 
   errors += string_check(buf, "");
 
-  /* Do not skip sanity checks with parameters! */
-  buf[0] = 0;
-  rc = curl_msnprintf(buf, sizeof(buf), "%d, %.*1$d", 500, 1);
-
-  if(rc != sizeof(buf) - 1) {
-    printf("curl_mprintf() returned %d and not %d!\n", rc,
-           sizeof(buf) - 1);
-    errors++;
-  }
-
-  errors += strlen_check(buf, 255);
-
   if(errors)
     printf("Some curl_mprintf() weird arguments tests failed!\n");
 
@@ -1362,7 +1396,7 @@ static int test_float_formatting(void)
   /* very large precisions easily turn into system specific outputs so we only
      check the output buffer length here as we know the internal limit */
 
-  curl_msnprintf(buf, sizeof(buf), "%.*f", (1<<30), 9.2987654);
+  curl_msnprintf(buf, sizeof(buf), "%.*f", (1 << 30), 9.2987654);
   errors += strlen_check(buf, 325);
 
   curl_msnprintf(buf, sizeof(buf), "%10000.10000f", 9.2987654);
@@ -1372,13 +1406,14 @@ static int test_float_formatting(void)
                  123456789123456789123456789.2987654);
   errors += strlen_check(buf, 325);
 
-  /* check negative when used signed */
+  /* check negative width argument when used signed, is treated as positive
+     and maxes out the internal float width == 325 */
   curl_msnprintf(buf, sizeof(buf), "%*f", INT_MIN, 9.1);
-  errors += string_check(buf, "9.100000");
+  errors += string_check(buf, "9.100000                                                                                                                                                                                                                                                                                                                             ");
 
   /* curl_msnprintf() limits a single float output to 325 bytes maximum
      width */
-  curl_msnprintf(buf, sizeof(buf), "%*f", (1<<30), 9.1);
+  curl_msnprintf(buf, sizeof(buf), "%*f", (1 << 30), 9.1);
   errors += string_check(buf, "                                                                                                                                                                                                                                                                                                                             9.100000");
   curl_msnprintf(buf, sizeof(buf), "%100000f", 9.1);
   errors += string_check(buf, "                                                                                                                                                                                                                                                                                                                             9.100000");
@@ -1401,6 +1436,48 @@ static int test_float_formatting(void)
     printf("All float strings tests OK!\n");
   else
     printf("test_float_formatting Failed!\n");
+
+  return errors;
+}
+
+static int test_oct_hex_formatting(void)
+{
+  int errors = 0;
+  char buf[256];
+
+  curl_msnprintf(buf, sizeof(buf), "%ho %hx %hX", 0xFA10U, 0xFA10U, 0xFA10U);
+  errors += string_check(buf, "175020 fa10 FA10");
+
+#if (SIZEOF_INT == 2)
+  curl_msnprintf(buf, sizeof(buf), "%o %x %X", 0xFA10U, 0xFA10U, 0xFA10U);
+  errors += string_check(buf, "175020 fa10 FA10");
+#elif (SIZEOF_INT == 4)
+  curl_msnprintf(buf, sizeof(buf), "%o %x %X",
+                 0xFABC1230U, 0xFABC1230U, 0xFABC1230U);
+  errors += string_check(buf, "37257011060 fabc1230 FABC1230");
+#elif (SIZEOF_INT == 8)
+  curl_msnprintf(buf, sizeof(buf), "%o %x %X",
+                 0xFABCDEF123456780U, 0xFABCDEF123456780U, 0xFABCDEF123456780U);
+  errors += string_check(buf, "1752746757044321263600 fabcdef123456780 FABCDEF123456780");
+#endif
+
+#if (SIZEOF_LONG == 2)
+  curl_msnprintf(buf, sizeof(buf), "%lo %lx %lX", 0xFA10UL, 0xFA10UL, 0xFA10UL);
+  errors += string_check(buf, "175020 fa10 FA10");
+#elif (SIZEOF_LONG == 4)
+  curl_msnprintf(buf, sizeof(buf), "%lo %lx %lX",
+                 0xFABC1230UL, 0xFABC1230UL, 0xFABC1230UL);
+  errors += string_check(buf, "37257011060 fabc1230 FABC1230");
+#elif (SIZEOF_LONG == 8)
+  curl_msnprintf(buf, sizeof(buf), "%lo %lx %lX",
+                 0xFABCDEF123456780UL, 0xFABCDEF123456780UL, 0xFABCDEF123456780UL);
+  errors += string_check(buf, "1752746757044321263600 fabcdef123456780 FABCDEF123456780");
+#endif
+
+  if(!errors)
+    printf("All curl_mprintf() octal & hexadecimal tests OK!\n");
+  else
+    printf("Some curl_mprintf() octal & hexadecimal tests Failed!\n");
 
   return errors;
 }
@@ -1436,7 +1513,8 @@ static int test_return_codes(void)
 
   return 0;
 }
-int test(char *URL)
+
+CURLcode test(char *URL)
 {
   int errors = 0;
   (void)URL; /* not used */
@@ -1448,6 +1526,8 @@ int test(char *URL)
    */
   setlocale(LC_NUMERIC, "C");
 #endif
+
+  errors += test_pos_arguments();
 
   errors += test_weird_arguments();
 
@@ -1469,10 +1549,16 @@ int test(char *URL)
 
   errors += test_float_formatting();
 
+  errors += test_oct_hex_formatting();
+
   errors += test_return_codes();
 
   if(errors)
     return TEST_ERR_MAJOR_BAD;
   else
-    return 0;
+    return CURLE_OK;
 }
+
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic pop
+#endif

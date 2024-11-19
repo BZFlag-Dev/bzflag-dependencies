@@ -30,10 +30,10 @@ ftp
 <tool>
 lib%TESTNUMBER
 </tool>
- <name>
+<name>
 FTP a file with NOBODY yes and HEADER no
- </name>
- <command>
+</name>
+<command>
 ftp://%HOSTIP:%FTPPORT/%TESTNUMBER
 </command>
 
@@ -44,6 +44,9 @@ ftp://%HOSTIP:%FTPPORT/%TESTNUMBER
 # There's no MTDM in the protocol here since this code doesn't ask for the
 # time/date of the file
 <verify>
+<strip>
+QUIT
+</strip>
 <protocol>
 USER anonymous
 PASS ftp@example.com

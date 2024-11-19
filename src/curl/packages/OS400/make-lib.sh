@@ -26,9 +26,9 @@
 #       libcurl compilation script for the OS/400.
 #
 
-SCRIPTDIR=`dirname "${0}"`
+SCRIPTDIR=$(dirname "${0}")
 . "${SCRIPTDIR}/initscript.sh"
-cd "${TOPDIR}/lib"
+cd "${TOPDIR}/lib" || exit 1
 
 #       Need to have IFS access to the mih/cipher header file.
 
@@ -40,59 +40,33 @@ fi
 
 #      Create and compile the identification source file.
 
-echo '#pragma comment(user, "libcurl version '"${LIBCURL_VERSION}"'")' > os400.c
-echo '#pragma comment(user, __DATE__)' >> os400.c
-echo '#pragma comment(user, __TIME__)' >> os400.c
-echo '#pragma comment(copyright, "Copyright (C) Daniel Stenberg et al. OS/400 version by P. Monnerat")' >> os400.c
-make_module     OS400           os400.c
+{
+        echo '#pragma comment(user, "libcurl version '"${LIBCURL_VERSION}"'")'
+        echo '#pragma comment(user, __DATE__)'
+        echo '#pragma comment(user, __TIME__)'
+        echo '#pragma comment(copyright, "Copyright (C) Daniel Stenberg et al. OS/400 version by P. Monnerat")'
+} > os400.c
+make_module     OS400           os400.c         BUILDING_LIBCURL
 LINK=                           # No need to rebuild service program yet.
 MODULES=
 
 
-#       Get source list.
+#       Get source list (CSOURCES variable).
 
-sed -e ':begin'                                                         \
-    -e '/\\$/{'                                                         \
-    -e 's/\\$/ /'                                                       \
-    -e 'N'                                                              \
-    -e 'bbegin'                                                         \
-    -e '}'                                                              \
-    -e 's/\n//g'                                                        \
-    -e 's/[[:space:]]*$//'                                              \
-    -e 's/^\([A-Za-z][A-Za-z0-9_]*\)[[:space:]]*=[[:space:]]*\(.*\)/\1="\2"/' \
-    -e 's/\$(\([A-Za-z][A-Za-z0-9_]*\))/${\1}/g'                        \
-        < Makefile.inc > tmpscript.sh
-. ./tmpscript.sh
+get_make_vars Makefile.inc
 
 
 #       Compile the sources into modules.
 
-INCLUDES="'`pwd`'"
+# shellcheck disable=SC2034
+INCLUDES="'$(pwd)'"
 
-# Create a small C program to check ccsidcurl.c is up to date
-if action_needed "${LIBIFSNAME}/CHKSTRINGS.PGM" "${SCRIPTDIR}/chkstrings.c"
-then    CMD="CRTBNDC PGM(${TARGETLIB}/CHKSTRINGS)"
-        CMD="${CMD} SRCSTMF('${SCRIPTDIR}/chkstrings.c')"
-        CMD="${CMD} INCDIR('${TOPDIR}/include/curl' '${TOPDIR}/include'"
-        CMD="${CMD} '${SRCDIR}' ${INCLUDES})"
-        CMD="${CMD} TGTCCSID(${TGTCCSID})"
-        if CLcommand -i "${CMD}"
-        then    if "${LIBIFSNAME}/CHKSTRINGS.PGM"
-                then    :
-                else    echo "ERROR: CHKSTRINGS failed!"
-                        exit 2
-                fi
-        else    echo "ERROR: Failed to build CHKSTRINGS *PGM object!"
-                exit 2
-        fi
-fi
-
-make_module     OS400SYS        "${SCRIPTDIR}/os400sys.c"
-make_module     CCSIDCURL       "${SCRIPTDIR}/ccsidcurl.c"
+make_module     OS400SYS        "${SCRIPTDIR}/os400sys.c"       BUILDING_LIBCURL
+make_module     CCSIDCURL       "${SCRIPTDIR}/ccsidcurl.c"      BUILDING_LIBCURL
 
 for SRC in ${CSOURCES}
-do      MODULE=`db2_name "${SRC}"`
-        make_module "${MODULE}" "${SRC}"
+do      MODULE=$(db2_name "${SRC}")
+        make_module "${MODULE}" "${SRC}" BUILDING_LIBCURL
 done
 
 
@@ -102,7 +76,7 @@ if action_needed "${LIBIFSNAME}/${STATBNDDIR}.BNDDIR"
 then    LINK=YES
 fi
 
-if [ "${LINK}" ]
+if [ -n "${LINK}" ]
 then    rm -rf "${LIBIFSNAME}/${STATBNDDIR}.BNDDIR"
         CMD="CRTBNDDIR BNDDIR(${TARGETLIB}/${STATBNDDIR})"
         CMD="${CMD} TEXT('LibCurl API static binding directory')"
@@ -127,26 +101,21 @@ fi
 
 
 #       Gather the list of symbols to export.
-#       First use awk to pull all CURL_EXTERN function prototypes from
-#       the header files, pass through to sed to strip CURL_DEPRECATED(..)
-#       then back to awk to pull the string immediately to the left of a
-#       bracket stripping any spaces or *'s.
+#       - Unfold lines from the header files so that they contain a semicolon.
+#       - Keep only CURL_EXTERN definitions.
+#       - Remove the CURL_DEPRECATED and CURL_TEMP_PRINTF macro calls.
+#       - Drop the parenthesized function arguments and what follows.
+#       - Keep the trailing function name only.
 
-EXPORTS=`awk '/^CURL_EXTERN/,/;/'                                       \
-              "${TOPDIR}"/include/curl/*.h                              \
-              "${SCRIPTDIR}/ccsidcurl.h"                                |
-         sed 's| CURL_DEPRECATED(.*)||g'                                |
-         awk '{br=index($0,"(");                                        \
-              if (br) {                                                 \
-                for(c=br-1; ;c--) {                                     \
-                  if (c==1) {                                           \
-                    print substr($0,c,br-1); break                      \
-                  } else if (match(substr($0, c, br-c), "[ *]") != 0) { \
-                    print substr($0, c+1, br-c-1); break                \
-                  }                                                     \
-                }                                                       \
-              }                                                         \
-        }'`
+EXPORTS=$(cat "${TOPDIR}"/include/curl/*.h "${SCRIPTDIR}/ccsidcurl.h"   |
+         sed -e 'H;s/.*//;x;s/\n//;s/.*/& /'                            \
+             -e '/^CURL_EXTERN[[:space:]]/!d'                           \
+             -e '/\;/!{x;d;}'                                           \
+             -e 's/ CURL_DEPRECATED([^)]*)//g'                          \
+             -e 's/ CURL_TEMP_PRINTF([^)]*)//g'                         \
+             -e 's/[[:space:]]*(.*$//'                                  \
+             -e 's/^.*[^A-Za-z0-9_]\([A-Za-z0-9_]*\)$/\1/')
+
 
 #       Create the service program exportation file in DB2 member if needed.
 
@@ -156,7 +125,7 @@ if action_needed "${BSF}" Makefile.am
 then    LINK=YES
 fi
 
-if [ "${LINK}" ]
+if [ -n "${LINK}" ]
 then    echo " STRPGMEXP PGMLVL(*CURRENT) SIGNATURE('LIBCURL_${SONAME}')" \
             > "${BSF}"
         for EXPORT in ${EXPORTS}
@@ -173,7 +142,7 @@ if action_needed "${LIBIFSNAME}/${SRVPGM}.SRVPGM"
 then    LINK=YES
 fi
 
-if [ "${LINK}" ]
+if [ -n "${LINK}" ]
 then    CMD="CRTSRVPGM SRVPGM(${TARGETLIB}/${SRVPGM})"
         CMD="${CMD} SRCFILE(${TARGETLIB}/TOOLS) SRCMBR(BNDSRC)"
         CMD="${CMD} MODULE(${TARGETLIB}/OS400)"
@@ -201,7 +170,7 @@ if action_needed "${LIBIFSNAME}/${DYNBNDDIR}.BNDDIR"
 then    LINK=YES
 fi
 
-if [ "${LINK}" ]
+if [ -n "${LINK}" ]
 then    rm -rf "${LIBIFSNAME}/${DYNBNDDIR}.BNDDIR"
         CMD="CRTBNDDIR BNDDIR(${TARGETLIB}/${DYNBNDDIR})"
         CMD="${CMD} TEXT('LibCurl API dynamic binding directory')"

@@ -1,3 +1,9 @@
+<!--
+Copyright (C) Daniel Stenberg, <daniel@haxx.se>, et al.
+
+SPDX-License-Identifier: curl
+-->
+
 # Items to be removed from future curl releases
 
 If any of these deprecated features is a cause for concern for you, please
@@ -6,66 +12,56 @@ email the
 as soon as possible and explain to us why this is a problem for you and
 how your use case cannot be satisfied properly using a workaround.
 
-## NSS
+## TLS libraries without 1.3 support
 
-We remove support for building curl with the NSS TLS library in August 2023.
+curl drops support for TLS libraries without TLS 1.3 capability after May
+2025.
 
-- There are few users left who use curl+NSS
-- NSS has few users outside of curl as well (primarily Firefox)
-- NSS is harder than ever to find documentation for
-- NSS was always "best" used with Red Hat Linux when they provided additional
-  features on top of the regular NSS that is not shipped by the vanilla library
+It requires that a curl build using the library should be able to negotiate
+and use TLS 1.3, or else it is not good enough.
 
-Starting in 7.82.0, building curl to use NSS configure requires the additional
-flag `--with-nss-deprecated` in an attempt to highlight these plans.
+As of May 2024, the libraries that need to get fixed to remain supported after
+May 2025 are: BearSSL and Secure Transport.
 
-## gskit
+## Hyper
 
-We remove support for building curl with the gskit TLS library in August 2023.
+Hyper is an alternative HTTP backend for curl. It uses the hyper library and
+could in theory be used for HTTP/1, HTTP/2 and even HTTP/3 in the future with
+curl.
 
-- This is a niche TLS library, only running on some IBM systems
-- no regular curl contributors use this backend
-- no CI builds use or verify this backend
-- gskit, or the curl adaption for it, lacks many modern TLS features making it
-  an inferior solution
-- build breakages in this code take weeks or more to get detected
-- fixing gskit code is mostly done "flying blind"
+The original plan and goal was that we would add this HTTP alternative (using
+a memory-safe library) and that users could eventually build and use libcurl
+exactly as previously but with parts of the core being more memory-safe.
 
-## mingw v1
+The hyper implementation ran into some snags and 10-15 tests and HTTP/2
+support have remained disabled with hyper. For these reasons, hyper support
+has remained tagged EXPERIMENTAL.
 
-We remove support for building curl with the original legacy mingw version 1
-in September 2023.
+It is undoubtedly hard work to fix these remaining problems, as they typically
+require both rust and C knowledge in addition to deep HTTP familiarity. There
+does not seem to be that many persons interested or available for this
+challenge. Meanwhile, there is little if any demand for hyper from existing
+(lib)curl users.
 
-During the deprecation period you can enable the support with the configure
-option `--with-mingw1-deprecated`.
+Finally: having support for hyper in curl has a significant cost: we need to
+maintain and develop a lot of functionality and tests twice to make sure
+libcurl works identically using either HTTP backend.
 
-mingw version 1 is old and deprecated software. There are much better and
-still support build environments to use to build curl and other software. For
-example [MinGW-w64](https://www.mingw-w64.org/).
+The only way to keep hyper support in curl is to give it a good polish by
+someone with time, skill and energy to spend on this task.
 
-## space-separated `NOPROXY` patterns
+Unless a significant overhaul has proven to be in progress, hyper support is
+removed from curl in January 2025.
 
-When specifying patterns/domain names for curl that should *not* go through a
-proxy, the curl tool features the `--noproxy` command line option and the
-library supports the `NO_PROXY` environment variable and the `CURLOPT_NOPROXY`
-libcurl option.
-
-They all set the same list of patterns. This list is documented to be a set of
-**comma-separated** names, but can also be provided separated with just
-space. The ability to just use spaces for this has never been documented but
-some users may still have come to rely on this.
-
-Several other tools and utilities also parse the `NO_PROXY` environment
-variable but do not consider a space to be a valid separator. Using spaces for
-separator is probably less portable and might cause more friction than commas
-do. Users should use commas for this for greater portability.
-
-curl will remove the support for space-separated names in July 2024.
-
-## past removals
+## Past removals
 
  - Pipelining
  - axTLS
  - PolarSSL
  - NPN
- - Support for systems without 64 bit data types
+ - Support for systems without 64-bit data types
+ - NSS
+ - gskit
+ - MinGW v1
+ - NTLM_WB
+ - space-separated `NOPROXY` patterns

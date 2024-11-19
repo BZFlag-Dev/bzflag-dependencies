@@ -1,3 +1,9 @@
+<!--
+Copyright (C) Daniel Stenberg, <daniel@haxx.se>, et al.
+
+SPDX-License-Identifier: curl
+-->
+
 # How to determine if an early patch release is warranted
 
 In the curl project we do releases every 8 weeks. Unless we break the cycle
@@ -28,7 +34,7 @@ big and we never release just a patch. There is only "release".
  - Is there a security advisory rated high or critical?
  - Is there a data corruption bug?
  - Did the bug cause an API/ABI breakage?
- - Will the problem annoy a significant share of the user population?
+ - Does the problem annoy a significant share of the user population?
 
 If the answer is yes to one or more of the above, an early release might be
 warranted.
@@ -49,7 +55,7 @@ the three ones above are all 'no'.
  - Is there a (decent) workaround?
  - Is it a regression? Is the bug introduced in this release?
  - Can the bug be fixed "easily" by applying a patch?
- - Does the bug break the build? Most users don't build curl themselves.
+ - Does the bug break the build? Most users do not build curl themselves.
  - How long is it until the already scheduled next release?
  - Can affected users safely rather revert to a former release until the next
    scheduled release?

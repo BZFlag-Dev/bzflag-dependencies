@@ -189,7 +189,7 @@ UNITTEST_START
 
       if(port != tests[i].port) {
         fprintf(stderr, "%s:%d tests[%d] failed. the retrieved port "
-                "for tests[%d].address[%d] is %ld but tests[%d].port is %d.\n",
+                "for tests[%d].address[%d] is %d but tests[%d].port is %d.\n",
                 __FILE__, __LINE__, i, i, j, port, i, tests[i].port);
         problem = true;
         break;
@@ -200,7 +200,6 @@ UNITTEST_START
 
     curl_easy_cleanup(easy);
     easy = NULL;
-    Curl_hash_destroy(&multi->hostcache);
     curl_multi_cleanup(multi);
     multi = NULL;
     curl_slist_free_all(list);

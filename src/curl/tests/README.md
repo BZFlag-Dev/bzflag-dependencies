@@ -8,43 +8,83 @@ SPDX-License-Identifier: curl
 
 # Running
 
+  See the "Requires to run" section for prerequisites.
+
+  In the root of the curl repository:
+
+    ./configure && make && make test
+
+  To run a specific set of tests (e.g. 303 and 410):
+
+    make test TFLAGS="303 410"
+
+  To run the tests faster, pass the -j (parallelism) flag:
+
+    make test TFLAGS="-j10"
+
+  "make test" builds the test suite support code and invokes the 'runtests.pl'
+  perl script to run all the tests. The value of `TFLAGS` is passed
+  directly to 'runtests.pl'.
+
+  When you run tests via make, the flags `-a` and `-s` are passed, meaning
+  to continue running tests even after one fails, and to emit short output.
+
+  If you would like to not use those flags, you can run 'runtests.pl' directly.
+  You must `chdir` into the tests directory, then you can run it like so:
+
+    ./runtests.pl 303 410
+
+  You must have run `make test` at least once first to build the support code.
+
+  To see what flags are available for runtests.pl, and what output it emits, run:
+
+    man ./tests/runtests.1
+
+  After a test fails, examine the tests/log directory for stdout, stderr, and
+  output from the servers used in the test.
+
 ## Requires to run
 
-  - perl (and a unix-style shell)
-  - python (and a unix-style shell, for SMB and TELNET tests)
+  - perl (and a Unix-style shell)
+  - python (and a Unix-style shell, for SMB and TELNET tests)
   - python-impacket (for SMB tests)
   - diff (when a test fails, a diff is shown)
   - stunnel (for HTTPS and FTPS tests)
-  - OpenSSH or SunSSH (for SCP, SFTP and SOCKS4/5 tests)
+  - OpenSSH or SunSSH (for SCP and SFTP tests)
   - nghttpx (for HTTP/2 and HTTP/3 tests)
-  - nroff (for --manual tests)
   - An available `en_US.UTF-8` locale
 
-### Installation of python-impacket
+### Installation of impacket
 
-  The Python-based test servers support both recent Python 2 and 3.
-  You can figure out your default Python interpreter with python -V
+  The Python-based test servers support Python 3.
 
   Please install python-impacket in the correct Python environment.
   You can use pip or your OS' package manager to install 'impacket'.
 
-  On Debian/Ubuntu the package names are:
+  On Debian/Ubuntu the package name is 'python3-impacket'
 
-  -  Python 2: 'python-impacket'
-  -  Python 3: 'python3-impacket'
+  On FreeBSD the package name is 'py311-impacket'
 
-  On FreeBSD the package names are:
-
-  -  Python 2: 'py27-impacket'
-  -  Python 3: 'py37-impacket'
-
-  On any system where pip is available:
-
-  -  Python 2: 'pip2 install impacket'
-  -  Python 3: 'pip3 install impacket'
+  On any system where pip is available: 'python3 -m pip install impacket'
 
   You may also need to manually install the Python package 'six'
-  as that may be a missing requirement for impacket on Python 3.
+  as that may be a missing requirement for impacket.
+
+## Event-based
+
+  If curl is built with `Debug` enabled (see below), then the `runtests.pl`
+  script offers a `-e` option that makes it perform *event-based*. Such tests
+  invokes the curl tool with `--test-event`, a debug-only option made for this
+  purpose.
+
+  Performing event-based means that the curl tool uses the
+  `curl_multi_socket_action()` API call to drive the transfer(s), instead of
+  the otherwise "normal" functions it would use. This allows us to test drive
+  the socket_action API. Transfers done this way should work exactly the same
+  as with the non-event based API.
+
+  To be able to use `--test-event` together with `--parallel`, curl requires
+  *libuv* to be present and enabled in the build: `configure --enable-libuv`
 
 ### Port numbers used by test servers
 
@@ -59,9 +99,7 @@ SPDX-License-Identifier: curl
 
   The test suite runs stand-alone servers on random ports to which it makes
   requests. For SSL tests, it runs stunnel to handle encryption to the regular
-  servers. For SSH, it runs a standard OpenSSH server. For SOCKS4/5 tests SSH
-  is used to perform the SOCKS functionality and requires a SSH client and
-  server.
+  servers. For SSH, it runs a standard OpenSSH server.
 
   The listen port numbers for the test servers are picked randomly to allow
   users to run multiple test cases concurrently and to not collide with other
@@ -69,53 +107,15 @@ SPDX-License-Identifier: curl
 
   The HTTP server supports listening on a Unix domain socket, the default
   location is 'http.sock'.
-  
+
   For HTTP/2 and HTTP/3 testing an installed `nghttpx` is used. HTTP/3
   tests check if nghttpx supports the protocol. To override the nghttpx
   used, set the environment variable `NGHTTPX`. The default can also be
   changed by specifying `--with-test-nghttpx=<path>` as argument to `configure`.
 
-### Run
-
-  `./configure && make && make test`. This builds the test suite support code
-  and invokes the 'runtests.pl' perl script to run all the tests. Edit the top
-  variables of that script in case you have some specific needs, or run the
-  script manually (after the support code has been built).
-
-  The script breaks on the first test that doesn't do OK. Use `-a` to prevent
-  the script from aborting on the first error. Run the script with `-v` for
-  more verbose output. Use `-d` to run the test servers with debug output
-  enabled as well. Specifying `-k` keeps all the log files generated by the
-  test intact.
-
-  Use `-s` for shorter output, or pass test numbers to run specific tests only
-  (like `./runtests.pl 3 4` to test 3 and 4 only). It also supports test case
-  ranges with 'to', as in `./runtests.pl 3 to 9` which runs the seven tests
-  from 3 to 9. Any test numbers starting with ! are disabled, as are any test
-  numbers found in the files `data/DISABLED` or `data/DISABLED.local` (one per
-  line). The latter is meant for local temporary disables and will be ignored
-  by git.
-
-  Test cases mentioned in `DISABLED` can still be run if `-f` is provided.
-
-  When `-s` is not present, each successful test will display on one line the
-  test number and description and on the next line a set of flags, the test
-  result, current test sequence, total number of tests to be run and an
-  estimated amount of time to complete the test run. The flags consist of
-  these letters describing what is checked in this test:
-
-    s stdout
-    d data
-    u upload
-    p protocol
-    o output
-    e exit code
-    m memory
-    v valgrind
-
 ### Shell startup scripts
 
-  Tests which use the ssh test server, SCP/SFTP/SOCKS tests, might be badly
+  Tests which use the ssh test server, SCP/SFTP tests, might be badly
   influenced by the output of system wide or user specific shell startup
   scripts, .bashrc, .profile, /etc/csh.cshrc, .login, /etc/bashrc, etc. which
   output text messages or escape sequences on user login. When these shell
@@ -131,13 +131,13 @@ SPDX-License-Identifier: curl
 
 ### Memory test
 
-  The test script will check that all allocated memory is freed properly IF
-  curl has been built with the `CURLDEBUG` define set. The script will
-  automatically detect if that is the case, and it will use the
-  `memanalyze.pl` script to analyze the memory debugging output.
+  The test script checks that all allocated memory is freed properly IF curl
+  has been built with the `CURLDEBUG` define set. The script automatically
+  detects if that is the case, and it uses the `memanalyze.pl` script to
+  analyze the memory debugging output.
 
-  Also, if you run tests on a machine where valgrind is found, the script will
-  use valgrind to run the test with (unless you use `-n`) to further verify
+  Also, if you run tests on a machine where valgrind is found, the script uses
+  valgrind to run the test with (unless you use `-n`) to further verify
   correctness.
 
   The `runtests.pl` `-t` option enables torture testing mode. It runs each
@@ -158,7 +158,7 @@ SPDX-License-Identifier: curl
 
   All logs are generated in the log/ subdirectory (it is emptied first in the
   runtests.pl script). They remain in there after a test run.
-  
+
 ### Log Verbosity
 
   A curl build with `--enable-debug` offers more verbose output in the logs.
@@ -166,28 +166,28 @@ SPDX-License-Identifier: curl
   with `curl -v`. While a curl debug built is
   ***not suitable for production***, it is often helpful in tracking down
   problems.
-  
+
   Sometimes, one needs detailed logging of operations, but does not want
   to drown in output. The newly introduced *connection filters* allows one to
   dynamically increase log verbosity for a particular *filter type*. Example:
-  
+
     CURL_DEBUG=ssl curl -v https://curl.se
 
-  will make the `ssl` connection filter log more details. One may do that for
-  every filter type and also use a combination of names, separated by `,` or 
+  makes the `ssl` connection filter log more details. One may do that for
+  every filter type and also use a combination of names, separated by `,` or
   space.
-  
+
     CURL_DEBUG=ssl,http/2 curl -v https://curl.se
 
    The order of filter type names is not relevant. Names used here are
    case insensitive. Note that these names are implementation internals and
    subject to change.
-   
+
    Some, likely stable names are `tcp`, `ssl`, `http/2`. For a current list,
    one may search the sources for `struct Curl_cftype` definitions and find
    the names there. Also, some filters are only available with certain build
    options, of course.
-   
+
 ### Test input files
 
   All test cases are put in the `data/` subdirectory. Each test is stored in
@@ -211,7 +211,7 @@ SPDX-License-Identifier: curl
 
     ggcov -r lib src
 
-  The text mode tool `gcov` may also be used, but it doesn't handle object
+  The text mode tool `gcov` may also be used, but it does not handle object
   files in more than one directory correctly.
 
 ### Remote testing
@@ -228,7 +228,7 @@ SPDX-License-Identifier: curl
   up. Subsets of tests can now be selected by passing keywords to the
   runtests.pl script via the make `TFLAGS` variable.
 
-  New tests are added by finding a free number in `tests/data/Makefile.inc`.
+  New tests are added by finding a free number in `tests/data/Makefile.am`.
 
 ## Write tests
 
@@ -262,7 +262,7 @@ SPDX-License-Identifier: curl
 
 ### unit tests
 
-  Unit tests are placed in `tests/unit`. There's a tests/unit/README
+  Unit tests are placed in `tests/unit`. There is a tests/unit/README
   describing the specific set of checks and macros that may be used when
   writing tests that verify behaviors of specific individual functions.
 

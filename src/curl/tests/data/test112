@@ -16,10 +16,10 @@ Resume
 <server>
 ftp
 </server>
- <name>
+<name>
 FTP PASV upload resume
- </name>
- <command>
+</name>
+<command>
 ftp://%HOSTIP:%FTPPORT/%TESTNUMBER -T %LOGDIR/upload%TESTNUMBER -C 40
 </command>
 <file name="%LOGDIR/upload%TESTNUMBER">
@@ -31,6 +31,9 @@ worx?
 
 # Verify data after the test has been "shot"
 <verify>
+<strip>
+QUIT
+</strip>
 <protocol>
 USER anonymous
 PASS ftp@example.com

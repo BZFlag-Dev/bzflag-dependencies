@@ -36,10 +36,10 @@
  * Use multi interface to get document over proxy with bad port number.
  * This caused the interface to "hang" in libcurl 7.10.2.
  */
-int test(char *URL)
+CURLcode test(char *URL)
 {
   CURL *c = NULL;
-  int res = 0;
+  CURLcode res = CURLE_OK;
   CURLM *m = NULL;
   fd_set rd, wr, exc;
   int running;
@@ -71,6 +71,21 @@ int test(char *URL)
     fprintf(stderr, "curl_multi_perform()\n");
 
     multi_perform(m, &running);
+
+    while(running) {
+      CURLMcode mres;
+      int num;
+      mres = curl_multi_wait(m, NULL, 0, TEST_HANG_TIMEOUT, &num);
+      if(mres != CURLM_OK) {
+        printf("curl_multi_wait() returned %d\n", mres);
+        res = TEST_ERR_MAJOR_BAD;
+        goto test_cleanup;
+      }
+
+      abort_on_test_timeout();
+      multi_perform(m, &running);
+      abort_on_test_timeout();
+    }
 
     abort_on_test_timeout();
 

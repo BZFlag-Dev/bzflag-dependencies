@@ -17,10 +17,10 @@ APPE
 <server>
 ftp
 </server>
- <name>
+<name>
 FTP PASV upload append
- </name>
- <command>
+</name>
+<command>
 ftp://%HOSTIP:%FTPPORT/%TESTNUMBER -T %LOGDIR/upload%TESTNUMBER --append
 </command>
 <file name="%LOGDIR/upload%TESTNUMBER">
@@ -31,6 +31,9 @@ Moooooooooooo
 
 # Verify data after the test has been "shot"
 <verify>
+<strip>
+QUIT
+</strip>
 <protocol>
 USER anonymous
 PASS ftp@example.com

@@ -30,15 +30,18 @@ lib%TESTNUMBER
 <killserver>
 ftp
 </killserver>
- <name>
+<name>
 FTP with multi interface and slow LIST response
- </name>
- <command>
+</name>
+<command>
 ftp://%HOSTIP:%FTPPORT/%TESTNUMBER/
 </command>
 </client>
 # Verify data after the test has been "shot"
 <verify>
+<strip>
+QUIT
+</strip>
 <errorcode>
 0
 </errorcode>

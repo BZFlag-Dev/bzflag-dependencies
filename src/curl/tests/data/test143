@@ -18,16 +18,19 @@ bla bla bla
 <server>
 ftp
 </server>
- <name>
+<name>
 FTP URL with type=a
- </name>
- <command>
+</name>
+<command>
 "ftp://%HOSTIP:%FTPPORT/%2ftmp/moo/%TESTNUMBER;type=a"
 </command>
 </client>
 
 # Verify data after the test has been "shot"
 <verify>
+<strip>
+QUIT
+</strip>
 <protocol>
 USER anonymous
 PASS ftp@example.com

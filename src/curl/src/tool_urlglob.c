@@ -23,8 +23,6 @@
  ***************************************************************************/
 #include "tool_setup.h"
 
-#define ENABLE_CURLX_PRINTF
-/* use our own printf() functions */
 #include "curlx.h"
 #include "tool_cfgable.h"
 #include "tool_doswin.h"
@@ -66,13 +64,23 @@ static CURLcode glob_fixed(struct URLGlob *glob, char *fixed, size_t len)
  */
 static int multiply(curl_off_t *amount, curl_off_t with)
 {
-  curl_off_t sum = *amount * with;
-  if(!with) {
-    *amount = 0;
-    return 0;
+  curl_off_t sum;
+  DEBUGASSERT(*amount >= 0);
+  DEBUGASSERT(with >= 0);
+  if((with <= 0) || (*amount <= 0)) {
+    sum = 0;
   }
-  if(sum/with != *amount)
-    return 1; /* didn't fit, bail out */
+  else {
+#if defined(__GNUC__) && \
+  ((__GNUC__ > 5) || ((__GNUC__ == 5) && (__GNUC_MINOR__ >= 1)))
+    if(__builtin_mul_overflow(*amount, with, &sum))
+      return 1;
+#else
+    sum = *amount * with;
+    if(sum/with != *amount)
+      return 1; /* did not fit, bail out */
+#endif
+  }
   *amount = sum;
   return 0;
 }
@@ -113,11 +121,11 @@ static CURLcode glob_set(struct URLGlob *glob, char **patternp,
         return GLOBERROR("empty string within braces", *posp,
                          CURLE_URL_MALFORMAT);
 
-      /* add 1 to size since it'll be incremented below */
+      /* add 1 to size since it will be incremented below */
       if(multiply(amount, pat->content.Set.size + 1))
         return GLOBERROR("range overflow", 0, CURLE_URL_MALFORMAT);
 
-      /* FALLTHROUGH */
+      FALLTHROUGH();
     case ',':
 
       *buf = '\0';
@@ -161,7 +169,7 @@ static CURLcode glob_set(struct URLGlob *glob, char **patternp,
         ++pattern;
         ++(*posp);
       }
-      /* FALLTHROUGH */
+      FALLTHROUGH();
     default:
       *buf++ = *pattern++;              /* copy character to set element */
       ++(*posp);
@@ -485,7 +493,7 @@ CURLcode glob_url(struct URLGlob **glob, char *url, curl_off_t *urlnum,
       fprintf(error, "curl: (%d) %s\n", res, t);
     }
     /* it failed, we cleanup */
-    glob_cleanup(glob_expand);
+    glob_cleanup(&glob_expand);
     *urlnum = 1;
     return res;
   }
@@ -494,10 +502,11 @@ CURLcode glob_url(struct URLGlob **glob, char *url, curl_off_t *urlnum,
   return CURLE_OK;
 }
 
-void glob_cleanup(struct URLGlob *glob)
+void glob_cleanup(struct URLGlob **globp)
 {
   size_t i;
   curl_off_t elem;
+  struct URLGlob *glob = *globp;
 
   if(!glob)
     return;
@@ -515,6 +524,7 @@ void glob_cleanup(struct URLGlob *glob)
   }
   Curl_safefree(glob->glob_buffer);
   Curl_safefree(glob);
+  *globp = NULL;
 }
 
 CURLcode glob_next_url(char **globbed, struct URLGlob *glob)
@@ -591,7 +601,7 @@ CURLcode glob_next_url(char **globbed, struct URLGlob *glob)
       }
       break;
     case UPTNumRange:
-      msnprintf(buf, buflen, "%0*lu",
+      msnprintf(buf, buflen, "%0*" CURL_FORMAT_CURL_OFF_T,
                 pat->content.NumRange.padlength,
                 pat->content.NumRange.ptr_n);
       len = strlen(buf);
@@ -637,7 +647,7 @@ CURLcode glob_match_url(char **result, char *filename, struct URLGlob *glob)
         unsigned long i;
         num--; /* make it zero based */
         /* find the correct glob entry */
-        for(i = 0; i<glob->size; i++) {
+        for(i = 0; i < glob->size; i++) {
           if(glob->pattern[i].globindex == (int)num) {
             pat = &glob->pattern[i];
             break;
@@ -661,14 +671,14 @@ CURLcode glob_match_url(char **result, char *filename, struct URLGlob *glob)
           appendlen = 1;
           break;
         case UPTNumRange:
-          msnprintf(numbuf, sizeof(numbuf), "%0*lu",
+          msnprintf(numbuf, sizeof(numbuf), "%0*" CURL_FORMAT_CURL_OFF_T,
                     pat->content.NumRange.padlength,
                     pat->content.NumRange.ptr_n);
           appendthis = numbuf;
           appendlen = strlen(numbuf);
           break;
         default:
-          fprintf(stderr, "internal error: invalid pattern type (%d)\n",
+          fprintf(tool_stderr, "internal error: invalid pattern type (%d)\n",
                   (int)pat->type);
           curlx_dyn_free(&dyn);
           return CURLE_FAILED_INIT;
@@ -692,7 +702,7 @@ CURLcode glob_match_url(char **result, char *filename, struct URLGlob *glob)
   if(curlx_dyn_addn(&dyn, "", 0))
     return CURLE_OUT_OF_MEMORY;
 
-#if defined(MSDOS) || defined(WIN32)
+#if defined(_WIN32) || defined(MSDOS)
   {
     char *sanitized;
     SANITIZEcode sc = sanitize_file_name(&sanitized, curlx_dyn_ptr(&dyn),
@@ -707,5 +717,5 @@ CURLcode glob_match_url(char **result, char *filename, struct URLGlob *glob)
 #else
   *result = curlx_dyn_ptr(&dyn);
   return CURLE_OK;
-#endif /* MSDOS || WIN32 */
+#endif /* _WIN32 || MSDOS */
 }

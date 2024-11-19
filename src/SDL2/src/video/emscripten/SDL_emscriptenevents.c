@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2023 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2024 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -22,7 +22,7 @@
 
 #include "../../SDL_internal.h"
 
-#if SDL_VIDEO_DRIVER_EMSCRIPTEN
+#ifdef SDL_VIDEO_DRIVER_EMSCRIPTEN
 
 #include <emscripten/html5.h>
 #include <emscripten/dom_pk_codes.h>
@@ -714,20 +714,24 @@ static EM_BOOL Emscripten_HandleWheel(int eventType, const EmscriptenWheelEvent 
     SDL_WindowData *window_data = userData;
 
     float deltaY = wheelEvent->deltaY;
+    float deltaX = wheelEvent->deltaX;
 
     switch (wheelEvent->deltaMode) {
     case DOM_DELTA_PIXEL:
         deltaY /= 100; /* 100 pixels make up a step */
+        deltaX /= 100; /* 100 pixels make up a step */
         break;
     case DOM_DELTA_LINE:
         deltaY /= 3; /* 3 lines make up a step */
+        deltaX /= 3; /* 3 lines make up a step */
         break;
     case DOM_DELTA_PAGE:
         deltaY *= 80; /* A page makes up 80 steps */
+        deltaX *= 80; /* A page makes up 80 steps */
         break;
     }
 
-    SDL_SendMouseWheel(window_data->window, 0, (float)wheelEvent->deltaX, -deltaY, SDL_MOUSEWHEEL_NORMAL);
+    SDL_SendMouseWheel(window_data->window, 0, deltaX, -deltaY, SDL_MOUSEWHEEL_NORMAL);
     return SDL_GetEventState(SDL_MOUSEWHEEL) == SDL_ENABLE;
 }
 
@@ -964,7 +968,7 @@ void Emscripten_RegisterEventHandlers(SDL_WindowData *data)
 
     /* Keyboard events are awkward */
     keyElement = SDL_GetHint(SDL_HINT_EMSCRIPTEN_KEYBOARD_ELEMENT);
-    if (keyElement == NULL) {
+    if (!keyElement) {
         keyElement = EMSCRIPTEN_EVENT_TARGET_WINDOW;
     }
 
@@ -1007,7 +1011,7 @@ void Emscripten_UnregisterEventHandlers(SDL_WindowData *data)
     emscripten_set_pointerlockchange_callback(EMSCRIPTEN_EVENT_TARGET_DOCUMENT, NULL, 0, NULL);
 
     target = SDL_GetHint(SDL_HINT_EMSCRIPTEN_KEYBOARD_ELEMENT);
-    if (target == NULL) {
+    if (!target) {
         target = EMSCRIPTEN_EVENT_TARGET_WINDOW;
     }
 

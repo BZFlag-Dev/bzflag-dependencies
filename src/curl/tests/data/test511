@@ -24,10 +24,10 @@ ftp
 lib%TESTNUMBER
 </tool>
 
- <name>
+<name>
 FTP with FILETIME and NOBODY but missing file
- </name>
- <command>
+</name>
+<command>
 ftp://%HOSTIP:%FTPPORT/%TESTNUMBER
 </command>
 </client>
@@ -35,6 +35,9 @@ ftp://%HOSTIP:%FTPPORT/%TESTNUMBER
 #
 # Verify data after the test has been "shot"
 <verify>
+<strip>
+QUIT
+</strip>
 # CURLE_REMOTE_FILE_NOT_FOUND
 <errorcode>
 78

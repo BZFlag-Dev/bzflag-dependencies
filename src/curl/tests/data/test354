@@ -26,10 +26,10 @@ REPLY USER 200 fine, proceed without password
 <server>
 ftp
 </server>
- <name>
+<name>
 FTP without password
- </name>
- <command>
+</name>
+<command>
 ftp://%HOSTIP:%FTPPORT/%TESTNUMBER
 </command>
 
@@ -37,6 +37,9 @@ ftp://%HOSTIP:%FTPPORT/%TESTNUMBER
 
 # Verify data after the test has been "shot"
 <verify>
+<strip>
+QUIT
+</strip>
 <protocol>
 USER anonymous
 PWD

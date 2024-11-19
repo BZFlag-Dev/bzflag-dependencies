@@ -52,7 +52,7 @@ static const char *RTP_DATA = "$_1234\n\0Rsdf";
 
 static int rtp_packet_count = 0;
 
-static size_t rtp_write(void *ptr, size_t size, size_t nmemb, void *stream)
+static size_t rtp_write(char *ptr, size_t size, size_t nmemb, void *stream)
 {
   char *data = (char *)ptr;
   int channel = RTP_PKT_CHANNEL(data);
@@ -100,9 +100,9 @@ static char *suburl(const char *base, int i)
   return curl_maprintf("%s%.4d", base, i);
 }
 
-int test(char *URL)
+CURLcode test(char *URL)
 {
-  int res;
+  CURLcode res;
   CURL *curl;
   char *stream_uri = NULL;
   int request = 1;
@@ -134,11 +134,11 @@ int test(char *URL)
     goto test_cleanup;
   }
   test_setopt(curl, CURLOPT_RTSP_STREAM_URI, stream_uri);
-  free(stream_uri);
+  curl_free(stream_uri);
   stream_uri = NULL;
 
   test_setopt(curl, CURLOPT_INTERLEAVEFUNCTION, rtp_write);
-  test_setopt(curl, CURLOPT_TIMEOUT, 3L);
+  test_setopt(curl, CURLOPT_TIMEOUT, 30L);
   test_setopt(curl, CURLOPT_VERBOSE, 1L);
   test_setopt(curl, CURLOPT_WRITEDATA, protofile);
 
@@ -156,7 +156,7 @@ int test(char *URL)
     goto test_cleanup;
   }
   test_setopt(curl, CURLOPT_RTSP_STREAM_URI, stream_uri);
-  free(stream_uri);
+  curl_free(stream_uri);
   stream_uri = NULL;
   test_setopt(curl, CURLOPT_RTSP_REQUEST, CURL_RTSPREQ_PLAY);
 
@@ -171,7 +171,7 @@ int test(char *URL)
     goto test_cleanup;
   }
   test_setopt(curl, CURLOPT_RTSP_STREAM_URI, stream_uri);
-  free(stream_uri);
+  curl_free(stream_uri);
   stream_uri = NULL;
   test_setopt(curl, CURLOPT_RTSP_REQUEST, CURL_RTSPREQ_DESCRIBE);
 
@@ -185,7 +185,7 @@ int test(char *URL)
     goto test_cleanup;
   }
   test_setopt(curl, CURLOPT_RTSP_STREAM_URI, stream_uri);
-  free(stream_uri);
+  curl_free(stream_uri);
   stream_uri = NULL;
   test_setopt(curl, CURLOPT_RTSP_REQUEST, CURL_RTSPREQ_PLAY);
 
@@ -203,7 +203,7 @@ int test(char *URL)
   }
 
 test_cleanup:
-  free(stream_uri);
+  curl_free(stream_uri);
 
   if(protofile)
     fclose(protofile);

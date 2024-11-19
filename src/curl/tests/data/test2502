@@ -50,16 +50,15 @@ file contents should appear once for each file
 http/3
 </features>
 <server>
-http
 http/3
 </server>
 <tool>
 lib%TESTNUMBER
 </tool>
- <name>
+<name>
 HTTP GET multiple over HTTP/3
- </name>
- <command>
+</name>
+<command>
 https://%HOSTIP:%HTTP3PORT/path/%TESTNUMBER %HOSTIP %HTTP3PORT
 </command>
 </client>
@@ -92,10 +91,10 @@ Via: 3 nghttpx
 ^Host:.*
 </strip>
 <file name="%LOGDIR/stderr%TESTNUMBER" mode="text">
-* Connection #0 to host localhost left intact
-* Connection #0 to host localhost left intact
-* Connection #0 to host localhost left intact
-* Connection #0 to host localhost left intact
+== Info: Connection #0 to host localhost left intact
+== Info: Connection #0 to host localhost left intact
+== Info: Connection #0 to host localhost left intact
+== Info: Connection #0 to host localhost left intact
 </file>
 <stripfile>
 $_ = '' if (($_ !~ /left intact/) && ($_ !~ /Closing connection/))

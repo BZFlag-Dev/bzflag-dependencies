@@ -17,16 +17,19 @@ Resume
 <server>
 ftp
 </server>
- <name>
+<name>
 FTP download range with integer overflow
- </name>
- <command>
+</name>
+<command>
 ftp://%HOSTIP:%FTPPORT/%TESTNUMBER -r 36893488147419103232-
 </command>
 </client>
 
 # Verify data after the test has been "shot"
 <verify>
+<strip>
+QUIT
+</strip>
 <protocol>
 USER anonymous
 PASS ftp@example.com

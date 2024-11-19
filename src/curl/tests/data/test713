@@ -27,17 +27,20 @@ proxy
 ftp
 socks5
 </server>
- <name>
+<name>
 FTP fetch with --proxy set to socks5:// and with --connect-to
- </name>
- <command>
-ftp://ftp.example.com/%TESTNUMBER --connect-to ::%HOSTIP:%FTPPORT --proxy socks5://%HOSTIP:%SOCKSPORT 
+</name>
+<command>
+ftp://ftp.example.com/%TESTNUMBER --connect-to ::%HOSTIP:%FTPPORT --proxy socks5://%HOSTIP:%SOCKSPORT
 </command>
 </client>
 
 #
 # Verify data after the test has been "shot"
 <verify>
+<strip>
+QUIT
+</strip>
 <protocol>
 USER anonymous
 PASS ftp@example.com

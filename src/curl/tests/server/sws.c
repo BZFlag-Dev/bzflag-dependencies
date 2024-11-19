@@ -30,9 +30,7 @@
 
  */
 
-#ifdef HAVE_SIGNAL_H
 #include <signal.h>
-#endif
 #ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif
@@ -49,9 +47,6 @@
 #include <netinet/tcp.h> /* for TCP_NODELAY */
 #endif
 
-#define ENABLE_CURLX_PRINTF
-/* make the curlx header define all printf() functions to use the curlx_*
-   versions instead */
 #include "curlx.h" /* from the private lib dir */
 #include "getpart.h"
 #include "inet_pton.h"
@@ -72,7 +67,7 @@
 
 static enum {
   socket_domain_inet = AF_INET
-#ifdef ENABLE_IPV6
+#ifdef USE_IPV6
   , socket_domain_inet6 = AF_INET6
 #endif
 #ifdef USE_UNIX_SOCKETS
@@ -111,7 +106,8 @@ struct httprequest {
   bool auth;      /* Authorization header present in the incoming request */
   size_t cl;      /* Content-Length of the incoming request */
   bool digest;    /* Authorization digest header found */
-  bool ntlm;      /* Authorization ntlm header found */
+  bool ntlm;      /* Authorization NTLM header found */
+  int delay;      /* if non-zero, delay this number of msec after connect */
   int writedelay; /* if non-zero, delay this number of milliseconds between
                      writes in the response */
   int skip;       /* if non-zero, the server is instructed to not read this
@@ -225,12 +221,13 @@ static const char *doc404 = "HTTP/1.1 404 Not Found\r\n"
 /* work around for handling trailing headers */
 static int already_recv_zeroed_chunk = FALSE;
 
+#ifdef TCP_NODELAY
 /* returns true if the current socket is an IP one */
 static bool socket_domain_is_ip(void)
 {
   switch(socket_domain) {
   case AF_INET:
-#ifdef ENABLE_IPV6
+#ifdef USE_IPV6
   case AF_INET6:
 #endif
     return true;
@@ -239,6 +236,7 @@ static bool socket_domain_is_ip(void)
     return false;
   }
 }
+#endif
 
 /* parse the file on disk that might have a test number for us */
 static int parse_cmdfile(struct httprequest *req)
@@ -328,6 +326,10 @@ static int parse_servercmd(struct httprequest *req)
         logmsg("instructed to reject Expect: 100-continue");
         req->noexpect = TRUE;
       }
+      else if(1 == sscanf(cmd, "delay: %d", &num)) {
+        logmsg("instructed to delay %d msecs after connect", num);
+        req->delay = num;
+      }
       else if(1 == sscanf(cmd, "writedelay: %d", &num)) {
         logmsg("instructed to delay %d msecs between packets", num);
         req->writedelay = num;
@@ -371,8 +373,8 @@ static int ProcessRequest(struct httprequest *req)
 
   req->callcount++;
 
-  logmsg("Process %d bytes request%s", req->offset,
-         req->callcount > 1?" [CONTINUED]":"");
+  logmsg("Process %zu bytes request%s", req->offset,
+         req->callcount > 1 ? " [CONTINUED]" : "");
 
   /* try to figure out the request characteristics as soon as possible, but
      only once! */
@@ -433,7 +435,7 @@ static int ProcessRequest(struct httprequest *req)
       if(*ptr == '/') {
         if((npath + strlen(request)) < 400)
           msnprintf(logbuf, sizeof(logbuf), "Got request: %s %.*s HTTP/%d.%d",
-                    request, npath, httppath, prot_major, prot_minor);
+                    request, (int)npath, httppath, prot_major, prot_minor);
         else
           msnprintf(logbuf, sizeof(logbuf), "Got a *HUGE* request HTTP/%d.%d",
                     prot_major, prot_minor);
@@ -554,14 +556,14 @@ static int ProcessRequest(struct httprequest *req)
     logmsg("request not complete yet");
     return 0; /* not complete yet */
   }
-  logmsg("- request found to be complete (%d)", req->testno);
+  logmsg("- request found to be complete (%ld)", req->testno);
 
   if(req->testno == DOCNUMBER_NOTHING) {
     /* check for a Testno: header with the test case number */
     char *testno = strstr(line, "\nTestno: ");
     if(testno) {
       req->testno = strtol(&testno[9], NULL, 10);
-      logmsg("Found test number %d in Testno: header!", req->testno);
+      logmsg("Found test number %ld in Testno: header!", req->testno);
     }
     else {
       logmsg("No Testno: header");
@@ -699,8 +701,8 @@ static int ProcessRequest(struct httprequest *req)
     /* Negotiate iterations */
     static long prev_testno = -1;
     static long prev_partno = -1;
-    logmsg("Negotiate: prev_testno: %d, prev_partno: %d",
-            prev_testno, prev_partno);
+    logmsg("Negotiate: prev_testno: %ld, prev_partno: %ld",
+           prev_testno, prev_partno);
     if(req->testno != prev_testno) {
       prev_testno = req->testno;
       prev_partno = req->partno;
@@ -792,7 +794,7 @@ static void storerequest(const char *reqbuf, size_t totalsize)
   char dumpfile[256];
 
   msnprintf(dumpfile, sizeof(dumpfile), "%s/%s",
-            logdir, is_proxy?REQUEST_PROXY_DUMP:REQUEST_DUMP);
+            logdir, is_proxy ? REQUEST_PROXY_DUMP : REQUEST_DUMP);
 
   if(!reqbuf)
     return;
@@ -854,6 +856,7 @@ static void init_httprequest(struct httprequest *req)
   req->skip = 0;
   req->skipall = FALSE;
   req->noexpect = FALSE;
+  req->delay = 0;
   req->writedelay = 0;
   req->rcmd = RCMD_NORMALREQ;
   req->prot_version = 0;
@@ -1020,7 +1023,7 @@ static int send_doc(curl_socket_t sock, struct httprequest *req)
   char responsedump[256];
 
   msnprintf(responsedump, sizeof(responsedump), "%s/%s",
-            logdir, is_proxy?RESPONSE_PROXY_DUMP:RESPONSE_DUMP);
+            logdir, is_proxy ? RESPONSE_PROXY_DUMP : RESPONSE_DUMP);
 
   switch(req->rcmd) {
   default:
@@ -1083,7 +1086,7 @@ static int send_doc(curl_socket_t sock, struct httprequest *req)
 
     /* select the <data> tag for "normal" requests and the <connect> one
        for CONNECT requests (within the <reply> section) */
-    const char *section = req->connect_request?"connect":"data";
+    const char *section = req->connect_request ? "connect" : "data";
 
     if(req->partno)
       msnprintf(partbuf, sizeof(partbuf), "%s%ld", section, req->partno);
@@ -1194,8 +1197,8 @@ retry:
       int intervals = msecs_left / MAX_SLEEP_TIME_MS;
       if(msecs_left%MAX_SLEEP_TIME_MS)
         intervals++;
-      logmsg("Pausing %d milliseconds after writing %d bytes",
-         msecs_left, written);
+      logmsg("Pausing %d milliseconds after writing %zd bytes",
+             msecs_left, written);
       while((intervals > 0) && !got_exit_signal) {
         int sleep_time = msecs_left > MAX_SLEEP_TIME_MS ?
           MAX_SLEEP_TIME_MS : msecs_left;
@@ -1269,7 +1272,7 @@ retry:
     } while(ptr && *ptr);
   }
   free(cmd);
-  req->open = use_gopher?FALSE:persistent;
+  req->open = use_gopher ? FALSE : persistent;
 
   prevtestno = req->testno;
   prevpartno = req->partno;
@@ -1286,7 +1289,7 @@ static curl_socket_t connect_to(const char *ipaddr, unsigned short port)
   const char *op_br = "";
   const char *cl_br = "";
 
-#ifdef ENABLE_IPV6
+#ifdef USE_IPV6
   if(socket_domain == AF_INET6) {
     op_br = "[";
     cl_br = "]";
@@ -1318,6 +1321,17 @@ static curl_socket_t connect_to(const char *ipaddr, unsigned short port)
   }
 #endif
 
+  /* We want to do the connect() in a non-blocking mode, since
+   * Windows has an internal retry logic that may lead to long
+   * timeouts if the peer is not listening. */
+  if(0 != curlx_nonblock(serverfd, TRUE)) {
+    error = SOCKERRNO;
+    logmsg("curlx_nonblock(TRUE) failed with error: (%d) %s",
+           error, sstrerror(error));
+    sclose(serverfd);
+    return CURL_SOCKET_BAD;
+  }
+
   switch(socket_domain) {
   case AF_INET:
     memset(&serveraddr.sa4, 0, sizeof(serveraddr.sa4));
@@ -1331,7 +1345,7 @@ static curl_socket_t connect_to(const char *ipaddr, unsigned short port)
 
     rc = connect(serverfd, &serveraddr.sa, sizeof(serveraddr.sa4));
     break;
-#ifdef ENABLE_IPV6
+#ifdef USE_IPV6
   case AF_INET6:
     memset(&serveraddr.sa6, 0, sizeof(serveraddr.sa6));
     serveraddr.sa6.sin6_family = AF_INET6;
@@ -1344,7 +1358,7 @@ static curl_socket_t connect_to(const char *ipaddr, unsigned short port)
 
     rc = connect(serverfd, &serveraddr.sa, sizeof(serveraddr.sa6));
     break;
-#endif /* ENABLE_IPV6 */
+#endif /* USE_IPV6 */
 #ifdef USE_UNIX_SOCKETS
   case AF_UNIX:
     logmsg("Proxying through Unix socket is not (yet?) supported.");
@@ -1359,14 +1373,50 @@ static curl_socket_t connect_to(const char *ipaddr, unsigned short port)
 
   if(rc) {
     error = SOCKERRNO;
+    if((error == EINPROGRESS) || (error == EWOULDBLOCK)) {
+      fd_set output;
+      struct timeval timeout = {1, 0}; /* 1000 ms */
+
+      FD_ZERO(&output);
+      FD_SET(serverfd, &output);
+      while(1) {
+        rc = select((int)serverfd + 1, NULL, &output, NULL, &timeout);
+        if(rc < 0 && SOCKERRNO != EINTR)
+          goto error;
+        else if(rc > 0) {
+          curl_socklen_t errSize = sizeof(error);
+          if(0 != getsockopt(serverfd, SOL_SOCKET, SO_ERROR,
+                             (void *)&error, &errSize))
+            error = SOCKERRNO;
+          if((0 == error) || (EISCONN == error))
+            goto success;
+          else if((error != EINPROGRESS) && (error != EWOULDBLOCK))
+            goto error;
+        }
+        else if(!rc) {
+          logmsg("Timeout connecting to server port %hu", port);
+          sclose(serverfd);
+          return CURL_SOCKET_BAD;
+        }
+      }
+    }
+error:
     logmsg("Error connecting to server port %hu: (%d) %s",
            port, error, sstrerror(error));
     sclose(serverfd);
     return CURL_SOCKET_BAD;
   }
-
+success:
   logmsg("connected fine to %s%s%s:%hu, now tunnel",
          op_br, ipaddr, cl_br, port);
+
+  if(0 != curlx_nonblock(serverfd, FALSE)) {
+    error = SOCKERRNO;
+    logmsg("curlx_nonblock(FALSE) failed with error: (%d) %s",
+           error, sstrerror(error));
+    sclose(serverfd);
+    return CURL_SOCKET_BAD;
+  }
 
   return serverfd;
 }
@@ -1385,8 +1435,8 @@ static curl_socket_t connect_to(const char *ipaddr, unsigned short port)
 
 #define data_or_ctrl(x) ((x)?"DATA":"CTRL")
 
-#define CTRL  0
-#define DATA  1
+#define SWS_CTRL  0
+#define SWS_DATA  1
 
 static void http_connect(curl_socket_t *infdp,
                          curl_socket_t rootfd,
@@ -1406,13 +1456,13 @@ static void http_connect(curl_socket_t *infdp,
   bool poll_server_wr[2] = { TRUE, TRUE };
   bool primary = FALSE;
   bool secondary = FALSE;
-  int max_tunnel_idx; /* CTRL or DATA */
+  int max_tunnel_idx; /* SWS_CTRL or SWS_DATA */
   int loop;
   int i;
   int timeout_count = 0;
 
   /* primary tunnel client endpoint already connected */
-  clientfd[CTRL] = *infdp;
+  clientfd[SWS_CTRL] = *infdp;
 
   /* Sleep here to make sure the client reads CONNECT response's
      'end of headers' separate from the server data that follows.
@@ -1422,8 +1472,8 @@ static void http_connect(curl_socket_t *infdp,
   if(got_exit_signal)
     goto http_connect_cleanup;
 
-  serverfd[CTRL] = connect_to(ipaddr, ipport);
-  if(serverfd[CTRL] == CURL_SOCKET_BAD)
+  serverfd[SWS_CTRL] = connect_to(ipaddr, ipport);
+  if(serverfd[SWS_CTRL] == CURL_SOCKET_BAD)
     goto http_connect_cleanup;
 
   /* Primary tunnel socket endpoints are now connected. Tunnel data back and
@@ -1431,7 +1481,7 @@ static void http_connect(curl_socket_t *infdp,
      tunnel, simultaneously allowing establishment, operation and teardown of
      a secondary tunnel that may be used for passive FTP data connection. */
 
-  max_tunnel_idx = CTRL;
+  max_tunnel_idx = SWS_CTRL;
   primary = TRUE;
 
   while(!got_exit_signal) {
@@ -1445,10 +1495,10 @@ static void http_connect(curl_socket_t *infdp,
     FD_ZERO(&input);
     FD_ZERO(&output);
 
-    if((clientfd[DATA] == CURL_SOCKET_BAD) &&
-       (serverfd[DATA] == CURL_SOCKET_BAD) &&
-       poll_client_rd[CTRL] && poll_client_wr[CTRL] &&
-       poll_server_rd[CTRL] && poll_server_wr[CTRL]) {
+    if((clientfd[SWS_DATA] == CURL_SOCKET_BAD) &&
+       (serverfd[SWS_DATA] == CURL_SOCKET_BAD) &&
+       poll_client_rd[SWS_CTRL] && poll_client_wr[SWS_CTRL] &&
+       poll_server_rd[SWS_CTRL] && poll_server_wr[SWS_CTRL]) {
       /* listener socket is monitored to allow client to establish
          secondary tunnel only when this tunnel is not established
          and primary one is fully operational */
@@ -1509,8 +1559,8 @@ static void http_connect(curl_socket_t *infdp,
       /* ---------------------------------------------------------- */
 
       /* passive mode FTP may establish a secondary tunnel */
-      if((clientfd[DATA] == CURL_SOCKET_BAD) &&
-         (serverfd[DATA] == CURL_SOCKET_BAD) && FD_ISSET(rootfd, &input)) {
+      if((clientfd[SWS_DATA] == CURL_SOCKET_BAD) &&
+         (serverfd[SWS_DATA] == CURL_SOCKET_BAD) && FD_ISSET(rootfd, &input)) {
         /* a new connection on listener socket (most likely from client) */
         curl_socket_t datafd = accept(rootfd, NULL, NULL);
         if(datafd != CURL_SOCKET_BAD) {
@@ -1550,19 +1600,19 @@ static void http_connect(curl_socket_t *infdp,
                 wait_ms(250);
               if(!got_exit_signal) {
                 /* connect to the server */
-                serverfd[DATA] = connect_to(ipaddr, req2->connect_port);
-                if(serverfd[DATA] != CURL_SOCKET_BAD) {
+                serverfd[SWS_DATA] = connect_to(ipaddr, req2->connect_port);
+                if(serverfd[SWS_DATA] != CURL_SOCKET_BAD) {
                   /* secondary tunnel established, now we have two
                      connections */
-                  poll_client_rd[DATA] = TRUE;
-                  poll_client_wr[DATA] = TRUE;
-                  poll_server_rd[DATA] = TRUE;
-                  poll_server_wr[DATA] = TRUE;
-                  max_tunnel_idx = DATA;
+                  poll_client_rd[SWS_DATA] = TRUE;
+                  poll_client_wr[SWS_DATA] = TRUE;
+                  poll_server_rd[SWS_DATA] = TRUE;
+                  poll_server_wr[SWS_DATA] = TRUE;
+                  max_tunnel_idx = SWS_DATA;
                   secondary = TRUE;
-                  toc[DATA] = 0;
-                  tos[DATA] = 0;
-                  clientfd[DATA] = datafd;
+                  toc[SWS_DATA] = 0;
+                  tos[SWS_DATA] = 0;
+                  clientfd[SWS_DATA] = datafd;
                   datafd = CURL_SOCKET_BAD;
                 }
               }
@@ -1713,7 +1763,7 @@ static void http_connect(curl_socket_t *infdp,
               clientfd[i] = CURL_SOCKET_BAD;
               if(serverfd[i] == CURL_SOCKET_BAD) {
                 logmsg("[%s] ENDING", data_or_ctrl(i));
-                if(i == DATA)
+                if(i == SWS_DATA)
                   secondary = FALSE;
                 else
                   primary = FALSE;
@@ -1727,7 +1777,7 @@ static void http_connect(curl_socket_t *infdp,
               serverfd[i] = CURL_SOCKET_BAD;
               if(clientfd[i] == CURL_SOCKET_BAD) {
                 logmsg("[%s] ENDING", data_or_ctrl(i));
-                if(i == DATA)
+                if(i == SWS_DATA)
                   secondary = FALSE;
                 else
                   primary = FALSE;
@@ -1739,7 +1789,7 @@ static void http_connect(curl_socket_t *infdp,
 
       /* ---------------------------------------------------------- */
 
-      max_tunnel_idx = secondary ? DATA : CTRL;
+      max_tunnel_idx = secondary ? SWS_DATA : SWS_CTRL;
 
       if(!primary)
         /* exit loop upon primary tunnel teardown */
@@ -1757,7 +1807,7 @@ static void http_connect(curl_socket_t *infdp,
 
 http_connect_cleanup:
 
-  for(i = DATA; i >= CTRL; i--) {
+  for(i = SWS_DATA; i >= SWS_CTRL; i--) {
     if(serverfd[i] != CURL_SOCKET_BAD) {
       logmsg("[%s] CLOSING server socket (cleanup)", data_or_ctrl(i));
       shutdown(serverfd[i], SHUT_RDWR);
@@ -1969,10 +2019,10 @@ int main(int argc, char *argv[])
   /* a default CONNECT port is basically pointless but still ... */
   size_t socket_idx;
 
-  while(argc>arg) {
+  while(argc > arg) {
     if(!strcmp("--version", argv[arg])) {
       puts("sws IPv4"
-#ifdef ENABLE_IPV6
+#ifdef USE_IPV6
              "/IPv6"
 #endif
 #ifdef USE_UNIX_SOCKETS
@@ -1983,27 +2033,27 @@ int main(int argc, char *argv[])
     }
     else if(!strcmp("--pidfile", argv[arg])) {
       arg++;
-      if(argc>arg)
+      if(argc > arg)
         pidname = argv[arg++];
     }
     else if(!strcmp("--portfile", argv[arg])) {
       arg++;
-      if(argc>arg)
+      if(argc > arg)
         portname = argv[arg++];
     }
     else if(!strcmp("--logfile", argv[arg])) {
       arg++;
-      if(argc>arg)
+      if(argc > arg)
         serverlogfile = argv[arg++];
     }
     else if(!strcmp("--logdir", argv[arg])) {
       arg++;
-      if(argc>arg)
+      if(argc > arg)
         logdir = argv[arg++];
     }
     else if(!strcmp("--cmdfile", argv[arg])) {
       arg++;
-      if(argc>arg)
+      if(argc > arg)
         cmdfile = argv[arg++];
     }
     else if(!strcmp("--gopher", argv[arg])) {
@@ -2019,7 +2069,7 @@ int main(int argc, char *argv[])
       arg++;
     }
     else if(!strcmp("--ipv6", argv[arg])) {
-#ifdef ENABLE_IPV6
+#ifdef USE_IPV6
       socket_type = "IPv6";
       socket_domain = AF_INET6;
       location_str = port_str;
@@ -2028,7 +2078,7 @@ int main(int argc, char *argv[])
     }
     else if(!strcmp("--unix-socket", argv[arg])) {
       arg++;
-      if(argc>arg) {
+      if(argc > arg) {
 #ifdef USE_UNIX_SOCKETS
         unix_socket = argv[arg];
         if(strlen(unix_socket) >= sizeof(me.sau.sun_path)) {
@@ -2046,7 +2096,7 @@ int main(int argc, char *argv[])
     }
     else if(!strcmp("--port", argv[arg])) {
       arg++;
-      if(argc>arg) {
+      if(argc > arg) {
         char *endptr;
         unsigned long ulnum = strtoul(argv[arg], &endptr, 10);
         if((endptr != argv[arg] + strlen(argv[arg])) ||
@@ -2061,14 +2111,14 @@ int main(int argc, char *argv[])
     }
     else if(!strcmp("--srcdir", argv[arg])) {
       arg++;
-      if(argc>arg) {
+      if(argc > arg) {
         path = argv[arg];
         arg++;
       }
     }
     else if(!strcmp("--keepalive", argv[arg])) {
       arg++;
-      if(argc>arg) {
+      if(argc > arg) {
         char *endptr;
         unsigned long ulnum = strtoul(argv[arg], &endptr, 10);
         if((endptr != argv[arg] + strlen(argv[arg])) ||
@@ -2086,7 +2136,7 @@ int main(int argc, char *argv[])
          what the client asks for, but also use this as a hint that we run as
          a proxy and do a few different internal choices */
       arg++;
-      if(argc>arg) {
+      if(argc > arg) {
         connecthost = argv[arg];
         arg++;
         is_proxy = TRUE;
@@ -2115,7 +2165,7 @@ int main(int argc, char *argv[])
             logdir, SERVERLOGS_LOCKDIR, protocol_type,
             is_proxy ? "-proxy" : "", socket_type);
 
-#ifdef WIN32
+#ifdef _WIN32
   win32_init();
   atexit(win32_cleanup);
 #endif
@@ -2160,7 +2210,7 @@ int main(int argc, char *argv[])
     me.sa4.sin_port = htons(port);
     rc = bind(sock, &me.sa, sizeof(me.sa4));
     break;
-#ifdef ENABLE_IPV6
+#ifdef USE_IPV6
   case AF_INET6:
     memset(&me.sa6, 0, sizeof(me.sa6));
     me.sa6.sin6_family = AF_INET6;
@@ -2168,7 +2218,7 @@ int main(int argc, char *argv[])
     me.sa6.sin6_port = htons(port);
     rc = bind(sock, &me.sa, sizeof(me.sa6));
     break;
-#endif /* ENABLE_IPV6 */
+#endif /* USE_IPV6 */
 #ifdef USE_UNIX_SOCKETS
   case AF_UNIX:
     rc = bind_unix_socket(sock, unix_socket, &me.sau);
@@ -2192,11 +2242,11 @@ int main(int argc, char *argv[])
        port we actually got and update the listener port value with it. */
     curl_socklen_t la_size;
     srvr_sockaddr_union_t localaddr;
-#ifdef ENABLE_IPV6
+#ifdef USE_IPV6
     if(socket_domain != AF_INET6)
 #endif
       la_size = sizeof(localaddr.sa4);
-#ifdef ENABLE_IPV6
+#ifdef USE_IPV6
     else
       la_size = sizeof(localaddr.sa6);
 #endif
@@ -2212,7 +2262,7 @@ int main(int argc, char *argv[])
     case AF_INET:
       port = ntohs(localaddr.sa4.sin_port);
       break;
-#ifdef ENABLE_IPV6
+#ifdef USE_IPV6
     case AF_INET6:
       port = ntohs(localaddr.sa6.sin6_port);
       break;
@@ -2239,7 +2289,7 @@ int main(int argc, char *argv[])
          protocol_type, socket_type, location_str);
 
   /* start accepting connections */
-  rc = listen(sock, 5);
+  rc = listen(sock, 50);
   if(0 != rc) {
     error = SOCKERRNO;
     logmsg("listen() failed with error: (%d) %s", error, sstrerror(error));
@@ -2330,9 +2380,12 @@ int main(int argc, char *argv[])
       curl_socket_t msgsock;
       do {
         msgsock = accept_connection(sock);
-        logmsg("accept_connection %d returned %d", sock, msgsock);
+        logmsg("accept_connection %" FMT_SOCKET_T
+               " returned %" FMT_SOCKET_T, sock, msgsock);
         if(CURL_SOCKET_BAD == msgsock)
           goto sws_cleanup;
+        if(req->delay)
+          wait_ms(req->delay);
       } while(msgsock > 0);
       active--;
     }
@@ -2381,6 +2434,19 @@ int main(int argc, char *argv[])
 
           /* Reset the request, unless we're still in the middle of reading */
           if(rc && !req->upgrade_request)
+            /* Note: resetting the HTTP request here can cause problems if:
+             * 1) req->skipall is TRUE,
+             * 2) the socket is still open, and
+             * 3) (stale) data is still available (or about to be available)
+             *    on that socket
+             * In that case, this loop will run once more and treat that stale
+             * data (in service_connection()) as the first data received on
+             * this new HTTP request and report "** Unusual request" (skipall
+             * would have otherwise caused that data to be ignored). Normally,
+             * that socket will be closed by the client and there won't be any
+             * stale data to cause this, but stranger things have happened (see
+             * issue #11678).
+             */
             init_httprequest(req);
         } while(rc > 0);
       }

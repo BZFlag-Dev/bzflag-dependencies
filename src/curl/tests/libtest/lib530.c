@@ -38,15 +38,13 @@
 
 #define TEST_HANG_TIMEOUT 60 * 1000
 
-struct Sockets
-{
+struct Sockets {
   curl_socket_t *sockets;
   int count;      /* number of sockets actually stored in array */
   int max_count;  /* max number of sockets that fit in allocated array */
 };
 
-struct ReadWriteSockets
-{
+struct ReadWriteSockets {
   struct Sockets read, write;
 };
 
@@ -191,7 +189,7 @@ static int checkForCompletion(CURLM *curl, int *success)
     }
     else {
       fprintf(stderr, "Got an unexpected message from curl: %i\n",
-              (int)message->msg);
+              message->msg);
       result = 1;
       *success = 0;
     }
@@ -228,7 +226,7 @@ static void updateFdSet(struct Sockets *sockets, fd_set* fdset,
 }
 
 static int socket_action(CURLM *curl, curl_socket_t s, int evBitmask,
-                               const char *info)
+                         const char *info)
 {
   int numhandles = 0;
   CURLMcode result = curl_multi_socket_action(curl, s, evBitmask, &numhandles);
@@ -258,9 +256,9 @@ static int checkFdSet(CURLM *curl,
   return result;
 }
 
-static int testone(char *URL, int timercb, int socketcb)
+static CURLcode testone(char *URL, int timercb, int socketcb)
 {
-  int res = 0;
+  CURLcode res = CURLE_OK;
   CURL *curl = NULL;  CURLM *m = NULL;
   struct ReadWriteSockets sockets = {{NULL, 0, 0}, {NULL, 0, 0}};
   struct timeval timeout = {-1, 0};
@@ -276,7 +274,7 @@ static int testone(char *URL, int timercb, int socketcb)
   start_test_timing();
 
   res_global_init(CURL_GLOBAL_ALL);
-  if(res)
+  if(res != CURLE_OK)
     return res;
 
   easy_init(curl);
@@ -297,9 +295,10 @@ static int testone(char *URL, int timercb, int socketcb)
 
   multi_add_handle(m, curl);
 
-  res = socket_action(m, CURL_SOCKET_TIMEOUT, 0, "timeout");
-  if(res)
+  if(socket_action(m, CURL_SOCKET_TIMEOUT, 0, "timeout")) {
+    res = TEST_ERR_MAJOR_BAD;
     goto test_cleanup;
+  }
 
   while(!checkForCompletion(m, &success)) {
     fd_set readSet, writeSet;
@@ -325,18 +324,21 @@ static int testone(char *URL, int timercb, int socketcb)
     select_test((int)maxFd, &readSet, &writeSet, NULL, &tv);
 
     /* Check the sockets for reading / writing */
-    res = checkFdSet(m, &sockets.read, &readSet, CURL_CSELECT_IN, "read");
-    if(res)
+    if(checkFdSet(m, &sockets.read, &readSet, CURL_CSELECT_IN, "read")) {
+      res = TEST_ERR_MAJOR_BAD;
       goto test_cleanup;
-    res = checkFdSet(m, &sockets.write, &writeSet, CURL_CSELECT_OUT, "write");
-    if(res)
+    }
+    if(checkFdSet(m, &sockets.write, &writeSet, CURL_CSELECT_OUT, "write")) {
+      res = TEST_ERR_MAJOR_BAD;
       goto test_cleanup;
+    }
 
     if(timeout.tv_sec != -1 && getMicroSecondTimeout(&timeout) == 0) {
       /* Curl's timer has elapsed. */
-      res = socket_action(m, CURL_SOCKET_TIMEOUT, 0, "timeout");
-      if(res)
+      if(socket_action(m, CURL_SOCKET_TIMEOUT, 0, "timeout")) {
+        res = TEST_ERR_BAD_TIMEOUT;
         goto test_cleanup;
+      }
     }
 
     abort_on_test_timeout();
@@ -362,9 +364,9 @@ test_cleanup:
   return res;
 }
 
-int test(char *URL)
+CURLcode test(char *URL)
 {
-  int rc;
+  CURLcode rc;
   /* rerun the same transfer multiple times and make it fail in different
      callback calls */
   rc = testone(URL, 0, 0);
@@ -387,5 +389,5 @@ int test(char *URL)
   if(!rc)
     fprintf(stderr, "test 0/2 failed: %d\n", rc);
 
-  return 0;
+  return CURLE_OK;
 }

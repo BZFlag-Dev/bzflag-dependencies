@@ -20,10 +20,10 @@ REPLY EPSV 500 no such command
 <server>
 ftp
 </server>
- <name>
+<name>
 Get two FTP files with no remote EPSV support
- </name>
- <command>
+</name>
+<command>
 ftp://%HOSTIP:%FTPPORT/a/path/%TESTNUMBER ftp://%HOSTIP:%FTPPORT/a/path/%TESTNUMBER
 </command>
 <stdout>
@@ -34,6 +34,9 @@ data blobb
 
 # Verify data after the test has been "shot"
 <verify>
+<strip>
+QUIT
+</strip>
 <protocol>
 USER anonymous
 PASS ftp@example.com

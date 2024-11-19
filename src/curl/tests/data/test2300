@@ -27,16 +27,16 @@ upgrade
 <client>
 # for the forced CURL_ENTROPY
 <features>
-debug
+Debug
 ws
 </features>
 <server>
 http
 </server>
- <name>
+<name>
 WebSockets upgrade only
- </name>
- <command>
+</name>
+<command>
 ws://%HOSTIP:%HTTPPORT/%TESTNUMBER
 </command>
 </client>

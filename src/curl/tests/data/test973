@@ -55,10 +55,10 @@ works
 http
 ftp
 </server>
- <name>
+<name>
 HTTP with auth redirected to FTP w/o auth
- </name>
- <command>
+</name>
+<command>
 http://%HOSTIP:%HTTPPORT/%TESTNUMBER -L -u joe:secret
 </command>
 </client>
@@ -66,6 +66,9 @@ http://%HOSTIP:%HTTPPORT/%TESTNUMBER -L -u joe:secret
 #
 # Verify data after the test has been "shot"
 <verify>
+<strip>
+QUIT
+</strip>
 <protocol>
 GET /%TESTNUMBER HTTP/1.1
 Host: %HOSTIP:%HTTPPORT

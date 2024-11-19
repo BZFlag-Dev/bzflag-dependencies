@@ -126,15 +126,17 @@ int main(int argc, char *argv[])
             default:
               fprintf(stderr, "\r%s: invalid parameter %s\n",
                       appname, *argv + 3);
-              exit(1);
+              return 1;
             }
             break;
           }
-          /* FALLTHROUGH */
+          fprintf(stderr, "\r%s: invalid or unknown option %s\n",
+                  appname, *argv);
+          return 1;
         default:
           fprintf(stderr, "\r%s: invalid or unknown option %s\n",
                   appname, *argv);
-          exit(1);
+          return 1;
         }
       }
       else {
@@ -178,31 +180,31 @@ int main(int argc, char *argv[])
 
     /* check for bytes downloaded */
     res = curl_easy_getinfo(curl_handle, CURLINFO_SIZE_DOWNLOAD_T, &val);
-    if((CURLE_OK == res) && (val>0))
+    if((CURLE_OK == res) && (val > 0))
       printf("Data downloaded: %lu bytes.\n", (unsigned long)val);
 
     /* check for total download time */
     res = curl_easy_getinfo(curl_handle, CURLINFO_TOTAL_TIME_T, &val);
-    if((CURLE_OK == res) && (val>0))
+    if((CURLE_OK == res) && (val > 0))
       printf("Total download time: %lu.%06lu sec.\n",
              (unsigned long)(val / 1000000), (unsigned long)(val % 1000000));
 
     /* check for average download speed */
     res = curl_easy_getinfo(curl_handle, CURLINFO_SPEED_DOWNLOAD_T, &val);
-    if((CURLE_OK == res) && (val>0))
+    if((CURLE_OK == res) && (val > 0))
       printf("Average download speed: %lu kbyte/sec.\n",
              (unsigned long)(val / 1024));
 
     if(prtall) {
       /* check for name resolution time */
       res = curl_easy_getinfo(curl_handle, CURLINFO_NAMELOOKUP_TIME_T, &val);
-      if((CURLE_OK == res) && (val>0))
+      if((CURLE_OK == res) && (val > 0))
         printf("Name lookup time: %lu.%06lu sec.\n",
                (unsigned long)(val / 1000000), (unsigned long)(val % 1000000));
 
       /* check for connect time */
       res = curl_easy_getinfo(curl_handle, CURLINFO_CONNECT_TIME_T, &val);
-      if((CURLE_OK == res) && (val>0))
+      if((CURLE_OK == res) && (val > 0))
         printf("Connect time: %lu.%06lu sec.\n",
                (unsigned long)(val / 1000000), (unsigned long)(val % 1000000));
     }

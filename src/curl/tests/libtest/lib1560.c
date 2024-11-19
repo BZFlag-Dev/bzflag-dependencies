@@ -31,7 +31,7 @@
  */
 
 #include "test.h"
-#if defined(USE_LIBIDN2) || defined(USE_WIN32_IDN)
+#if defined(USE_LIBIDN2) || defined(USE_WIN32_IDN) || defined(USE_APPLE_IDN)
 #define USE_IDN
 #endif
 
@@ -151,6 +151,32 @@ struct clearurlcase {
 };
 
 static const struct testcase get_parts_list[] ={
+  {"curl.se",
+   "[10] | [11] | [12] | [13] | curl.se | [15] | / | [16] | [17]",
+   CURLU_GUESS_SCHEME, CURLU_NO_GUESS_SCHEME, CURLUE_OK},
+  {"https://curl.se:0/#",
+   "https | [11] | [12] | [13] | curl.se | 0 | / | [16] | ",
+   0, CURLU_GET_EMPTY, CURLUE_OK},
+  {"https://curl.se/#",
+   "https | [11] | [12] | [13] | curl.se | [15] | / | [16] | ",
+   0, CURLU_GET_EMPTY, CURLUE_OK},
+  {"https://curl.se/?#",
+   "https | [11] | [12] | [13] | curl.se | [15] | / |  | ",
+   0, CURLU_GET_EMPTY, CURLUE_OK},
+  {"https://curl.se/?",
+   "https | [11] | [12] | [13] | curl.se | [15] | / |  | [17]",
+   0, CURLU_GET_EMPTY, CURLUE_OK},
+  {"https://curl.se/?",
+   "https | [11] | [12] | [13] | curl.se | [15] | / | [16] | [17]",
+   0, 0, CURLUE_OK},
+  {"https://curl.se/?#",
+   "https | [11] | [12] | [13] | curl.se | [15] | / | [16] | [17]",
+   0, 0, CURLUE_OK},
+  {"https://curl.se/#  ",
+   "https | [11] | [12] | [13] | curl.se | [15] | / | [16] | %20%20",
+   CURLU_URLENCODE|CURLU_ALLOW_SPACE, 0, CURLUE_OK},
+  {"", "", 0, 0, CURLUE_MALFORMED_INPUT},
+  {" ", "", 0, 0, CURLUE_MALFORMED_INPUT},
   {"1h://example.net", "", 0, 0, CURLUE_BAD_SCHEME},
   {"..://example.net", "", 0, 0, CURLUE_BAD_SCHEME},
   {"-ht://example.net", "", 0, 0, CURLUE_BAD_SCHEME},
@@ -179,6 +205,9 @@ static const struct testcase get_parts_list[] ={
   {"https://räksmörgås.se",
    "https | [11] | [12] | [13] | xn--rksmrgs-5wao1o.se | "
    "[15] | / | [16] | [17]", 0, CURLU_PUNYCODE, CURLUE_OK},
+  {"https://xn--rksmrgs-5wao1o.se",
+   "https | [11] | [12] | [13] | räksmörgås.se | "
+   "[15] | / | [16] | [17]", 0, CURLU_PUNY2IDN, CURLUE_OK},
 #else
   {"https://räksmörgås.se",
    "https | [11] | [12] | [13] | [30] | [15] | / | [16] | [17]",
@@ -245,7 +274,7 @@ static const struct testcase get_parts_list[] ={
   {"https://user@example.net",
    "https | user | [12] | [13] | example.net | [15] | / | [16] | [17]",
    0, 0, CURLUE_OK},
-#ifdef USE_WEBSOCKETS
+#ifndef CURL_DISABLE_WEBSOCKETS
   {"ws://example.com/color/?green",
    "ws | [11] | [12] | [13] | example.com | [15] | /color/ | green |"
    " [17]",
@@ -311,7 +340,7 @@ static const struct testcase get_parts_list[] ={
    "http | ftp.user | moo | [13] | example.com | [15] | /color/ | [16] | "
    "green?no-red",
    CURLU_GUESS_SCHEME, 0, CURLUE_OK },
-#ifdef WIN32
+#ifdef _WIN32
   {"file:/C:\\programs\\foo",
    "file | [11] | [12] | [13] | [14] | [15] | C:\\programs\\foo | [16] | [17]",
    CURLU_DEFAULT_SCHEME, 0, CURLUE_OK},
@@ -500,6 +529,23 @@ static const struct testcase get_parts_list[] ={
 };
 
 static const struct urltestcase get_url_list[] = {
+  {"example.com",
+   "example.com/",
+   CURLU_GUESS_SCHEME, CURLU_NO_GUESS_SCHEME, CURLUE_OK},
+  {"http://user@example.com?#",
+   "http://user@example.com/?#",
+   0, CURLU_GET_EMPTY, CURLUE_OK},
+  /* WHATWG disgrees, it wants "https:/0.0.0.0/" */
+  {"https://0x.0x.0", "https://0x.0x.0/", 0, 0, CURLUE_OK},
+
+  {"https://example.com:000000000000000000000443/foo",
+   "https://example.com/foo",
+   0, CURLU_NO_DEFAULT_PORT, CURLUE_OK},
+  {"https://example.com:000000000000000000000/foo",
+   "https://example.com:0/foo",
+   0, CURLU_NO_DEFAULT_PORT, CURLUE_OK},
+  {"https://192.0x0000A80001", "https://192.168.0.1/", 0, 0, CURLUE_OK},
+  {"https://0xffffffff", "https://255.255.255.255/", 0, 0, CURLUE_OK},
   {"https://1.0x1000000", "https://1.0x1000000/", 0, 0, CURLUE_OK},
   {"https://0x7f.1", "https://127.0.0.1/", 0, 0, CURLUE_OK},
   {"https://1.2.3.256.com", "https://1.2.3.256.com/", 0, 0, CURLUE_OK},
@@ -518,6 +564,10 @@ static const struct urltestcase get_url_list[] = {
    0, 0, CURLUE_OK},
   {"https://[fe80:0:0:0:409b::]:80/moo",
    "https://[fe80::409b:0:0:0]:80/moo",
+   0, 0, CURLUE_OK},
+  /* normalize to lower case */
+  {"https://[FE80:0:A:0:409B:0:0:0]:80/moo",
+   "https://[fe80:0:a:0:409b::]:80/moo",
    0, 0, CURLUE_OK},
   {"https://[::%25fakeit];80/moo",
    "",
@@ -762,6 +812,18 @@ static int checkurl(const char *org, const char *url, const char *out)
    3. Extract all components (not URL)
 */
 static const struct setgetcase setget_parts_list[] = {
+  {"https://example.com/",
+   "query=\"\",",
+   "https | [11] | [12] | [13] | example.com | [15] | / |  | [17]",
+   0, 0, CURLU_GET_EMPTY, CURLUE_OK},
+  {"https://example.com/",
+   "fragment=\"\",",
+   "https | [11] | [12] | [13] | example.com | [15] | / | [16] | ",
+   0, 0, CURLU_GET_EMPTY, CURLUE_OK},
+  {"https://example.com/",
+   "query=\"\",",
+   "https | [11] | [12] | [13] | example.com | [15] | / | [16] | [17]",
+   0, 0, 0, CURLUE_OK},
   {"https://example.com",
    "path=get,",
    "https | [11] | [12] | [13] | example.com | [15] | /get | [16] | [17]",
@@ -780,6 +842,26 @@ static const struct setgetcase setget_parts_list[] = {
 
 /* !checksrc! disable SPACEBEFORECOMMA 1 */
 static const struct setcase set_parts_list[] = {
+  {"https://example.com/",
+   "host=%43url.se,",
+   "https://%43url.se/",
+   0, 0, CURLUE_OK, CURLUE_OK},
+  {"https://example.com/",
+   "host=%25url.se,",
+   "",
+   0, 0, CURLUE_OK, CURLUE_BAD_HOSTNAME},
+  {"https://example.com/?param=value",
+   "query=\"\",",
+   "https://example.com/",
+   0, CURLU_APPENDQUERY | CURLU_URLENCODE, CURLUE_OK, CURLUE_OK},
+  {"https://example.com/",
+   "host=\"\",",
+   "https://example.com/",
+   0, CURLU_URLENCODE, CURLUE_OK, CURLUE_BAD_HOSTNAME},
+  {"https://example.com/",
+   "host=\"\",",
+   "https://example.com/",
+   0, 0, CURLUE_OK, CURLUE_BAD_HOSTNAME},
   {"https://example.com",
    "path=get,",
    "https://example.com/get",
@@ -833,7 +915,7 @@ static const struct setcase set_parts_list[] = {
    0, /* set */
    CURLUE_OK, CURLUE_BAD_HOSTNAME},
   {"https://example.com/",
-   "host=0xff,", /* '++' there's no automatic URL decode when settin this
+   "host=0xff,", /* '++' there's no automatic URL decode when setting this
                   part */
    "https://0xff/",
    0, /* get */
@@ -880,8 +962,8 @@ static const struct setcase set_parts_list[] = {
    0, 0, CURLUE_OK, CURLUE_BAD_PORT_NUMBER},
   {"https://host:1234/",
    "port=0,",
-   "https://host:1234/",
-   0, 0, CURLUE_OK, CURLUE_BAD_PORT_NUMBER},
+   "https://host:0/",
+   0, 0, CURLUE_OK, CURLUE_OK},
   {"https://host:1234/",
    "port=65535,",
    "https://host:65535/",
@@ -1025,7 +1107,7 @@ static CURLUcode updateurl(CURLU *u, const char *cmd, unsigned int setflags)
   while(p) {
     char *e = strchr(p, ',');
     if(e) {
-      size_t n = e-p;
+      size_t n = (size_t)(e - p);
       char buf[80];
       char part[80];
       char value[80];
@@ -1061,6 +1143,54 @@ static CURLUcode updateurl(CURLU *u, const char *cmd, unsigned int setflags)
 }
 
 static const struct redircase set_url_list[] = {
+  {"http://example.org/",
+   "../path/././../../moo",
+   "http://example.org/moo",
+   0, 0, CURLUE_OK},
+  {"http://example.org/",
+   "//example.org/../path/../../",
+   "http://example.org/",
+   0, 0, CURLUE_OK},
+  {"http://example.org/",
+   "///example.org/../path/../../",
+   "http://example.org/",
+   0, 0, CURLUE_OK},
+  {"http://example.org/foo/bar",
+   ":23",
+   "http://example.org/foo/:23",
+   0, 0, CURLUE_OK},
+  {"http://example.org/foo/bar",
+   "\\x",
+   "http://example.org/foo/\\x",
+   /* WHATWG disagrees */
+   0, 0, CURLUE_OK},
+  {"http://example.org/foo/bar",
+   "#/",
+   "http://example.org/foo/bar#/",
+   0, 0, CURLUE_OK},
+  {"http://example.org/foo/bar",
+   "?/",
+   "http://example.org/foo/bar?/",
+   0, 0, CURLUE_OK},
+  {"http://example.org/foo/bar",
+   "#;?",
+   "http://example.org/foo/bar#;?",
+   0, 0, CURLUE_OK},
+  {"http://example.org/foo/bar",
+   "#",
+   "http://example.org/foo/bar",
+   /* This happens because the parser removes empty fragments */
+   0, 0, CURLUE_OK},
+  {"http://example.org/foo/bar",
+   "?",
+   "http://example.org/foo/bar",
+   /* This happens because the parser removes empty queries */
+   0, 0, CURLUE_OK},
+  {"http://example.org/foo/bar",
+   "?#",
+   "http://example.org/foo/bar",
+   /* This happens because the parser removes empty queries and fragments */
+   0, 0, CURLUE_OK},
   {"http://example.com/please/../gimme/%TESTNUMBER?foobar#hello",
    "http://example.net/there/it/is/../../tes t case=/%TESTNUMBER0002? yes no",
    "http://example.net/there/tes%20t%20case=/%TESTNUMBER0002?+yes+no",
@@ -1619,7 +1749,6 @@ static char bigpart[120000];
  */
 static int huge(void)
 {
-  const char *url = "%s://%s:%s@%s/%s?%s#%s";
   const char *smallpart = "c";
   int i;
   CURLU *urlp = curl_url();
@@ -1643,14 +1772,14 @@ static int huge(void)
   for(i = 0; i <  7; i++) {
     char *partp;
     msnprintf(total, sizeof(total),
-              url,
-              (i == 0)? &bigpart[1] : smallpart,
-              (i == 1)? &bigpart[1] : smallpart,
-              (i == 2)? &bigpart[1] : smallpart,
-              (i == 3)? &bigpart[1] : smallpart,
-              (i == 4)? &bigpart[1] : smallpart,
-              (i == 5)? &bigpart[1] : smallpart,
-              (i == 6)? &bigpart[1] : smallpart);
+              "%s://%s:%s@%s/%s?%s#%s",
+              (i == 0) ? &bigpart[1] : smallpart,
+              (i == 1) ? &bigpart[1] : smallpart,
+              (i == 2) ? &bigpart[1] : smallpart,
+              (i == 3) ? &bigpart[1] : smallpart,
+              (i == 4) ? &bigpart[1] : smallpart,
+              (i == 5) ? &bigpart[1] : smallpart,
+              (i == 6) ? &bigpart[1] : smallpart);
     rc = curl_url_set(urlp, CURLUPART_URL, total, CURLU_NON_SUPPORT_SCHEME);
     if((!i && (rc != CURLUE_BAD_SCHEME)) ||
        (i && rc)) {
@@ -1672,40 +1801,107 @@ static int huge(void)
   return error;
 }
 
-int test(char *URL)
+static int urldup(void)
+{
+  const char *url[] = {
+    "http://"
+    "user:pwd@"
+    "[2a04:4e42:e00::347%25eth0]"
+    ":80"
+    "/path"
+    "?query"
+    "#fraggie",
+    "https://example.com",
+    "https://user@example.com",
+    "https://user.pwd@example.com",
+    "https://user.pwd@example.com:1234",
+    "https://example.com:1234",
+    "example.com:1234",
+    "https://user.pwd@example.com:1234/path?query#frag",
+    NULL
+  };
+  CURLU *copy = NULL;
+  char *h_str = NULL, *copy_str = NULL;
+  CURLU *h = curl_url();
+  int i;
+
+  if(!h)
+    goto err;
+
+  for(i = 0; url[i]; i++) {
+    CURLUcode rc = curl_url_set(h, CURLUPART_URL, url[i],
+                                CURLU_GUESS_SCHEME);
+    if(rc)
+      goto err;
+    copy = curl_url_dup(h);
+
+    rc = curl_url_get(h, CURLUPART_URL, &h_str, 0);
+    if(rc)
+      goto err;
+
+    rc = curl_url_get(copy, CURLUPART_URL, &copy_str, 0);
+    if(rc)
+      goto err;
+
+    if(strcmp(h_str, copy_str)) {
+      printf("Original:  %s\nParsed:    %s\nCopy:      %s\n",
+             url[i], h_str, copy_str);
+      goto err;
+    }
+    curl_free(copy_str);
+    curl_free(h_str);
+    curl_url_cleanup(copy);
+    copy_str = NULL;
+    h_str = NULL;
+    copy = NULL;
+  }
+  curl_url_cleanup(h);
+  return 0;
+err:
+  curl_free(copy_str);
+  curl_free(h_str);
+  curl_url_cleanup(copy);
+  curl_url_cleanup(h);
+  return 1;
+}
+
+CURLcode test(char *URL)
 {
   (void)URL; /* not used */
 
+  if(urldup())
+    return (CURLcode)11;
+
   if(setget_parts())
-    return 10;
+    return (CURLcode)10;
 
   if(get_url())
-    return 3;
+    return (CURLcode)3;
 
   if(huge())
-    return 9;
+    return (CURLcode)9;
 
   if(get_nothing())
-    return 7;
+    return (CURLcode)7;
 
   if(scopeid())
-    return 6;
+    return (CURLcode)6;
 
   if(append())
-    return 5;
+    return (CURLcode)5;
 
   if(set_url())
-    return 1;
+    return (CURLcode)1;
 
   if(set_parts())
-    return 2;
+    return (CURLcode)2;
 
   if(get_parts())
-    return 4;
+    return (CURLcode)4;
 
   if(clear_url())
-    return 8;
+    return (CURLcode)8;
 
   printf("success\n");
-  return 0;
+  return CURLE_OK;
 }

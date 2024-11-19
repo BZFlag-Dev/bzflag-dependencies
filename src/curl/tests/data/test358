@@ -29,21 +29,21 @@ Alt-Svc: h2=":%HTTP2PORT", ma=315360000; persist=0
 <client>
 <features>
 alt-svc
-debug
+Debug
 h2c
 </features>
 <server>
 http
 http/2
 </server>
- <name>
+<name>
 HTTPS GET translated by alt-svc lookup to HTTP/2 GET
- </name>
+</name>
 <setenv>
 # make debug-curl accept Alt-Svc over plain HTTP
 CURL_ALTSVC_HTTP="yeah"
 </setenv>
- <command>
+<command>
 --http2 --alt-svc "%LOGDIR/altsvc-%TESTNUMBER" "http://%HOSTIP:%HTTPPORT/%TESTNUMBER" "http://%HOSTIP:%HTTPPORT/%TESTNUMBER"
 </command>
 <file name="%LOGDIR/altsvc-%TESTNUMBER">

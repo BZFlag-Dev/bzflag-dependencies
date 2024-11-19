@@ -48,17 +48,20 @@ socks5
 http
 proxy
 </features>
- <name>
+<name>
 FTP fetch with --preproxy, --proxy and --connect-to
- </name>
- <command>
-ftp://ftp.example.com.%TESTNUMBER/%TESTNUMBER --connect-to ::connect.example.com.%TESTNUMBER:%FTPPORT --proxytunnel --proxy %HOSTIP:%PROXYPORT --preproxy socks5://%HOSTIP:%SOCKSPORT 
+</name>
+<command>
+ftp://ftp.example.com.%TESTNUMBER/%TESTNUMBER --connect-to ::connect.example.com.%TESTNUMBER:%FTPPORT --proxytunnel --proxy %HOSTIP:%PROXYPORT --preproxy socks5://%HOSTIP:%SOCKSPORT
 </command>
 </client>
 
 #
 # Verify data after the test has been "shot"
 <verify>
+<strip>
+QUIT
+</strip>
 <protocol>
 USER anonymous
 PASS ftp@example.com

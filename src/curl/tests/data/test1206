@@ -22,10 +22,10 @@ NODATACONN425
 <server>
 ftp
 </server>
- <name>
+<name>
 FTP PORT and 425 on download
- </name>
- <command>
+</name>
+<command>
 --max-time %FTPTIME2 ftp://%HOSTIP:%FTPPORT/%TESTNUMBER -P -
 </command>
 
@@ -33,6 +33,9 @@ FTP PORT and 425 on download
 
 # Verify data after the test has been "shot"
 <verify>
+<strip>
+QUIT
+</strip>
 <strippart>
 s/^EPRT \|1\|(.*)/EPRT \|1\|/
 </strippart>
@@ -46,6 +49,7 @@ SIZE %TESTNUMBER
 RETR %TESTNUMBER
 QUIT
 </protocol>
+10 is CURLE_FTP_ACCEPT_FAILED
 <errorcode>
 10
 </errorcode>

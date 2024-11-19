@@ -55,9 +55,9 @@ static size_t myreadfunc(char *ptr, size_t size, size_t nmemb, void *stream)
 #define NUM_HEADERS 8
 #define SIZE_HEADERS 5000
 
-static char buf[SIZE_HEADERS + 100];
+static char testbuf[SIZE_HEADERS + 100];
 
-int test(char *URL)
+CURLcode test(char *URL)
 {
   CURL *curl;
   CURLcode res = CURLE_FAILED_INIT;
@@ -77,10 +77,10 @@ int test(char *URL)
   }
 
   for(i = 0; i < NUM_HEADERS; i++) {
-    int len = msnprintf(buf, sizeof(buf), "Header%d: ", i);
-    memset(&buf[len], 'A', SIZE_HEADERS);
-    buf[len + SIZE_HEADERS] = 0; /* null-terminate */
-    hl = curl_slist_append(headerlist,  buf);
+    int len = msnprintf(testbuf, sizeof(testbuf), "Header%d: ", i);
+    memset(&testbuf[len], 'A', SIZE_HEADERS);
+    testbuf[len + SIZE_HEADERS] = 0; /* null-terminate */
+    hl = curl_slist_append(headerlist, testbuf);
     if(!hl)
       goto test_cleanup;
     headerlist = hl;
@@ -109,5 +109,5 @@ test_cleanup:
 
   curl_global_cleanup();
 
-  return (int)res;
+  return res;
 }

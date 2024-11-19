@@ -25,6 +25,7 @@
 # These are all libcurl example programs to be test compiled
 check_PROGRAMS = \
   10-at-a-time \
+  address-scope \
   altsvc \
   anyauthput \
   certinfo \
@@ -76,7 +77,10 @@ check_PROGRAMS = \
   imap-ssl \
   imap-store \
   imap-tls \
+  interface \
   ipv6 \
+  keepalive \
+  localport \
   maxconnects  \
   multi-app \
   multi-debugcallback \
@@ -85,6 +89,7 @@ check_PROGRAMS = \
   multi-legacy \
   multi-post \
   multi-single \
+  netrc \
   parseurl \
   persistent \
   pop3-authzid \
@@ -104,7 +109,9 @@ check_PROGRAMS = \
   postit2-formadd \
   progressfunc \
   protofeats \
+  range \
   resolve \
+  rtsp-options \
   sendrecv \
   sepheaders \
   sftpget \
@@ -129,7 +136,7 @@ check_PROGRAMS = \
   websocket-cb
 
 # These examples require external dependencies that may not be commonly
-# available on POSIX systems, so don't bother attempting to compile them here.
+# available on POSIX systems, so do not bother attempting to compile them here.
 COMPLICATED_EXAMPLES = \
   cacertinmem.c \
   crawler.c \

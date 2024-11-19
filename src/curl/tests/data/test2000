@@ -28,9 +28,9 @@ works
 ftp
 file
 </server>
- <name>
+<name>
 FTP RETR followed by FILE
- </name>
+</name>
 <command option="no-include">
 ftp://%HOSTIP:%FTPPORT/%TESTNUMBER file://localhost%FILE_PWD/%LOGDIR/test%TESTNUMBER.txt
 </command>
@@ -46,6 +46,9 @@ moo
 #
 # Verify data after the test has been "shot"
 <verify>
+<strip>
+QUIT
+</strip>
 <protocol>
 USER anonymous
 PASS ftp@example.com

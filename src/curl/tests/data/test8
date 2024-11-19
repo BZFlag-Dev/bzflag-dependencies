@@ -21,10 +21,10 @@ Server: test-server/fake
 <server>
 http
 </server>
- <name>
+<name>
 HTTP with cookie parsing from header file
- </name>
- <command>
+</name>
+<command>
 http://%HOSTIP:%HTTPPORT/we/want/%TESTNUMBER -b %LOGDIR/heads%TESTNUMBER.txt
 </command>
 
@@ -79,7 +79,7 @@ Set-Cookie: cookie31=%hex[%7f-junk]hex%
 
 </file>
 <precheck>
-perl -e 'if ("%HOSTIP" !~ /\.0\.0\.1$/) {print "Test only works for HOSTIPs ending with .0.0.1"; exit(1)}'
+%PERL -e 'if ("%HOSTIP" !~ /\.0\.0\.1$/) {print "Test only works for HOSTIPs ending with .0.0.1"; exit(1)}'
 </precheck>
 <features>
 cookies

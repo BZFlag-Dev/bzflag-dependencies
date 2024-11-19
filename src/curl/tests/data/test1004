@@ -35,10 +35,10 @@ proxy
 <server>
 http
 </server>
- <name>
+<name>
 HTTP GET with empty proxy
- </name>
- <command>
+</name>
+<command>
 http://%HOSTIP:%HTTPPORT/%TESTNUMBER --proxy ""
 </command>
 </client>
@@ -53,8 +53,5 @@ User-Agent: curl/%VERSION
 Accept: */*
 
 </protocol>
-<valgrind>
-disable
-</valgrind>
 </verify>
 </testcase>

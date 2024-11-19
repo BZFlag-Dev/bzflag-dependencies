@@ -26,10 +26,10 @@ REPLY ACCT 230 thank you
 <server>
 ftp
 </server>
- <name>
+<name>
 FTP RETR with ACCT
- </name>
- <command>
+</name>
+<command>
 ftp://%HOSTIP:%FTPPORT/%TESTNUMBER --ftp-account "one count"
 </command>
 </client>
@@ -37,6 +37,9 @@ ftp://%HOSTIP:%FTPPORT/%TESTNUMBER --ftp-account "one count"
 
 # Verify data after the test has been "shot"
 <verify>
+<strip>
+QUIT
+</strip>
 <protocol>
 USER anonymous
 PASS ftp@example.com

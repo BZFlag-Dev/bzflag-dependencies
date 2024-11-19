@@ -21,16 +21,19 @@ this is file contents
 <server>
 ftp
 </server>
- <name>
+<name>
 FTP download a newer file with -z
- </name>
- <command>
+</name>
+<command>
 ftp://%HOSTIP:%FTPPORT/blalbla/%TESTNUMBER -z "1 jan 1989"
 </command>
 </client>
 
 # Verify data after the test has been "shot"
 <verify>
+<strip>
+QUIT
+</strip>
 <protocol>
 USER anonymous
 PASS ftp@example.com

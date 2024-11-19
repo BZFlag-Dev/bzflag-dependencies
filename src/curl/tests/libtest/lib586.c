@@ -38,8 +38,8 @@ struct userdata {
 };
 
 /* lock callback */
-static void my_lock(CURL *handle, curl_lock_data data,
-                    curl_lock_access laccess, void *useptr)
+static void test_lock(CURL *handle, curl_lock_data data,
+                      curl_lock_access laccess, void *useptr)
 {
   const char *what;
   struct userdata *user = (struct userdata *)useptr;
@@ -69,7 +69,7 @@ static void my_lock(CURL *handle, curl_lock_data data,
 }
 
 /* unlock callback */
-static void my_unlock(CURL *handle, curl_lock_data data, void *useptr)
+static void test_unlock(CURL *handle, curl_lock_data data, void *useptr)
 {
   const char *what;
   struct userdata *user = (struct userdata *)useptr;
@@ -96,7 +96,7 @@ static void my_unlock(CURL *handle, curl_lock_data data, void *useptr)
 }
 
 /* the dummy thread function */
-static void *fire(void *ptr)
+static void *test_fire(void *ptr)
 {
   CURLcode code;
   struct Tdata *tdata = (struct Tdata*)ptr;
@@ -129,9 +129,9 @@ static void *fire(void *ptr)
 }
 
 /* test function */
-int test(char *URL)
+CURLcode test(char *URL)
 {
-  int res;
+  CURLcode res = CURLE_OK;
   CURLSHcode scode = CURLSHE_OK;
   char *url;
   struct Tdata tdata;
@@ -160,11 +160,11 @@ int test(char *URL)
 
   if(CURLSHE_OK == scode) {
     printf("CURLSHOPT_LOCKFUNC\n");
-    scode = curl_share_setopt(share, CURLSHOPT_LOCKFUNC, my_lock);
+    scode = curl_share_setopt(share, CURLSHOPT_LOCKFUNC, test_lock);
   }
   if(CURLSHE_OK == scode) {
     printf("CURLSHOPT_UNLOCKFUNC\n");
-    scode = curl_share_setopt(share, CURLSHOPT_UNLOCKFUNC, my_unlock);
+    scode = curl_share_setopt(share, CURLSHOPT_UNLOCKFUNC, test_unlock);
   }
   if(CURLSHE_OK == scode) {
     printf("CURLSHOPT_USERDATA\n");
@@ -184,8 +184,6 @@ int test(char *URL)
   }
 
 
-  res = 0;
-
   /* start treads */
   for(i = 1; i <= THREADS; i++) {
 
@@ -195,11 +193,11 @@ int test(char *URL)
 
     /* simulate thread, direct call of "thread" function */
     printf("*** run %d\n",i);
-    fire(&tdata);
+    test_fire(&tdata);
   }
 
 
-  /* fetch a another one */
+  /* fetch another one */
   printf("*** run %d\n", i);
   curl = curl_easy_init();
   if(!curl) {
@@ -215,7 +213,7 @@ int test(char *URL)
   test_setopt(curl, CURLOPT_SHARE, share);
 
   printf("PERFORM\n");
-  curl_easy_perform(curl);
+  res = curl_easy_perform(curl);
 
   /* try to free share, expect to fail because share is in use */
   printf("try SHARE_CLEANUP...\n");

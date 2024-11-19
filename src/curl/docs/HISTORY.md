@@ -1,3 +1,9 @@
+<!--
+Copyright (C) Daniel Stenberg, <daniel@haxx.se>, et al.
+
+SPDX-License-Identifier: curl
+-->
+
 How curl Became Like This
 =========================
 
@@ -161,7 +167,7 @@ Starting with 7.10, curl verifies SSL server certificates by default.
 January: Started working on the distributed curl tests. The autobuilds.
 
 February: the curl site averages at 20000 visits weekly. At any given moment,
-there's an average of 3 people browsing the website.
+there is an average of 3 people browsing the website.
 
 Multiple new authentication schemes are supported: Digest (May), NTLM (June)
 and Negotiate (June).
@@ -280,7 +286,7 @@ August:
 
 February: added support for the axTLS backend
 
-April: added the cyassl backend (later renamed to WolfSSL)
+April: added the cyassl backend (later renamed to wolfSSL)
 
 2012
 ----
@@ -327,7 +333,7 @@ April: added the cyassl backend (later renamed to WolfSSL)
 
  January: the curl tool defaults to HTTP/2 for HTTPS URLs
 
- December: curl 7.52.0 introduced support for HTTPS-proxy!
+ December: curl 7.52.0 introduced support for HTTPS-proxy
 
  First TLS 1.3 support
 
@@ -413,14 +419,14 @@ April: added the cyassl backend (later renamed to WolfSSL)
 
  February 3: curl 7.75.0 ships with support for Hyper as an HTTP backend
 
- March 31: curl 7.76.0 ships with support for rustls
+ March 31: curl 7.76.0 ships with support for Rustls
 
  July: HSTS is supported
 
 2022
 ----
 
- March: added --json, removed mesalink support
+March: added --json, removed mesalink support
 
     Public curl releases:         206
     Command line options:         245
@@ -430,3 +436,35 @@ April: added the cyassl backend (later renamed to WolfSSL)
 
  The curl.se website serves 16,500 GB/month over 462M requests, the
  official docker image has been pulled 4,098,015,431 times.
+
+October: initial WebSocket support
+
+2023
+----
+
+March: remove support for curl_off_t < 8 bytes
+
+March 31: we started working on a new command line tool for URL parsing and
+manipulations: trurl.
+
+May: added support for HTTP/2 over HTTPS proxy. Refuse to resolve .onion.
+
+August: Dropped support for the NSS library
+
+September: added "variable" support in the command line tool. Dropped support
+for the gskit TLS library.
+
+October: added support for IPFS via HTTP gateway
+
+December: HTTP/3 support with ngtcp2 is no longer experimental
+
+2024
+----
+
+January: switched to "curldown" for all documentation
+
+April 24: the curl container has been pulled more than six billion times
+
+May: experimental support for ECH
+
+August 9: we adopted the wcurl tool into the curl organization
