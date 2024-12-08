@@ -43,7 +43,7 @@ function buildDeps {
 	ARCH=$1
 	CONF=$2
 
-	OUTPUTROOT=$ORIGROOT/dependencies/output-macOS-$CONF-$ARCH
+	OUTPUTROOT=$ORIGROOT/dependencies/macOS-$CONF-$ARCH
 
 	mkdir -p $OUTPUTROOT
 	mkdir -p $OUTPUTROOT/bin
