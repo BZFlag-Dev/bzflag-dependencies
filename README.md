@@ -16,37 +16,21 @@ Here is a list of the upstream source locations:
 * [SDL2](https://libsdl.org/)
 * [zlib](https://github.com/madler/zlib)
 
-## Instructions for Windows
-
-These instructions assume that Visual C++ 2017 is installed.
-
-### Building the libraries
-
-A batch file to build for Visual C++ 2017 is provided. Run the buildVC2017.bat file and it should
-build the libraries. Output will go into a folder such as output-release-x86. Run a 
-'git clean -x -f -d' before switching between Visual C++ versions.
-
-### Using the libraries
-
-Create an environment variable called BZ_DEPS that points to the directory that the output
-directories are contained within. For instance, if output-release-x86 is at
-'D:\bzflag-dependencies\output-release-x86', then BZ_DEPS should be 'D:\bzflag-dependencies\'.
-
-## Instructions for macOS
-
-These instructions assume that Xcode is installed. Additionally, autoconf and automake from homebrew are currently
-needed to build c-ares.
-
-### Building the libraries
-
-Open a terminal and change to the directory containing the buildmacOS.sh script. Run the script.
-
-### Using the libraries
-
-Copy the "dependencies" folder to the game source code directory. It should be alongside include and src.
-
-## Updating the libraries
-
 When new versions of these dependencies are released, we should update our copies. Just delete the contents and replace
 with the new contents of the source tars (not zips). This should be done on a Linux or macOS system so that the execute
 permission on scripts is preserved.
+
+## Requirements
+
+On Windows, you must have Visual Studio 2017 installed with at least "Desktop development with C++".
+
+For macOS, you must have Xcode installed. Additionally, autoconf and automake from homebrew are currently needed to
+build c-ares.
+
+## Building the libraries
+
+On Windows, run buildVC2017.bat. On macOS, run buildmacOS.sh.
+
+## Using the libraries
+
+Copy the "dependencies" folder to the game source code directory. It should be alongside include and src.
