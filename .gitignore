@@ -1,6 +1,7 @@
 # Output directories
 /output-*/
 /licenses/
+/dependencies/
 
 # PDCurses build files
 src/pdcurses/wincon/*.obj
@@ -45,3 +46,4 @@ src/SDL2/VisualC/tests/*/*.dat
 # Other Visual C++ files
 *.VC.db
 *.suo
+

@@ -17,6 +17,18 @@ if [[ "$ORIGROOT" != "$ESCAPEDORIGROOT" ]] ; then
 	echo
 fi
 
+# Ensure we have autoconf and automake
+if ! command -v autoconf 2>&1 >/dev/null
+then
+	echo "ERROR: autoconf is not installed"
+	exit 1
+fi
+if ! command -v automake 2>&1 >/dev/null
+then
+	echo "ERROR: automake is not installed"
+	exit 1
+fi
+
 function printHeading {
 	if [[ "$#" -gt 0 ]] ; then
 		NUM_CHARS="$(echo -n "$1" | wc -c)"
@@ -61,6 +73,7 @@ function buildDeps {
 	cd $SRCROOT/c-ares
 
 	cp include/ares_build.h include/ares_build.h.bak &&
+	autoreconf &&
 	if [[ $CONF == "Debug" ]] ; then
 		./configure --prefix=$OUTPUTROOT --host=$BUILD_HOST --disable-shared --disable-tests --enable-debug
 	else
