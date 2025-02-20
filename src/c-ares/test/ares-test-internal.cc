@@ -63,6 +63,28 @@ namespace ares {
 namespace test {
 
 #ifndef CARES_SYMBOL_HIDING
+TEST_F(LibraryTest, StringLength) {
+  const char data[] = "test\0test";
+  size_t n = sizeof data;
+  for(size_t i = 0; i < n; ++i) {
+    EXPECT_EQ(ares_strlen(&data[i]), ares_strnlen(&data[i], n - i));
+  }
+}
+
+TEST_F(LibraryTest, StringLengthNullPointer) {
+  EXPECT_EQ(ares_strlen(NULL), 0);
+  EXPECT_EQ(ares_strnlen(NULL, 0), 0);
+  EXPECT_EQ(ares_strnlen(NULL, 1), 0);
+  EXPECT_EQ(ares_strnlen(NULL, 42), 0);
+}
+
+TEST_F(LibraryTest, StringLengthWithoutNullTerminator) {
+  std::string data = "test";
+  for(size_t i = 0; i < data.length(); ++i) {
+    EXPECT_EQ(ares_strnlen(data.c_str(), i), i);
+  }
+}
+
 void CheckPtoN4(int size, unsigned int value, const char *input) {
   struct in_addr a4;
   a4.s_addr = 0;
@@ -1492,6 +1514,34 @@ TEST_F(LibraryTest, BufSplitStr) {
   EXPECT_TRUE(ares_streq(strs[2], "string3"));
   EXPECT_TRUE(ares_streq(strs[3], "string4"));
   ares_free_array(strs, nstrs, ares_free);
+}
+
+TEST_F(LibraryTest, BufReplace) {
+  ares_buf_t  *buf = NULL;
+  size_t       i;
+  struct {
+    const char *input;
+    const char *srch;
+    const char *rplc;
+    const char *output;
+  } tests[] = {
+    /* Same size */
+    { "nameserver_1.2.3.4\nnameserver_2.3.4.5\n", "_", " ", "nameserver 1.2.3.4\nnameserver 2.3.4.5\n" },
+    /* Longer */
+    { "nameserver_1.2.3.4\nnameserver_2.3.4.5\n", "_", "|||", "nameserver|||1.2.3.4\nnameserver|||2.3.4.5\n" },
+    /* Shorter */
+    { "nameserver_1.2.3.4\nnameserver_2.3.4.5\n", "_", "", "nameserver1.2.3.4\nnameserver2.3.4.5\n" }
+  };
+  char        *str = NULL;
+
+  for (i=0; i<sizeof(tests)/sizeof(*tests); i++) {
+    buf = ares_buf_create();
+    EXPECT_EQ(ARES_SUCCESS, ares_buf_append_str(buf, tests[i].input));
+    EXPECT_EQ(ARES_SUCCESS, ares_buf_replace(buf, (const unsigned char *)tests[i].srch, ares_strlen(tests[i].srch), (const unsigned char *)tests[i].rplc, ares_strlen(tests[i].rplc)));
+    str = ares_buf_finish_str(buf, NULL);
+    EXPECT_STREQ(str, tests[i].output);
+    ares_free(str);
+  }
 }
 
 typedef struct {

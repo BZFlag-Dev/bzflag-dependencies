@@ -356,8 +356,7 @@ sub prepro {
             # The processor does CRLF replacements in the <data*> sections if
             # necessary since those parts might be read by separate servers.
             if($s =~ /^ *<data(.*)\>/) {
-                if($1 =~ /crlf="yes"/ ||
-                   ($feature{"hyper"} && ($keywords{"HTTP"} || $keywords{"HTTPS"}))) {
+                if($1 =~ /crlf="yes"/) {
                     $data_crlf = 1;
                 }
             }
@@ -508,7 +507,7 @@ sub torture {
         if($valgrind && !$gdbthis) {
             my @valgrindoption = getpart("verify", "valgrind");
             if((!@valgrindoption) || ($valgrindoption[0] !~ /disable/)) {
-                my $valgrindcmd = "$valgrind ";
+                my $valgrindcmd = shell_quote($valgrind) . " ";
                 $valgrindcmd .= "$valgrind_tool " if($valgrind_tool);
                 $valgrindcmd .= "--quiet --leak-check=yes ";
                 $valgrindcmd .= "--suppressions=$srcdir/valgrind.supp ";
@@ -779,7 +778,7 @@ sub singletest_prepare {
         my $filename=$fileattr{'name'};
         if(@inputfile || $filename) {
             if(!$filename) {
-                logmsg " $testnum: IGNORED: section client=>file has no name attribute\n";
+                logmsg " $testnum: IGNORED: Section client=>file has no name attribute\n";
                 return -1;
             }
             my $fileContent = join('', @inputfile);
@@ -893,6 +892,18 @@ sub singletest_run {
         if($run_event_based) {
             $cmdargs .= "--test-event ";
             $fail_due_event_based--;
+        }
+        if($run_duphandle) {
+            $cmdargs .= "--test-duphandle ";
+            my @dis = getpart("client", "disable");
+            if(@dis) {
+                chomp $dis[0] if($dis[0]);
+                if($dis[0] eq "test-duphandle") {
+                    # marked to not run with duphandle
+                    logmsg " $testnum: IGNORED: Can't run test-duphandle\n";
+                    return (-1, 0, 0, "", "", 0);
+                }
+            }
         }
         $cmdargs .= $cmd;
         if ($proxy_address) {

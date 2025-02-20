@@ -48,7 +48,7 @@ LIBS = $(BLANK_AT_MAKETIME)
 
 LDADD = $(top_builddir)/src/libcurltool.la   \
         $(top_builddir)/lib/libcurlu.la      \
-        @LDFLAGS@ @LIBCURL_PC_LIBS_PRIVATE@
+        @LIBCURL_PC_LDFLAGS_PRIVATE@ @LIBCURL_PC_LIBS_PRIVATE@
 
 AM_CPPFLAGS += -DCURL_STATICLIB -DUNITTESTS
 
@@ -74,5 +74,8 @@ CS_0 = @echo "  RUN     " $@;
 CS_1 =
 CS_ = $(CS_0)
 
+# ignore generated C files since they play by slightly different rules!
 checksrc:
-	$(CHECKSRC)@PERL@ $(top_srcdir)/scripts/checksrc.pl $(srcdir)/*.[ch]
+	$(CHECKSRC)(@PERL@ $(top_srcdir)/scripts/checksrc.pl -D$(srcdir) \
+	  -W$(srcdir)/unit_bundle.c \
+	  $(srcdir)/*.[ch])

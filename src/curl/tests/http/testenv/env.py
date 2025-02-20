@@ -32,6 +32,7 @@ import socket
 import subprocess
 import tempfile
 from configparser import ConfigParser, ExtendedInterpolation
+from datetime import timedelta
 from typing import Optional
 
 from .certs import CertificateSpec, Credentials, TestCA
@@ -126,7 +127,6 @@ class EnvConfig:
             'ws': socket.SOCK_STREAM,
         })
         self.httpd = self.config['httpd']['httpd']
-        self.apachectl = self.config['httpd']['apachectl']
         self.apxs = self.config['httpd']['apxs']
         if len(self.apxs) == 0:
             self.apxs = None
@@ -143,11 +143,14 @@ class EnvConfig:
         self.domain2 = f"two.{self.tld}"
         self.ftp_domain = f"ftp.{self.tld}"
         self.proxy_domain = f"proxy.{self.tld}"
+        self.expired_domain = f"expired.{self.tld}"
         self.cert_specs = [
             CertificateSpec(domains=[self.domain1, self.domain1brotli, 'localhost', '127.0.0.1'], key_type='rsa2048'),
             CertificateSpec(domains=[self.domain2], key_type='rsa2048'),
             CertificateSpec(domains=[self.ftp_domain], key_type='rsa2048'),
             CertificateSpec(domains=[self.proxy_domain, '127.0.0.1'], key_type='rsa2048'),
+            CertificateSpec(domains=[self.expired_domain], key_type='rsa2048',
+                            valid_from=timedelta(days=-100), valid_to=timedelta(days=-10)),
             CertificateSpec(name="clientsX", sub_specs=[
                CertificateSpec(name="user1", client=True),
             ]),
@@ -253,7 +256,6 @@ class EnvConfig:
 
     def is_complete(self) -> bool:
         return os.path.isfile(self.httpd) and \
-               os.path.isfile(self.apachectl) and \
                self.apxs is not None and \
                os.path.isfile(self.apxs)
 
@@ -262,8 +264,6 @@ class EnvConfig:
             return 'httpd not configured, see `--with-test-httpd=<path>`'
         if not os.path.isfile(self.httpd):
             return f'httpd ({self.httpd}) not found'
-        if not os.path.isfile(self.apachectl):
-            return f'apachectl ({self.apachectl}) not found'
         if self.apxs is None:
             return "command apxs not found (commonly provided in apache2-dev)"
         if not os.path.isfile(self.apxs):
@@ -503,6 +503,10 @@ class Env:
         return self.CONFIG.proxy_domain
 
     @property
+    def expired_domain(self) -> str:
+        return self.CONFIG.expired_domain
+
+    @property
     def http_port(self) -> int:
         return self.CONFIG.ports['http']
 
@@ -569,10 +573,6 @@ class Env:
     @property
     def httpd(self) -> str:
         return self.CONFIG.httpd
-
-    @property
-    def apachectl(self) -> str:
-        return self.CONFIG.apachectl
 
     @property
     def apxs(self) -> str:

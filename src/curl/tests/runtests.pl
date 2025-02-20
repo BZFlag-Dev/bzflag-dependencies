@@ -57,8 +57,7 @@
 # given, this won't be a problem.
 
 use strict;
-# Promote all warnings to fatal
-use warnings FATAL => 'all';
+use warnings;
 use 5.006;
 use POSIX qw(strftime);
 
@@ -591,11 +590,8 @@ sub checksystemfeatures {
                 $feature{"c-ares"} = 1;
                 $resolver="c-ares";
             }
-            if ($libcurl =~ /Hyper/i) {
-                $feature{"hyper"} = 1;
-            }
             if ($libcurl =~ /nghttp2/i) {
-                # nghttp2 supports h2c, hyper does not
+                # nghttp2 supports h2c
                 $feature{"h2c"} = 1;
             }
             if ($libcurl =~ /AppleIDN/) {
@@ -674,11 +670,15 @@ sub checksystemfeatures {
             $feature{"alt-svc"} = $feat =~ /alt-svc/i;
             # HSTS support
             $feature{"HSTS"} = $feat =~ /HSTS/i;
+            $feature{"asyn-rr"} = $feat =~ /asyn-rr/;
             if($feat =~ /AsynchDNS/i) {
-                if(!$feature{"c-ares"}) {
+                if(!$feature{"c-ares"} || $feature{"asyn-rr"}) {
                     # this means threaded resolver
                     $feature{"threaded-resolver"} = 1;
                     $resolver="threaded";
+
+                    # does not count as "real" c-ares
+                    $feature{"c-ares"} = 0;
                 }
             }
             # http2 enabled
@@ -701,6 +701,7 @@ sub checksystemfeatures {
             $feature{"Unicode"} = $feat =~ /Unicode/i;
             # Thread-safe init
             $feature{"threadsafe"} = $feat =~ /threadsafe/i;
+            $feature{"HTTPSRR"} = $feat =~ /HTTPSRR/;
         }
         #
         # Test harness currently uses a non-stunnel server in order to
@@ -823,6 +824,7 @@ sub checksystemfeatures {
     $feature{"headers-api"} = 1;
     $feature{"xattr"} = 1;
     $feature{"large-time"} = 1;
+    $feature{"large-size"} = 1;
     $feature{"sha512-256"} = 1;
     $feature{"local-http"} = servers::localhttp();
     $feature{"codeset-utf8"} = lc(langinfo(CODESET())) eq "utf-8";
@@ -867,11 +869,12 @@ sub checksystemfeatures {
     }
     if($feature{"TrackMemory"} && $feature{"threaded-resolver"}) {
         logmsg("*\n",
-               "*** DISABLES memory tracking when using threaded resolver\n",
+               "*** DISABLES TrackMemory (memory tracking) when using threaded resolver\n",
                "*\n");
     }
 
-    logmsg sprintf("* Env: %s%s%s%s", $valgrind?"Valgrind ":"",
+    logmsg sprintf("* Env: %s%s%s%s%s", $valgrind?"Valgrind ":"",
+                   $run_duphandle?"test-duphandle ":"",
                    $run_event_based?"event-based ":"",
                    $bundle?"bundle ":"",
                    $nghttpx_h3);
@@ -1284,9 +1287,7 @@ sub singletest_check {
             chomp($validstdout[-1]);
         }
 
-        if($hash{'crlf'} ||
-           ($feature{"hyper"} && ($keywords{"HTTP"}
-                           || $keywords{"HTTPS"}))) {
+        if($hash{'crlf'}) {
             subnewlines(0, \$_) for @validstdout;
         }
 
@@ -1324,12 +1325,6 @@ sub singletest_check {
 
         # get the mode attribute
         my $filemode=$hash{'mode'};
-        if($filemode && ($filemode eq "text") && $feature{"hyper"}) {
-            # text mode check in hyper-mode. Sometimes necessary if the stderr
-            # data *looks* like HTTP and thus has gotten CRLF newlines
-            # mistakenly
-            normalize_text(\@validstderr);
-        }
         if($filemode && ($filemode eq "text")) {
             normalize_text(\@validstderr);
             normalize_text(\@actual);
@@ -1432,9 +1427,7 @@ sub singletest_check {
                     # of the datacheck
                     chomp($replycheckpart[-1]);
                 }
-                if($replycheckpartattr{'crlf'} ||
-                   ($feature{"hyper"} && ($keywords{"HTTP"}
-                                   || $keywords{"HTTPS"}))) {
+                if($replycheckpartattr{'crlf'}) {
                     subnewlines(0, \$_) for @replycheckpart;
                 }
                 push(@reply, @replycheckpart);
@@ -1455,9 +1448,7 @@ sub singletest_check {
         if($filemode && ($filemode eq "text")) {
             normalize_text(\@reply);
         }
-        if($replyattr{'crlf'} ||
-           ($feature{"hyper"} && ($keywords{"HTTP"}
-                           || $keywords{"HTTPS"}))) {
+        if($replyattr{'crlf'}) {
             subnewlines(0, \$_) for @reply;
         }
     }
@@ -1550,8 +1541,7 @@ sub singletest_check {
             }
         }
 
-        if($hash{'crlf'} ||
-           ($feature{"hyper"} && ($keywords{"HTTP"} || $keywords{"HTTPS"}))) {
+        if($hash{'crlf'}) {
             subnewlines(0, \$_) for @proxyprot;
         }
 
@@ -1609,9 +1599,7 @@ sub singletest_check {
                 normalize_text(\@outfile);
                 normalize_text(\@generated);
             }
-            if($hash{'crlf'} ||
-               ($feature{"hyper"} && ($keywords{"HTTP"}
-                               || $keywords{"HTTPS"}))) {
+            if($hash{'crlf'}) {
                 subnewlines(0, \$_) for @outfile;
             }
 
@@ -1687,7 +1675,7 @@ sub singletest_check {
             my %cmdhash = getpartattr("client", "command");
             my $cmdtype = $cmdhash{'type'} || "default";
             logmsg "\n** ALERT! memory tracking with no output file?\n"
-                if(!$cmdtype eq "perl");
+                if($cmdtype ne "perl");
             $ok .= "-"; # problem with memory checking
         }
         else {
@@ -2270,9 +2258,13 @@ while(@ARGV) {
         # have the servers display protocol output
         $debugprotocol=1;
     }
-    elsif($ARGV[0] eq "-e") {
+    elsif(($ARGV[0] eq "-e") || ($ARGV[0] eq "--test-event")) {
         # run the tests cases event based if possible
         $run_event_based=1;
+    }
+    elsif($ARGV[0] eq "--test-duphandle") {
+        # run the tests with --test-duphandle
+        $run_duphandle=1;
     }
     elsif($ARGV[0] eq "-f") {
         # force - run the test case even if listed in DISABLED
@@ -2446,7 +2438,8 @@ Usage: runtests.pl [options] [test selection(s)]
   -bundle  use test bundles
   -c path  use this curl executable
   -d       display server debug info
-  -e       event-based execution
+  -e, --test-event  event-based execution
+  --test-duphandle  duplicate handles before use
   -E file  load the specified file to exclude certain tests
   -f       forcibly run even if disabled
   -g       run the test case with gdb

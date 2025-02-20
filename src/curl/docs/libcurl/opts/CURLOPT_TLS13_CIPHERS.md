@@ -15,7 +15,6 @@ Protocol:
   - TLS
 TLS-backend:
   - OpenSSL
-  - Schannel
   - wolfSSL
   - mbedTLS
   - rustls
@@ -84,7 +83,6 @@ int main(void)
 # HISTORY
 
 OpenSSL support added in 7.61.0, available when built with OpenSSL \>= 1.1.1.
-Schannel support added in 7.85.0.
 LibreSSL support added in 8.3.0, available when built with LibreSSL \>= 3.4.1.
 wolfSSL support added in 8.10.0.
 mbedTLS support added in 8.10.0, available when built with mbedTLS \>= 3.6.0.
@@ -97,4 +95,7 @@ by using the CURLOPT_SSL_CIPHER_LIST(3) option.
 
 # RETURN VALUE
 
-Returns CURLE_OK if supported, CURLE_NOT_BUILT_IN otherwise.
+curl_easy_setopt(3) returns a CURLcode indicating success or error.
+
+CURLE_OK (0) means everything was OK, non-zero means an error occurred, see
+libcurl-errors(3).

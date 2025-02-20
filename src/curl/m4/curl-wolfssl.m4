@@ -39,6 +39,7 @@ esac
 if test "x$OPT_WOLFSSL" != xno; then
   _cppflags=$CPPFLAGS
   _ldflags=$LDFLAGS
+  _ldflagspc=$LDFLAGSPC
 
   ssl_msg=
 
@@ -78,6 +79,7 @@ if test "x$OPT_WOLFSSL" != xno; then
     if test "x$USE_WOLFSSL" != "xyes"; then
 
       LDFLAGS="$LDFLAGS $addld"
+      LDFLAGSPC="$LDFLAGSPC $addld"
       AC_MSG_NOTICE([Add $addld to LDFLAGS])
       if test "$addcflags" != "-I/usr/include"; then
         CPPFLAGS="$CPPFLAGS $addcflags"
@@ -103,7 +105,6 @@ if test "x$OPT_WOLFSSL" != xno; then
       ],[
         AC_MSG_RESULT(yes)
         AC_DEFINE(USE_WOLFSSL, 1, [if wolfSSL is enabled])
-        AC_SUBST(USE_WOLFSSL, [1])
         WOLFSSL_ENABLED=1
         USE_WOLFSSL="yes"
         ssl_msg="wolfSSL"
@@ -114,6 +115,7 @@ if test "x$OPT_WOLFSSL" != xno; then
         AC_MSG_RESULT(no)
         CPPFLAGS=$_cppflags
         LDFLAGS=$_ldflags
+        LDFLAGSPC=$_ldflagspc
         wolfssllibpath=""
       ])
       LIBS="$my_ac_save_LIBS"
