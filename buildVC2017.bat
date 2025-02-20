@@ -136,9 +136,9 @@ cd "%srcroot%\curl"
 cd "%srcroot%\curl\winbuild"
 
 if "%CONF%" == "debug" (
-	nmake -f Makefile.vc mode=dll VC=15 WITH_DEVEL="%outputroot%" WITH_ZLIB=dll WITH_CARES=dll ENABLE_IDN=no ENABLE_SCHANNEL=yes GEN_PDB=no DEBUG=yes MACHINE=%ARCH%
+	nmake -f Makefile.vc mode=dll WINBUILD_ACKNOWLEDGE_DEPRECATED=yes VC=15 WITH_DEVEL="%outputroot%" WITH_ZLIB=dll WITH_CARES=dll ENABLE_IDN=no ENABLE_SCHANNEL=yes GEN_PDB=no DEBUG=yes MACHINE=%ARCH%
 ) else (
-	nmake -f Makefile.vc mode=dll VC=15 WITH_DEVEL="%outputroot%" WITH_ZLIB=dll WITH_CARES=dll ENABLE_IDN=no ENABLE_SCHANNEL=yes GEN_PDB=no DEBUG=no MACHINE=%ARCH%
+	nmake -f Makefile.vc mode=dll WINBUILD_ACKNOWLEDGE_DEPRECATED=yes VC=15 WITH_DEVEL="%outputroot%" WITH_ZLIB=dll WITH_CARES=dll ENABLE_IDN=no ENABLE_SCHANNEL=yes GEN_PDB=no DEBUG=no MACHINE=%ARCH%
 )
 
 set CURL_RESULT=%ERRORLEVEL%
