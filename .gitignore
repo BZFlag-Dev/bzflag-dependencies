@@ -47,3 +47,5 @@ src/SDL2/VisualC/tests/*/*.dat
 *.VC.db
 *.suo
 
+# macOS Finder files
+.DS_Store
